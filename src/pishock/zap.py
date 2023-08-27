@@ -43,6 +43,12 @@ class NotAuthorizedError(APIError):
     TEXT = "Not Authorized."
 
 
+class ShockerPausedError(APIError):
+    """API returned: Shocker is Paused or does not exist. Unpause to send command."""
+
+    TEXT = "Shocker is Paused or does not exist. Unpause to send command."
+
+
 class HTTPError(APIError):
     """Invalid HTTP status from the API."""
 
@@ -109,6 +115,7 @@ class Shocker:
             NotAuthorizedError,
             ShareCodeNotFoundError,
             ShareCodeAlreadyUsedError,
+            ShockerPausedError,
         ]
     }
 
