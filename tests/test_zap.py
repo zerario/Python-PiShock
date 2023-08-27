@@ -53,7 +53,12 @@ def account(credentials: Credentials) -> zap.Account:
 
 @pytest.fixture
 def shocker(account: zap.Account, credentials: Credentials) -> zap.Shocker:
-    return zap.Shocker(account=account, sharecode=credentials.sharecode)
+    s = zap.Shocker(account=account, sharecode=credentials.sharecode)
+    info = s.info()
+    if info.is_paused:
+        s.pause(False)
+    yield s
+    s.pause(info.is_paused)
 
 
 def test_account_repr(account: zap.Account, credentials: Credentials):
@@ -119,3 +124,10 @@ def test_unknown_share_code(account: zap.Account):
     shocker = zap.Shocker(account=account, sharecode="wrong")
     with pytest.raises(zap.ShareCodeNotFoundError):
         shocker.shock(duration=1, intensity=2)
+
+
+@pytest.mark.vcr
+@pytest.mark.parametrize("pause", [True, False])
+def test_pause(shocker: zap.Shocker, pause: bool):
+    shocker.pause(pause)
+    assert shocker.info().is_paused == pause
