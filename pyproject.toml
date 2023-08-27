@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "pishock"
+version = "0.1.0"
+description = ""
+authors = ["Zerario <derg@zerario.dev>"]
+readme = "README.md"
+packages = [{include = "pishock", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
