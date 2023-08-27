@@ -1,0 +1,37 @@
+interactions:
+- request:
+    body: '{"Username": "Zerario", "Name": "random", "Code": "wrong", "Duration":
+      1, "Op": 0, "Intensity": 2, "Apikey": "PISHOCK-APIKEY"}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '148'
+      Content-Type:
+      - application/json
+      User-Agent:
+      - python-requests/2.31.0
+    method: POST
+    uri: https://do.pishock.com/api/apioperate
+  response:
+    body:
+      string: This code doesn't exist.
+    headers:
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/plain; charset=utf-8
+      Date:
+      - Sun, 27 Aug 2023 21:17:58 GMT
+      Server:
+      - nginx/1.14.0 (Ubuntu)
+      Transfer-Encoding:
+      - chunked
+    status:
+      code: 200
+      message: OK
+version: 1
