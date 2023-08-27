@@ -7,6 +7,13 @@ from typing import Any
 
 import requests
 
+# TODO:
+# - vcr -> responses
+# - GetShockers with dumbed down ShockerInfo
+# - Actually use HTTPError
+# - Better error classes for endpoints using 403/404
+
+
 
 class Operation(enum.Enum):
     SHOCK = 0
@@ -44,13 +51,26 @@ class UnknownError(APIError):
     """Unknown message returned from the API."""
 
 
-class Account:
+class API:
     def __init__(self, username: str, apikey: str) -> None:
         self.username = username
         self.apikey = apikey
 
     def __repr__(self) -> str:
-        return f"Account(username={self.username!r}, apikey=...)"
+        return f"API(username={self.username!r}, apikey=...)"
+
+    def request(self, endpoint: str, params: dict[str, Any]) -> requests.Response:
+        params = {
+            "Username": self.username,
+            "Apikey": self.apikey,
+            **params,
+        }
+        response = requests.post(f"https://do.pishock.com/api/{endpoint}", json=params)
+        response.raise_for_status()
+        return response
+
+    def shocker(self, sharecode: str) -> Shocker:
+        return Shocker(api=self, sharecode=sharecode)
 
 
 @dataclasses.dataclass
@@ -92,8 +112,8 @@ class Shocker:
         ]
     }
 
-    def __init__(self, account: Account, sharecode: str) -> None:
-        self.account = account
+    def __init__(self, api: API, sharecode: str) -> None:
+        self.api = api
         self.sharecode = sharecode
         self._cached_info: ShockerInfo | None = None
 
@@ -118,18 +138,15 @@ class Shocker:
         assert operation in Operation
 
         params = {
-            "Username": self.account.username,
             "Name": self.NAME,
             "Code": self.sharecode,
-            "Apikey": self.account.apikey,
             "Duration": duration,
             "Op": operation.value,
         }
         if intensity is not None:
             params["Intensity"] = intensity
 
-        response = requests.post("https://do.pishock.com/api/apioperate", json=params)
-        response.raise_for_status()  # FIXME test for 404/403
+        response = self.api.request("apioperate", params)
 
         if response.text in self.ERROR_MESSAGES:
             raise self.ERROR_MESSAGES[response.text](response.text)
@@ -141,13 +158,10 @@ class Shocker:
             self._cached_info = self.info()
 
         params = {
-            "Username": self.account.username,
             "ShockerId": self._cached_info.shocker_id,
-            "Apikey": self.account.apikey,
             "Pause": pause,
         }
-        response = requests.post("https://do.pishock.com/api/PauseShocker", json=params)
-        response.raise_for_status()
+        response = self.api.request("PauseShocker", params)
 
         if response.text == NotAuthorizedError.TEXT:
             raise NotAuthorizedError(response.text)
@@ -155,16 +169,9 @@ class Shocker:
             raise UnknownError(response.text)
 
     def info(self) -> ShockerInfo:
-        params = {
-            "Username": self.account.username,
-            "Code": self.sharecode,
-            "Apikey": self.account.apikey,
-        }
-        response = requests.post(
-            "https://do.pishock.com/api/GetShockerInfo",
-            json=params,
-        )
-        response.raise_for_status()  # FIXME better error classes for 403/404?
+        params = {"Code": self.sharecode}
+        response = self.api.request("GetShockerInfo", params)
+
         try:
             data = response.json()
         except json.JSONDecodeError:

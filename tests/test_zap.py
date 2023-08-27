@@ -47,13 +47,13 @@ def credentials() -> Credentials:
 
 
 @pytest.fixture
-def account(credentials: Credentials) -> zap.Account:
-    return zap.Account(username=credentials.username, apikey=credentials.apikey)
+def api(credentials: Credentials) -> zap.API:
+    return zap.API(username=credentials.username, apikey=credentials.apikey)
 
 
 @pytest.fixture
-def shocker(account: zap.Account, credentials: Credentials) -> zap.Shocker:
-    s = zap.Shocker(account=account, sharecode=credentials.sharecode)
+def shocker(api: zap.API, credentials: Credentials) -> zap.Shocker:
+    s = api.shocker(credentials.sharecode)
     info = s.info()
     if info.is_paused:
         s.pause(False)
@@ -61,8 +61,8 @@ def shocker(account: zap.Account, credentials: Credentials) -> zap.Shocker:
     s.pause(info.is_paused)
 
 
-def test_account_repr(account: zap.Account, credentials: Credentials):
-    assert repr(account) == f"Account(username='{credentials.username}', apikey=...)"
+def test_api_repr(api: zap.API, credentials: Credentials):
+    assert repr(api) == f"API(username='{credentials.username}', apikey=...)"
 
 
 @pytest.mark.vcr
@@ -113,15 +113,15 @@ def test_beep_no_intensity(shocker: zap.Shocker):
 
 @pytest.mark.vcr(filter_post_data_parameters=[])
 def test_unauthorized(credentials: Credentials):
-    account = zap.Account(username=credentials.username, apikey="wrong")
-    shocker = zap.Shocker(account=account, sharecode="wrong")
+    api = zap.API(username=credentials.username, apikey="wrong")
+    shocker = api.shocker(sharecode="wrong")
     with pytest.raises(zap.NotAuthorizedError):
         shocker.shock(duration=1, intensity=2)
 
 
 @pytest.mark.vcr(filter_post_data_parameters=[("Apikey", "PISHOCK-APIKEY")])
-def test_unknown_share_code(account: zap.Account):
-    shocker = zap.Shocker(account=account, sharecode="wrong")
+def test_unknown_share_code(api: zap.API):
+    shocker = api.shocker(sharecode="wrong")
     with pytest.raises(zap.ShareCodeNotFoundError):
         shocker.shock(duration=1, intensity=2)
 
