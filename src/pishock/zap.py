@@ -7,6 +7,11 @@ class Shocker:
     OP_VIBRATE = 1
     OP_BEEP = 2
 
+    SUCCESS_MESSAGES = [
+        "Operation Succeeded.",
+        "Operation Attempted.",
+    ]
+
     def __init__(self, username: str, apikey: str, sharecode: str) -> None:
         self.username = username
         self.apikey = apikey
@@ -47,7 +52,7 @@ class Shocker:
             "https://do.pishock.com/api/apioperate", json=params
         )
 
-        if response.status_code == 200 and response.text == "Operation Succeeded.":
+        if response.status_code == 200 and response.text in self.SUCCESS_MESSAGES:
             return True
 
         print(f"{response.status_code}: {response.text}")
