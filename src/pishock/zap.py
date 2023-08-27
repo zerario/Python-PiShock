@@ -1,12 +1,16 @@
+import enum
+
 import requests
+
+class Operation(enum.Enum):
+
+    SHOCK = 0
+    VIBRATE = 1
+    BEEP = 2
 
 class Shocker:
 
     NAME = "random"
-    OP_SHOCK = 0
-    OP_VIBRATE = 1
-    OP_BEEP = 2
-
     SUCCESS_MESSAGES = [
         "Operation Succeeded.",
         "Operation Attempted.",
@@ -18,15 +22,15 @@ class Shocker:
         self.sharecode = sharecode
 
     def shock(self, duration: int, intensity: int) -> bool:
-        return self._call(self.OP_SHOCK, duration=duration, intensity=intensity)
+        return self._call(Operation.SHOCK, duration=duration, intensity=intensity)
 
     def vibrate(self, duration: int, intensity: int) -> bool:
-        return self._call(self.OP_VIBRATE, duration=duration, intensity=intensity)
+        return self._call(Operation.VIBRATE, duration=duration, intensity=intensity)
 
     def beep(self, duration: int) -> bool:
-        return self._call(self.OP_BEEP, duration=duration, intensity=None)
+        return self._call(Operation.BEEP, duration=duration, intensity=None)
 
-    def _call(self, operation: int, duration: int, intensity: int | None) -> bool:
+    def _call(self, operation: Operation, duration: int, intensity: int | None) -> bool:
         if not 0 <= duration <= 15:
             raise ValueError(f"duration needs to be between 0 and 15, not {duration}")
         if intensity is not None and not 0 <= intensity <= 100:
@@ -34,8 +38,8 @@ class Shocker:
                 f"intensity needs to be between 0 and 100, not {intensity}"
             )
 
-        assert (intensity is None) == (operation == self.OP_BEEP)
-        assert operation in [self.OP_BEEP, self.OP_SHOCK, self.OP_VIBRATE]
+        assert (intensity is None) == (operation == Operation.BEEP)
+        assert operation in Operation
 
         params = {
             "Username": self.username,
@@ -43,7 +47,7 @@ class Shocker:
             "Code": self.sharecode,
             "Apikey": self.apikey,
             "Duration": duration,
-            "Op": operation,
+            "Op": operation.value,
         }
         if intensity is not None:
             params["Intensity"] = intensity
