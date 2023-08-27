@@ -2,7 +2,7 @@ import os
 import pytest
 import dataclasses
 
-from pishock.zap import Shocker, Account
+from pishock import zap
 
 
 @dataclasses.dataclass
@@ -47,76 +47,75 @@ def credentials() -> Credentials:
 
 
 @pytest.fixture
-def account(credentials: Credentials) -> Account:
-    return Account(username=credentials.username, apikey=credentials.apikey)
+def account(credentials: Credentials) -> zap.Account:
+    return zap.Account(username=credentials.username, apikey=credentials.apikey)
 
 
 @pytest.fixture
-def shocker(account: Account, credentials: Credentials) -> Shocker:
-    return Shocker(account=account, sharecode=credentials.sharecode)
+def shocker(account: zap.Account, credentials: Credentials) -> zap.Shocker:
+    return zap.Shocker(account=account, sharecode=credentials.sharecode)
 
 
-def test_account_repr(account: Account, credentials: Credentials):
+def test_account_repr(account: zap.Account, credentials: Credentials):
     assert repr(account) == f"Account(username='{credentials.username}', apikey=...)"
 
 
 @pytest.mark.vcr
-def test_vibrate(shocker: Shocker):
-    ok = shocker.vibrate(duration=1, intensity=2)
-    assert ok
+def test_vibrate(shocker: zap.Shocker):
+    shocker.vibrate(duration=1, intensity=2)
 
 
 @pytest.mark.vcr
-def test_shock(shocker: Shocker):
-    ok = shocker.shock(duration=1, intensity=2)
-    assert ok
+def test_shock(shocker: zap.Shocker):
+    shocker.shock(duration=1, intensity=2)
 
 
 @pytest.mark.vcr
-def test_beep(shocker: Shocker):
-    ok = shocker.beep(duration=1)
-    assert ok
+def test_beep(shocker: zap.Shocker):
+    shocker.beep(duration=1)
 
 
 @pytest.mark.parametrize("duration", [-1, 16])
 class TestInvalidDuration:
-    def test_vibrate(self, shocker: Shocker, duration: int):
+    def test_vibrate(self, shocker: zap.Shocker, duration: int):
         with pytest.raises(ValueError, match="duration needs to be between 0 and 15"):
             shocker.vibrate(duration=duration, intensity=2)
 
-    def test_shock(self, shocker: Shocker, duration: int):
+    def test_shock(self, shocker: zap.Shocker, duration: int):
         with pytest.raises(ValueError, match="duration needs to be between 0 and 15"):
             shocker.shock(duration=duration, intensity=2)
 
-    def test_beep(self, shocker: Shocker, duration: int):
+    def test_beep(self, shocker: zap.Shocker, duration: int):
         with pytest.raises(ValueError, match="duration needs to be between 0 and 15"):
             shocker.beep(duration=duration)
 
 
 @pytest.mark.parametrize("intensity", [-1, 101])
 class TestInvalidIntensity:
-    def test_vibrate(self, shocker: Shocker, intensity: int):
+    def test_vibrate(self, shocker: zap.Shocker, intensity: int):
         with pytest.raises(ValueError, match="intensity needs to be between 0 and 100"):
             shocker.vibrate(duration=1, intensity=intensity)
 
-    def test_shock(self, shocker: Shocker, intensity: int):
+    def test_shock(self, shocker: zap.Shocker, intensity: int):
         with pytest.raises(ValueError, match="intensity needs to be between 0 and 100"):
             shocker.shock(duration=1, intensity=intensity)
 
 
-def test_beep_no_intensity(shocker: Shocker):
+def test_beep_no_intensity(shocker: zap.Shocker):
     with pytest.raises(TypeError):
         shocker.beep(duration=1, intensity=2)
 
 
 @pytest.mark.vcr(filter_post_data_parameters=[])
 def test_unauthorized(credentials: Credentials):
-    account = Account(username=credentials.username, apikey="wrong")
-    shocker = Shocker(account=account, sharecode="wrong")
-    assert not shocker.shock(duration=1, intensity=2)
+    account = zap.Account(username=credentials.username, apikey="wrong")
+    shocker = zap.Shocker(account=account, sharecode="wrong")
+    with pytest.raises(zap.NotAuthorizedError):
+        shocker.shock(duration=1, intensity=2)
 
 
 @pytest.mark.vcr(filter_post_data_parameters=[("Apikey", "PISHOCK-APIKEY")])
-def test_unknown_share_code(account: Account):
-    shocker = Shocker(account=account, sharecode="wrong")
-    assert not shocker.shock(duration=1, intensity=2)
+def test_unknown_share_code(account: zap.Account):
+    shocker = zap.Shocker(account=account, sharecode="wrong")
+    with pytest.raises(zap.ShareCodeNotFoundError):
+        shocker.shock(duration=1, intensity=2)

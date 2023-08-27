@@ -9,6 +9,32 @@ class Operation(enum.Enum):
     BEEP = 2
 
 
+class APIError(Exception):
+    """Base class for all errors returned by the API."""
+
+
+class ShareCodeAlreadyUsedError(APIError):
+    """API returned: This share code has already been used by somebody else."""
+
+
+class ShareCodeNotFoundError(APIError):
+    """API returned: This code doesn't exist."""
+
+
+class NotAuthorizedError(APIError):
+    """API returned: Not Authorized."""
+
+
+class HTTPError(APIError):
+    """Invalid HTTP status from the API."""
+
+
+class UnknownError(APIError):
+    """Unknown message returned from the API."""
+
+
+
+
 class Account:
 
     def __init__(self, username: str, apikey: str) -> None:
@@ -26,21 +52,27 @@ class Shocker:
         "Operation Succeeded.",
         "Operation Attempted.",
     ]
+    ERROR_MESSAGES = {
+        "Not Authorized.": NotAuthorizedError,
+        "This code doesn't exist.": ShareCodeNotFoundError,
+        "This share code has already been used by somebody else.":
+            ShareCodeAlreadyUsedError,
+    }
 
     def __init__(self, account: Account, sharecode: str) -> None:
         self.account = account
         self.sharecode = sharecode
 
-    def shock(self, duration: int, intensity: int) -> bool:
+    def shock(self, duration: int, intensity: int) -> None:
         return self._call(Operation.SHOCK, duration=duration, intensity=intensity)
 
-    def vibrate(self, duration: int, intensity: int) -> bool:
+    def vibrate(self, duration: int, intensity: int) -> None:
         return self._call(Operation.VIBRATE, duration=duration, intensity=intensity)
 
-    def beep(self, duration: int) -> bool:
+    def beep(self, duration: int) -> None:
         return self._call(Operation.BEEP, duration=duration, intensity=None)
 
-    def _call(self, operation: Operation, duration: int, intensity: int | None) -> bool:
+    def _call(self, operation: Operation, duration: int, intensity: int | None) -> None:
         if not 0 <= duration <= 15:
             raise ValueError(f"duration needs to be between 0 and 15, not {duration}")
         if intensity is not None and not 0 <= intensity <= 100:
@@ -65,9 +97,11 @@ class Shocker:
         response = requests.post(
             "https://do.pishock.com/api/apioperate", json=params
         )
+        response.raise_for_status()
 
-        if response.status_code == 200 and response.text in self.SUCCESS_MESSAGES:
-            return True
-
-        print(f"{response.status_code}: {response.text}")
-        return False
+        if response.text in self.SUCCESS_MESSAGES:
+            pass
+        elif response.text in self.ERROR_MESSAGES:
+            raise self.ERROR_MESSAGES[response.text](response.text)
+        else:
+            raise UnknownError(response.text)
