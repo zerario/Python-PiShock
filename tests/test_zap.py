@@ -2,7 +2,7 @@ import os
 import pytest
 import dataclasses
 
-from pishock.zap import Shocker
+from pishock.zap import Shocker, Account
 
 
 @dataclasses.dataclass
@@ -47,12 +47,17 @@ def credentials() -> Credentials:
 
 
 @pytest.fixture
-def shocker(credentials: Credentials) -> Shocker:
-    return Shocker(
-        username=credentials.username,
-        apikey=credentials.apikey,
-        sharecode=credentials.sharecode,
-    )
+def account(credentials: Credentials) -> Account:
+    return Account(username=credentials.username, apikey=credentials.apikey)
+
+
+@pytest.fixture
+def shocker(account: Account, credentials: Credentials) -> Shocker:
+    return Shocker(account=account, sharecode=credentials.sharecode)
+
+
+def test_account_repr(account: Account, credentials: Credentials):
+    assert repr(account) == f"Account(username='{credentials.username}', apikey=...)"
 
 
 @pytest.mark.vcr
@@ -106,15 +111,12 @@ def test_beep_no_intensity(shocker: Shocker):
 
 @pytest.mark.vcr(filter_post_data_parameters=[])
 def test_unauthorized(credentials: Credentials):
-    shocker = Shocker(username=credentials.username, apikey="wrong", sharecode="wrong")
+    account = Account(username=credentials.username, apikey="wrong")
+    shocker = Shocker(account=account, sharecode="wrong")
     assert not shocker.shock(duration=1, intensity=2)
 
 
 @pytest.mark.vcr(filter_post_data_parameters=[("Apikey", "PISHOCK-APIKEY")])
-def test_unknown_share_code(credentials: Credentials):
-    shocker = Shocker(
-        username=credentials.username,
-        apikey=credentials.apikey,
-        sharecode="wrong",
-    )
+def test_unknown_share_code(account: Account):
+    shocker = Shocker(account=account, sharecode="wrong")
     assert not shocker.shock(duration=1, intensity=2)

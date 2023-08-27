@@ -8,6 +8,17 @@ class Operation(enum.Enum):
     VIBRATE = 1
     BEEP = 2
 
+
+class Account:
+
+    def __init__(self, username: str, apikey: str) -> None:
+        self.username = username
+        self.apikey = apikey
+
+    def __repr__(self) -> str:
+        return f"Account(username={self.username!r}, apikey=...)"
+
+
 class Shocker:
 
     NAME = "random"
@@ -16,9 +27,8 @@ class Shocker:
         "Operation Attempted.",
     ]
 
-    def __init__(self, username: str, apikey: str, sharecode: str) -> None:
-        self.username = username
-        self.apikey = apikey
+    def __init__(self, account: Account, sharecode: str) -> None:
+        self.account = account
         self.sharecode = sharecode
 
     def shock(self, duration: int, intensity: int) -> bool:
@@ -42,10 +52,10 @@ class Shocker:
         assert operation in Operation
 
         params = {
-            "Username": self.username,
+            "Username": self.account.username,
             "Name": self.NAME,
             "Code": self.sharecode,
-            "Apikey": self.apikey,
+            "Apikey": self.account.apikey,
             "Duration": duration,
             "Op": operation.value,
         }
