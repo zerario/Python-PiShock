@@ -8,7 +8,6 @@ from typing import Any
 import requests
 
 # TODO:
-# - vcr -> responses
 # - GetShockers with dumbed down ShockerInfo
 # - Actually use HTTPError
 # - Better error classes for endpoints using 403/404
@@ -115,6 +114,7 @@ class Shocker:
         "Operation Succeeded.",
         "Operation Attempted.",
     ]
+    SUCCESS_MESSAGE_PAUSE = "Operation Successful, Probably."  # ...shrug
     ERROR_MESSAGES = {
         cls.TEXT: cls
         for cls in [
@@ -179,7 +179,7 @@ class Shocker:
 
         if response.text == NotAuthorizedError.TEXT:
             raise NotAuthorizedError(response.text)
-        elif response.text != "Operation Successful, Probably.":  # ...shrug
+        elif response.text != self.SUCCESS_MESSAGE_PAUSE:
             raise UnknownError(response.text)
 
     def info(self) -> ShockerInfo:
