@@ -11,6 +11,7 @@ class APIURLs:
     OPERATE = "https://do.pishock.com/api/apioperate"
     PAUSE = "https://do.pishock.com/api/PauseShocker"
     SHOCKER_INFO = "https://do.pishock.com/api/GetShockerInfo"
+    GET_SHOCKERS = "https://do.pishock.com/api/GetShockers"
 
 
 def get_operate_matchers(**kwargs):
@@ -301,3 +302,56 @@ def test_info_invalid(shocker: zap.Shocker, responses: RequestsMock):
     )
     with pytest.raises(zap.UnknownError, match=message):
         shocker.info()
+
+
+def test_get_shockers(api: zap.API, responses: RequestsMock):
+    responses.post(
+        APIURLs.GET_SHOCKERS,
+        json=[
+            {"name": "test shocker", "id": 1001, "paused": False},
+            {"name": "test shocker 2", "id": 1002, "paused": True},
+        ],
+        match=[
+            matchers.json_params_matcher(
+                {
+                    "Username": "Zerario",
+                    "Apikey": "PISHOCK-APIKEY",
+                    "ClientId": 1000,
+                }
+            )
+        ],
+    )
+    shockers = api.get_shockers(client_id=1000)
+    assert shockers == [
+        zap.BasicShockerInfo(
+            name="test shocker",
+            client_id=1000,
+            shocker_id=1001,
+            is_paused=False,
+        ),
+        zap.BasicShockerInfo(
+            name="test shocker 2",
+            client_id=1000,
+            shocker_id=1002,
+            is_paused=True,
+        ),
+    ]
+
+
+def test_get_shockers_invalid(api: zap.API, responses: RequestsMock):
+    message = "Not JSON lol"
+    responses.post(
+        APIURLs.GET_SHOCKERS,
+        body=message,
+        match=[
+            matchers.json_params_matcher(
+                {
+                    "Username": "Zerario",
+                    "Apikey": "PISHOCK-APIKEY",
+                    "ClientId": 1000,
+                }
+            )
+        ],
+    )
+    with pytest.raises(zap.UnknownError, match=message):
+        api.get_shockers(client_id=1000)

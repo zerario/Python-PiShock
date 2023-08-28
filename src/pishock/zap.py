@@ -8,7 +8,6 @@ from typing import Any
 import requests
 
 # TODO:
-# - GetShockers with dumbed down ShockerInfo
 # - Actually use HTTPError
 # - Better error classes for endpoints using 403/404
 
@@ -83,20 +82,42 @@ class API:
     def shocker(self, sharecode: str) -> Shocker:
         return Shocker(api=self, sharecode=sharecode)
 
+    def get_shockers(self, client_id: int) -> list[BasicShockerInfo]:
+        params = {"ClientId": client_id}
+        response = self.request("GetShockers", params)
+
+        try:
+            data = response.json()
+        except json.JSONDecodeError:
+            raise UnknownError(response.text)
+        return [BasicShockerInfo.from_api_dict(d, client_id=client_id) for d in data]
+
 
 @dataclasses.dataclass
-class ShockerInfo:
+class BasicShockerInfo:
     name: str
     client_id: int
     shocker_id: int
     is_paused: bool
+
+    @classmethod
+    def from_api_dict(cls, data: dict[str, Any], client_id: int) -> BasicShockerInfo:
+        return cls(
+            name=data["name"],
+            client_id=client_id,
+            shocker_id=data["id"],
+            is_paused=data["paused"],
+        )
+
+
+@dataclasses.dataclass
+class ShockerInfo(BasicShockerInfo):
     is_online: bool
     max_intensity: int
     max_duration: int
 
     @classmethod
     def from_api_dict(cls, data: dict[str, Any]) -> ShockerInfo:
-        print(data)
         return cls(
             name=data["name"],
             client_id=data["clientId"],
