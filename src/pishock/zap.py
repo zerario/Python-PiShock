@@ -8,7 +8,6 @@ from typing import Any
 import requests
 
 # TODO:
-# - Actually use HTTPError
 # - Better error classes for endpoints using 403/404
 
 
@@ -55,6 +54,10 @@ class DeviceNotConnectedError(APIError):
 class HTTPError(APIError):
     """Invalid HTTP status from the API."""
 
+    def __init__(self, requests_error: requests.HTTPError) -> None:
+        self.body = requests_error.response.text
+        self.status_code = requests_error.response.status_code
+
 
 class UnknownError(APIError):
     """Unknown message returned from the API."""
@@ -75,7 +78,12 @@ class API:
             **params,
         }
         response = requests.post(f"https://do.pishock.com/api/{endpoint}", json=params)
-        response.raise_for_status()
+
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            raise HTTPError(e) from e
+
         return response
 
     def shocker(self, sharecode: str) -> Shocker:

@@ -1,5 +1,6 @@
 import os
 import dataclasses
+import http
 
 import pytest
 from responses import RequestsMock, matchers
@@ -8,10 +9,11 @@ from pishock import zap
 
 
 class APIURLs:
-    OPERATE = "https://do.pishock.com/api/apioperate"
-    PAUSE = "https://do.pishock.com/api/PauseShocker"
-    SHOCKER_INFO = "https://do.pishock.com/api/GetShockerInfo"
-    GET_SHOCKERS = "https://do.pishock.com/api/GetShockers"
+    BASE = "https://do.pishock.com/api"
+    OPERATE = f"{BASE}/apioperate"
+    PAUSE = f"{BASE}/PauseShocker"
+    SHOCKER_INFO = f"{BASE}/GetShockerInfo"
+    GET_SHOCKERS = f"{BASE}/GetShockers"
 
 
 def get_operate_matchers(**kwargs):
@@ -81,6 +83,21 @@ def shocker(api: zap.API, credentials: Credentials) -> zap.Shocker:
 
 def test_api_repr(api: zap.API, credentials: Credentials):
     assert repr(api) == f"API(username='{credentials.username}', apikey=...)"
+
+
+def test_api_not_found(api: zap.API, responses: RequestsMock):
+    status = http.HTTPStatus.NOT_FOUND
+    responses.add(
+        responses.POST,
+        APIURLs.OPERATE,
+        body=status.description,
+        status=status,
+    )
+    with pytest.raises(zap.HTTPError) as excinfo:
+        api.request("apioperate", {})
+
+    assert excinfo.value.body == status.description
+    assert excinfo.value.status_code == status
 
 
 @pytest.mark.parametrize("success_msg", zap.Shocker.SUCCESS_MESSAGES)
