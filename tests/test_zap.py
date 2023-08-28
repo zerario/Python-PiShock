@@ -166,21 +166,26 @@ def test_unknown_share_code(api: zap.API, responses: RequestsMock):
         shocker.vibrate(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("was_paused", [True, False])
-@pytest.mark.parametrize("pause", [True, False])
-def test_pause(
-    shocker: zap.Shocker,
-    responses: RequestsMock,
-    was_paused: bool,
-    pause: bool,
-):
+def test_unknown_error(shocker: zap.Shocker, api: zap.API, responses: RequestsMock):
+    message = "Failed to frobnicate the zap."
+    responses.post(
+        APIURLs.OPERATE,
+        body=message,
+        match=get_operate_matchers(),
+    )
+    with pytest.raises(zap.UnknownError, match=message):
+        shocker.vibrate(duration=1, intensity=2)
+
+
+@pytest.fixture
+def info_setup(responses: RequestsMock) -> None:
     responses.post(
         APIURLs.SHOCKER_INFO,
         json={
             "name": "test shocker",
-            "clientId": "0001",
-            "id": "0002",
-            "paused": was_paused,
+            "clientId": 1000,
+            "id": 1001,
+            "paused": False,
             "online": True,
             "maxIntensity": 100,
             "maxDuration": 15,
@@ -195,6 +200,15 @@ def test_pause(
             )
         ],
     )
+
+
+@pytest.mark.parametrize("pause", [True, False])
+def test_pause(
+    shocker: zap.Shocker,
+    responses: RequestsMock,
+    info_setup: None,
+    pause: bool,
+):
     responses.post(
         APIURLs.PAUSE,
         body=zap.Shocker.SUCCESS_MESSAGE_PAUSE,
@@ -203,10 +217,87 @@ def test_pause(
                 {
                     "Username": "Zerario",
                     "Apikey": "PISHOCK-APIKEY",
-                    "ShockerId": "0002",
+                    "ShockerId": 1001,
                     "Pause": pause,
                 }
             )
         ],
     )
     shocker.pause(pause)
+
+
+def test_pause_unauthorized(
+    shocker: zap.Shocker,
+    responses: RequestsMock,
+    info_setup: None,
+):
+    responses.post(
+        APIURLs.PAUSE,
+        body=zap.NotAuthorizedError.TEXT,
+        match=[
+            matchers.json_params_matcher(
+                {
+                    "Username": "Zerario",
+                    "Apikey": "PISHOCK-APIKEY",
+                    "ShockerId": 1001,
+                    "Pause": True,
+                }
+            )
+        ],
+    )
+    with pytest.raises(zap.NotAuthorizedError):
+        shocker.pause(True)
+
+
+def test_pause_unknown_error(
+    shocker: zap.Shocker,
+    responses: RequestsMock,
+    info_setup: None,
+):
+    message = "Shocker wanna go brrrrr."
+    responses.post(
+        APIURLs.PAUSE,
+        body=message,
+        match=[
+            matchers.json_params_matcher(
+                {
+                    "Username": "Zerario",
+                    "Apikey": "PISHOCK-APIKEY",
+                    "ShockerId": 1001,
+                    "Pause": True,
+                }
+            )
+        ],
+    )
+    with pytest.raises(zap.UnknownError, match=message):
+        shocker.pause(True)
+
+
+def test_info(shocker: zap.Shocker, info_setup: None):
+    info = shocker.info()
+    assert info.name == "test shocker"
+    assert info.client_id == 1000
+    assert info.shocker_id == 1001
+    assert not info.is_paused
+    assert info.is_online
+    assert info.max_intensity == 100
+    assert info.max_duration == 15
+
+
+def test_info_invalid(shocker: zap.Shocker, responses: RequestsMock):
+    message = "Not JSON lol"
+    responses.post(
+        APIURLs.SHOCKER_INFO,
+        body=message,
+        match=[
+            matchers.json_params_matcher(
+                {
+                    "Username": "Zerario",
+                    "Apikey": "PISHOCK-APIKEY",
+                    "Code": "PISHOCK-SHARECODE",
+                }
+            )
+        ],
+    )
+    with pytest.raises(zap.UnknownError, match=message):
+        shocker.info()
