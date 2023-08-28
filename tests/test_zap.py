@@ -137,9 +137,49 @@ class TestInvalidIntensity:
             shocker.shock(duration=1, intensity=intensity)
 
 
+class TestOperationsNotAllowed:
+
+    def test_vibrate(self, shocker: zap.Shocker, responses: RequestsMock):
+        responses.post(
+            APIURLs.OPERATE,
+            body=zap.VibrateNotAllowedError.TEXT,
+            match=get_operate_matchers(op=zap._Operation.VIBRATE.value),
+        )
+        with pytest.raises(zap.VibrateNotAllowedError):
+            shocker.vibrate(duration=1, intensity=2)
+
+    def test_shock(self, shocker: zap.Shocker, responses: RequestsMock):
+        responses.post(
+            APIURLs.OPERATE,
+            body=zap.ShockNotAllowedError.TEXT,
+            match=get_operate_matchers(op=zap._Operation.SHOCK.value),
+        )
+        with pytest.raises(zap.ShockNotAllowedError):
+            shocker.shock(duration=1, intensity=2)
+
+    def test_beep(self, shocker: zap.Shocker, responses: RequestsMock):
+        responses.post(
+            APIURLs.OPERATE,
+            body=zap.BeepNotAllowedError.TEXT,
+            match=get_operate_matchers(op=zap._Operation.BEEP.value, intensity=None),
+        )
+        with pytest.raises(zap.BeepNotAllowedError):
+            shocker.beep(duration=1)
+
+
 def test_beep_no_intensity(shocker: zap.Shocker):
     with pytest.raises(TypeError):
         shocker.beep(duration=1, intensity=2)
+
+
+def test_device_in_use(shocker: zap.Shocker, responses: RequestsMock):
+    responses.post(
+        APIURLs.OPERATE,
+        body=zap.DeviceInUseError.TEXT,
+        match=get_operate_matchers(),
+    )
+    with pytest.raises(zap.DeviceInUseError):
+        shocker.vibrate(duration=1, intensity=2)
 
 
 def test_unauthorized(responses: RequestsMock):

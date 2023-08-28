@@ -43,7 +43,7 @@ def handle_errors() -> None:
     try:
         yield
     except (zap.APIError, ValueError) as e:
-        rich.print(f"[red]Error: {e}[/red]")
+        rich.print(f"[red]Error: {e} ({type(e).__name__})[/red]")
         raise typer.Exit(1)
 
 

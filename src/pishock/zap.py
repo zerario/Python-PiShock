@@ -33,6 +33,20 @@ class _Operation(enum.Enum):
 class APIError(Exception):
     """Base class for all errors returned by the API."""
 
+    # Messages which are currently not handled because it's unclear how to
+    # reproduce them:
+    #
+    # "Client has been locked because the owner has been naughty.."
+    # "Version too old, contact for upgrade."
+    # "Unauthorized Attempt."
+    # "Invalid/Forbidden Method"
+    #
+    # Messages which are not handled because we should be doing the right thing:
+    #
+    # "Unknown Op, use 0 for shock, 1 for vibrate and 2 for beep"
+    # "Duration must be between 1 and {maxdur}"
+    # "Intensity must be between 0 and {maxint}"
+
 
 class ShareCodeAlreadyUsedError(APIError):
     """API returned: This share code has already been used by somebody else."""
@@ -62,6 +76,38 @@ class DeviceNotConnectedError(APIError):
     """API returned: Device currently not connected."""
 
     TEXT = "Device currently not connected."
+
+
+class DeviceInUseError(APIError):
+    """API returned: Device in Use."""
+
+    TEXT = "Device in Use."
+
+
+class OperationNotAllowedError(APIError):
+    """API returned: <Operation> not allowed.
+
+    Used as a base class for ShockNotAllowedError, VibrateNotAllowedError and
+    BeepNotAllowedError.
+    """
+
+
+class ShockNotAllowedError(OperationNotAllowedError):
+    """API returned: Shock not allowed."""
+
+    TEXT = "Shock not allowed."
+
+
+class VibrateNotAllowedError(OperationNotAllowedError):
+    """API returned: Vibrate not allowed."""
+
+    TEXT = "Vibrate not allowed."
+
+
+class BeepNotAllowedError(OperationNotAllowedError):
+    """API returned: Beep not allowed."""
+
+    TEXT = "Beep not allowed."
 
 
 class HTTPError(APIError):
@@ -206,6 +252,10 @@ class Shocker:
             ShareCodeAlreadyUsedError,
             ShockerPausedError,
             DeviceNotConnectedError,
+            DeviceInUseError,
+            ShockNotAllowedError,
+            VibrateNotAllowedError,
+            BeepNotAllowedError,
         ]
     }
 
