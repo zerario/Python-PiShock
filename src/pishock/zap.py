@@ -49,6 +49,12 @@ class ShockerPausedError(APIError):
     TEXT = "Shocker is Paused or does not exist. Unpause to send command."
 
 
+class DeviceNotConnectedError(APIError):
+    """API returned: Device currently not connected."""
+
+    TEXT = "Device currently not connected."
+
+
 class HTTPError(APIError):
     """Invalid HTTP status from the API."""
 
@@ -116,6 +122,7 @@ class Shocker:
             ShareCodeNotFoundError,
             ShareCodeAlreadyUsedError,
             ShockerPausedError,
+            DeviceNotConnectedError,
         ]
     }
 
