@@ -27,7 +27,7 @@ ShareCodeArg: TypeAlias = Annotated[
     str, typer.Argument(help="Share code for the shocker.")
 ]
 DurationOpt: TypeAlias = Annotated[
-    int,
+    float,
     typer.Option("-d", "--duration", min=0, max=15, help="Duration in seconds (0-15)."),
 ]
 IntensityOpt: TypeAlias = Annotated[
@@ -39,11 +39,11 @@ IntensityOpt: TypeAlias = Annotated[
 
 
 @contextlib.contextmanager
-def handle_api_error() -> None:
+def handle_errors() -> None:
     try:
         yield
-    except zap.APIError as e:
-        rich.print(f"[red]API Error: {e}[/red]")
+    except (zap.APIError, ValueError) as e:
+        rich.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
 
 
@@ -52,16 +52,20 @@ def get_shocker(share_code: str) -> zap.Shocker:
     return api.shocker(share_code, name=f"{zap.NAME} CLI")
 
 
+def print_emoji(name: str, duration: float) -> None:
+    rich.print(f":{name}:" * max(int(duration), 1))
+
+
 @app.command()
 def shock(
     share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt
 ) -> None:
     """Send a shock to the given share code."""
     shocker = get_shocker(share_code)
-    with handle_api_error():
+    with handle_errors():
         shocker.shock(duration=duration, intensity=intensity)
 
-    rich.print(":zap:" * duration)
+    print_emoji("zap", duration)
     if random.random() < 0.1:
         print("".join(random.choices("asdfghjkl", k=random.randint(5, 20))))
 
@@ -72,18 +76,18 @@ def vibrate(
 ) -> None:
     """Send a vibration to the given share code."""
     shocker = get_shocker(share_code)
-    with handle_api_error():
+    with handle_errors():
         shocker.vibrate(duration=duration, intensity=intensity)
-    rich.print(":vibration_mode:" * duration)
+    print_emoji("vibration_mode", duration)
 
 
 @app.command()
 def beep(share_code: ShareCodeArg, duration: DurationOpt) -> None:
     """Send a beep to the given share code."""
     shocker = get_shocker(share_code)
-    with handle_api_error():
+    with handle_errors():
         shocker.beep(duration=duration)
-    rich.print(":loud_sound:" * duration)
+    print_emoji("loud_sound", duration)
 
 
 def paused_emoji(is_paused: bool) -> str:
@@ -94,7 +98,7 @@ def paused_emoji(is_paused: bool) -> str:
 def info(share_code: ShareCodeArg):
     """Get information about the given shocker."""
     shocker = get_shocker(share_code)
-    with handle_api_error():
+    with handle_errors():
         info = shocker.info()
 
     table = rich.table.Table(show_header=False)
@@ -119,7 +123,7 @@ def info(share_code: ShareCodeArg):
 def pause(share_code: ShareCodeArg):
     """Pause the given shocker."""
     shocker = get_shocker(share_code)
-    with handle_api_error():
+    with handle_errors():
         shocker.pause(True)
 
 
@@ -127,7 +131,7 @@ def pause(share_code: ShareCodeArg):
 def unpause(share_code: ShareCodeArg):
     """Unpause the given shocker."""
     shocker = get_shocker(share_code)
-    with handle_api_error():
+    with handle_errors():
         shocker.pause(False)
 
 
@@ -137,7 +141,7 @@ def shockers(
 ):
     """Get a list of all shockers for the given client (PiShock) ID."""
     assert api is not None
-    with handle_api_error():
+    with handle_errors():
         shockers = api.get_shockers(client_id)
 
     for shocker in shockers:

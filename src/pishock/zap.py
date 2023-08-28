@@ -215,8 +215,17 @@ class Shocker:
         self.name = name
         self._cached_info: ShockerInfo | None = None
 
-    def shock(self, *, duration: int, intensity: int) -> None:
+    def shock(self, *, duration: int | float, intensity: int) -> None:
         """Send a shock with the given duration (0-15) and intensity (0-100).
+
+        Durations can also be floats between 0.1 and 1.5 (inclusive), with the
+        following caveats:
+
+        - The duration is rounded down to the nearest 0.1 seconds.
+        - On old Plus models and the V3 firmware, e.g. 0.3 is interpreted as 3s
+          instead of 300ms.
+        - This is an experimental and undocumented feature of the API, so it
+          might break at any time.
 
         Raises:
             - `ValueError` if `duration` or `intensity` are out of range.
@@ -225,8 +234,17 @@ class Shocker:
         """
         return self._call(_Operation.SHOCK, duration=duration, intensity=intensity)
 
-    def vibrate(self, *, duration: int, intensity: int) -> None:
+    def vibrate(self, *, duration: int | float, intensity: int) -> None:
         """Send a vibration with the given duration (0-15) and intensity (0-100).
+
+        Durations can also be floats between 0.1 and 1.5 (inclusive), with the
+        following caveats:
+
+        - The duration is rounded down to the nearest 0.1 seconds.
+        - On old Plus models and the V3 firmware, e.g. 0.3 is interpreted as 3s
+          instead of 300ms.
+        - This is an experimental and undocumented feature of the API, so it
+          might break at any time.
 
         Raises:
             - `ValueError` if `duration` or `intensity` are out of range.
@@ -235,8 +253,17 @@ class Shocker:
         """
         return self._call(_Operation.VIBRATE, duration=duration, intensity=intensity)
 
-    def beep(self, duration: int) -> None:
+    def beep(self, duration: int | float) -> None:
         """Send a beep with the given duration (0-15).
+
+        Durations can also be floats between 0.1 and 1.5 (inclusive), with the
+        following caveats:
+
+        - The duration is rounded down to the nearest 0.1 seconds.
+        - On old Plus models and the V3 firmware, e.g. 0.3 is interpreted as 3s
+          instead of 300ms.
+        - This is an experimental and undocumented feature of the API, so it
+          might break at any time.
 
         Raises:
             - `ValueError` if `duration` is out of range.
@@ -245,11 +272,22 @@ class Shocker:
         """
         return self._call(_Operation.BEEP, duration=duration, intensity=None)
 
-    def _call(
-        self, operation: _Operation, duration: int, intensity: int | None
-    ) -> None:
+    def _parse_duration(self, duration: int | float) -> int:
+        if isinstance(duration, float) and not duration.is_integer():
+            if not 0.1 <= duration < 1.6:
+                raise ValueError(
+                    f"float duration needs to be between 0.1 and 1.5, not {duration}"
+                )
+            return int(duration * 1000)  # e.g. 0.1 -> 100 sent to API -> 100ms
+
         if not 0 <= duration <= 15:
             raise ValueError(f"duration needs to be between 0 and 15, not {duration}")
+
+        return int(duration)
+
+    def _call(
+        self, operation: _Operation, duration: int | float, intensity: int | None
+    ) -> None:
         if intensity is not None and not 0 <= intensity <= 100:
             raise ValueError(
                 f"intensity needs to be between 0 and 100, not {intensity}"
@@ -261,7 +299,7 @@ class Shocker:
         params = {
             "Name": self.name,
             "Code": self.sharecode,
-            "Duration": duration,
+            "Duration": self._parse_duration(duration),
             "Op": operation.value,
         }
         if intensity is not None:
