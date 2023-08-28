@@ -1,11 +1,15 @@
-import os
-import dataclasses
 import http
 
 import pytest
 from responses import RequestsMock, matchers
 
 from pishock import zap
+
+
+class FakeCredentials:
+    USERNAME = "PISHOCK-USERNAME"
+    APIKEY = "PISHOCK-APIKEY"
+    SHARECODE = "PISHOCK-SHARECODE"
 
 
 class APIURLs:
@@ -18,11 +22,11 @@ class APIURLs:
 
 def get_operate_matchers(**kwargs):
     template = {
-        "Username": "Zerario",
-        "Apikey": "PISHOCK-APIKEY",
-        "Code": "PISHOCK-SHARECODE",
+        "Username": FakeCredentials.USERNAME,
+        "Apikey": FakeCredentials.APIKEY,
+        "Code": FakeCredentials.SHARECODE,
         "Name": "random",
-        "Op": zap.Operation.VIBRATE.value,
+        "Op": zap._Operation.VIBRATE.value,
         "Duration": 1,
         "Intensity": 2,
     }
@@ -35,54 +39,18 @@ def get_operate_matchers(**kwargs):
     return [matchers.json_params_matcher(template)]
 
 
-@dataclasses.dataclass
-class Credentials:
-    username: str
-    apikey: str
-    sharecode: str
+@pytest.fixture
+def api() -> zap.API:
+    return zap.API(username=FakeCredentials.USERNAME, apikey=FakeCredentials.APIKEY)
 
 
 @pytest.fixture
-def credentials() -> Credentials:
-    """Get credentials to run tests.
-
-    By default, uses the same fake credentials that tests have in theis stored
-    responses in tests/cassettes.
-
-    To re-generate the cassetes, provide valid credentials in your environment:
-
-    export PISHOCK_USERNAME=...
-    export PISHOCK_APIKEY=...
-    export PISHOCK_SHARECODE=...
-
-    And then run:
-
-    tox -e py311 -- --FIXME
-    """
-    return Credentials(
-        username=os.environ.get("PISHOCK_USERNAME", "Zerario"),
-        apikey=os.environ.get("PISHOCK_APIKEY", "PISHOCK-APIKEY"),
-        sharecode=os.environ.get("PISHOCK_SHARECODE", "PISHOCK-SHARECODE"),
-    )
+def shocker(api: zap.API) -> zap.Shocker:
+    return api.shocker(FakeCredentials.SHARECODE)
 
 
-@pytest.fixture
-def api(credentials: Credentials) -> zap.API:
-    return zap.API(username=credentials.username, apikey=credentials.apikey)
-
-
-@pytest.fixture
-def shocker(api: zap.API, credentials: Credentials) -> zap.Shocker:
-    s = api.shocker(credentials.sharecode)
-    # info = s.info()
-    # if info.is_paused:
-    #    s.pause(False)
-    return s
-    # s.pause(info.is_paused)
-
-
-def test_api_repr(api: zap.API, credentials: Credentials):
-    assert repr(api) == f"API(username='{credentials.username}', apikey=...)"
+def test_api_repr(api: zap.API):
+    assert repr(api) == f"API(username='{FakeCredentials.USERNAME}', apikey=...)"
 
 
 def test_api_not_found(api: zap.API, responses: RequestsMock):
@@ -115,7 +83,7 @@ def test_shock(shocker: zap.Shocker, responses: RequestsMock, success_msg: str):
     responses.post(
         APIURLs.OPERATE,
         body=success_msg,
-        match=get_operate_matchers(op=zap.Operation.SHOCK.value),
+        match=get_operate_matchers(op=zap._Operation.SHOCK.value),
     )
     shocker.shock(duration=1, intensity=2)
 
@@ -125,7 +93,7 @@ def test_beep(shocker: zap.Shocker, responses: RequestsMock, success_msg: str):
     responses.post(
         APIURLs.OPERATE,
         body=success_msg,
-        match=get_operate_matchers(op=zap.Operation.BEEP.value, intensity=None),
+        match=get_operate_matchers(op=zap._Operation.BEEP.value, intensity=None),
     )
     shocker.beep(duration=1)
 
@@ -161,13 +129,13 @@ def test_beep_no_intensity(shocker: zap.Shocker):
         shocker.beep(duration=1, intensity=2)
 
 
-def test_unauthorized(credentials: Credentials, responses: RequestsMock):
+def test_unauthorized(responses: RequestsMock):
     responses.post(
         APIURLs.OPERATE,
         body=zap.NotAuthorizedError.TEXT,
         match=get_operate_matchers(apikey="wrong", code="wrong"),
     )
-    api = zap.API(username=credentials.username, apikey="wrong")
+    api = zap.API(username=FakeCredentials.USERNAME, apikey="wrong")
     shocker = api.shocker(sharecode="wrong")
     with pytest.raises(zap.NotAuthorizedError):
         shocker.vibrate(duration=1, intensity=2)
@@ -211,9 +179,9 @@ def info_setup(responses: RequestsMock) -> None:
         match=[
             matchers.json_params_matcher(
                 {
-                    "Username": "Zerario",
-                    "Apikey": "PISHOCK-APIKEY",
-                    "Code": "PISHOCK-SHARECODE",
+                    "Username": FakeCredentials.USERNAME,
+                    "Apikey": FakeCredentials.APIKEY,
+                    "Code": FakeCredentials.SHARECODE,
                 }
             )
         ],
@@ -233,8 +201,8 @@ def test_pause(
         match=[
             matchers.json_params_matcher(
                 {
-                    "Username": "Zerario",
-                    "Apikey": "PISHOCK-APIKEY",
+                    "Username": FakeCredentials.USERNAME,
+                    "Apikey": FakeCredentials.APIKEY,
                     "ShockerId": 1001,
                     "Pause": pause,
                 }
@@ -255,8 +223,8 @@ def test_pause_unauthorized(
         match=[
             matchers.json_params_matcher(
                 {
-                    "Username": "Zerario",
-                    "Apikey": "PISHOCK-APIKEY",
+                    "Username": FakeCredentials.USERNAME,
+                    "Apikey": FakeCredentials.APIKEY,
                     "ShockerId": 1001,
                     "Pause": True,
                 }
@@ -279,8 +247,8 @@ def test_pause_unknown_error(
         match=[
             matchers.json_params_matcher(
                 {
-                    "Username": "Zerario",
-                    "Apikey": "PISHOCK-APIKEY",
+                    "Username": FakeCredentials.USERNAME,
+                    "Apikey": FakeCredentials.APIKEY,
                     "ShockerId": 1001,
                     "Pause": True,
                 }
@@ -310,9 +278,9 @@ def test_info_invalid(shocker: zap.Shocker, responses: RequestsMock):
         match=[
             matchers.json_params_matcher(
                 {
-                    "Username": "Zerario",
-                    "Apikey": "PISHOCK-APIKEY",
-                    "Code": "PISHOCK-SHARECODE",
+                    "Username": FakeCredentials.USERNAME,
+                    "Apikey": FakeCredentials.APIKEY,
+                    "Code": FakeCredentials.SHARECODE,
                 }
             )
         ],
@@ -331,8 +299,8 @@ def test_get_shockers(api: zap.API, responses: RequestsMock):
         match=[
             matchers.json_params_matcher(
                 {
-                    "Username": "Zerario",
-                    "Apikey": "PISHOCK-APIKEY",
+                    "Username": FakeCredentials.USERNAME,
+                    "Apikey": FakeCredentials.APIKEY,
                     "ClientId": 1000,
                 }
             )
@@ -363,8 +331,8 @@ def test_get_shockers_invalid(api: zap.API, responses: RequestsMock):
         match=[
             matchers.json_params_matcher(
                 {
-                    "Username": "Zerario",
-                    "Apikey": "PISHOCK-APIKEY",
+                    "Username": FakeCredentials.USERNAME,
+                    "Apikey": FakeCredentials.APIKEY,
                     "ClientId": 1000,
                 }
             )
