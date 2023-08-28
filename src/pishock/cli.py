@@ -47,11 +47,17 @@ def handle_api_error() -> None:
         raise typer.Exit(1)
 
 
-@app.command()
-def shock(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt):
-    """Send a shock to the given share code."""
+def get_shocker(share_code: str) -> zap.Shocker:
     assert api is not None
-    shocker = api.shocker(share_code)
+    return api.shocker(share_code, name=f"{zap.NAME} CLI")
+
+
+@app.command()
+def shock(
+    share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt
+) -> None:
+    """Send a shock to the given share code."""
+    shocker = get_shocker(share_code)
     with handle_api_error():
         shocker.shock(duration=duration, intensity=intensity)
 
@@ -61,20 +67,20 @@ def shock(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityO
 
 
 @app.command()
-def vibrate(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt):
+def vibrate(
+    share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt
+) -> None:
     """Send a vibration to the given share code."""
-    assert api is not None
-    shocker = api.shocker(share_code)
+    shocker = get_shocker(share_code)
     with handle_api_error():
         shocker.vibrate(duration=duration, intensity=intensity)
     rich.print(":vibration_mode:" * duration)
 
 
 @app.command()
-def beep(share_code: ShareCodeArg, duration: DurationOpt):
+def beep(share_code: ShareCodeArg, duration: DurationOpt) -> None:
     """Send a beep to the given share code."""
-    assert api is not None
-    shocker = api.shocker(share_code)
+    shocker = get_shocker(share_code)
     with handle_api_error():
         shocker.beep(duration=duration)
     rich.print(":loud_sound:" * duration)
@@ -87,8 +93,7 @@ def paused_emoji(is_paused: bool) -> str:
 @app.command()
 def info(share_code: ShareCodeArg):
     """Get information about the given shocker."""
-    assert api is not None
-    shocker = api.shocker(share_code)
+    shocker = get_shocker(share_code)
     with handle_api_error():
         info = shocker.info()
 
@@ -113,8 +118,7 @@ def info(share_code: ShareCodeArg):
 @app.command()
 def pause(share_code: ShareCodeArg):
     """Pause the given shocker."""
-    assert api is not None
-    shocker = api.shocker(share_code)
+    shocker = get_shocker(share_code)
     with handle_api_error():
         shocker.pause(True)
 
@@ -122,8 +126,7 @@ def pause(share_code: ShareCodeArg):
 @app.command()
 def unpause(share_code: ShareCodeArg):
     """Unpause the given shocker."""
-    assert api is not None
-    shocker = api.shocker(share_code)
+    shocker = get_shocker(share_code)
     with handle_api_error():
         shocker.pause(False)
 

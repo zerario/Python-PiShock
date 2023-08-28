@@ -25,7 +25,7 @@ def get_operate_matchers(**kwargs):
         "Username": FakeCredentials.USERNAME,
         "Apikey": FakeCredentials.APIKEY,
         "Code": FakeCredentials.SHARECODE,
-        "Name": "random",
+        "Name": zap.NAME,
         "Op": zap._Operation.VIBRATE.value,
         "Duration": 1,
         "Intensity": 2,
@@ -36,7 +36,10 @@ def get_operate_matchers(**kwargs):
             del template[k]
         else:
             template[k] = v
-    return [matchers.json_params_matcher(template)]
+    return [
+        matchers.json_params_matcher(template),
+        matchers.header_matcher({"User-Agent": f"{zap.NAME}/{zap.__version__}"})
+    ]
 
 
 @pytest.fixture
@@ -96,6 +99,16 @@ def test_beep(shocker: zap.Shocker, responses: RequestsMock, success_msg: str):
         match=get_operate_matchers(op=zap._Operation.BEEP.value, intensity=None),
     )
     shocker.beep(duration=1)
+
+
+def test_name_override(api: zap.API, responses: RequestsMock):
+    responses.post(
+        APIURLs.OPERATE,
+        body=zap.Shocker.SUCCESS_MESSAGES[0],
+        match=get_operate_matchers(name="test"),
+    )
+    shocker = api.shocker(FakeCredentials.SHARECODE, name="test")
+    shocker.vibrate(duration=1, intensity=2)
 
 
 @pytest.mark.parametrize("duration", [-1, 16])

@@ -7,6 +7,23 @@ from typing import Any
 
 import requests
 
+from . import __version__
+
+
+# TODO:
+# - Move patching out of test_zap.py
+# - Test CLI
+# - Add more functionality (check API permissions)
+# - Address book
+# - Random mode
+# - PiVault
+# - Readme / API docs
+# - Rename to PyShock?
+
+
+NAME = "Python-PiShock"
+
+
 class _Operation(enum.Enum):
     SHOCK = 0
     VIBRATE = 1
@@ -83,7 +100,12 @@ class API:
             "Apikey": self.apikey,
             **params,
         }
-        response = requests.post(f"https://do.pishock.com/api/{endpoint}", json=params)
+        headers = {"User-Agent": f"{NAME}/{__version__}"}
+        response = requests.post(
+            f"https://do.pishock.com/api/{endpoint}",
+            json=params,
+            headers=headers,
+        )
 
         try:
             response.raise_for_status()
@@ -92,12 +114,15 @@ class API:
 
         return response
 
-    def shocker(self, sharecode: str) -> Shocker:
+    def shocker(self, sharecode: str, name: str = NAME) -> Shocker:
         """Get a Shocker instance for the given share code.
 
         This is the main entry point for almost all remaining API usages.
+
+        Via the optional `name` argument, how the shocker is named in the
+        logs can be specified.
         """
-        return Shocker(api=self, sharecode=sharecode)
+        return Shocker(api=self, sharecode=sharecode, name=name)
 
     def get_shockers(self, client_id: int) -> list[BasicShockerInfo]:
         """Get a list of all shockers for the given client (PiShock) ID.
@@ -168,7 +193,6 @@ class ShockerInfo(BasicShockerInfo):
 class Shocker:
     """Represents a single shocker / share code."""
 
-    NAME = "random"
     SUCCESS_MESSAGES = [
         "Operation Succeeded.",
         "Operation Attempted.",
@@ -185,9 +209,10 @@ class Shocker:
         ]
     }
 
-    def __init__(self, api: API, sharecode: str) -> None:
+    def __init__(self, api: API, sharecode: str, name: str) -> None:
         self.api = api
         self.sharecode = sharecode
+        self.name = name
         self._cached_info: ShockerInfo | None = None
 
     def shock(self, *, duration: int, intensity: int) -> None:
@@ -220,7 +245,9 @@ class Shocker:
         """
         return self._call(_Operation.BEEP, duration=duration, intensity=None)
 
-    def _call(self, operation: _Operation, duration: int, intensity: int | None) -> None:
+    def _call(
+        self, operation: _Operation, duration: int, intensity: int | None
+    ) -> None:
         if not 0 <= duration <= 15:
             raise ValueError(f"duration needs to be between 0 and 15, not {duration}")
         if intensity is not None and not 0 <= intensity <= 100:
@@ -232,7 +259,7 @@ class Shocker:
         assert operation in _Operation
 
         params = {
-            "Name": self.NAME,
+            "Name": self.name,
             "Code": self.sharecode,
             "Duration": duration,
             "Op": operation.value,
