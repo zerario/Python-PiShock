@@ -166,15 +166,21 @@ def test_unknown_share_code(api: zap.API, responses: RequestsMock):
         shocker.vibrate(duration=1, intensity=2)
 
 
+@pytest.mark.parametrize("was_paused", [True, False])
 @pytest.mark.parametrize("pause", [True, False])
-def test_pause(shocker: zap.Shocker, pause: bool, responses: RequestsMock):
+def test_pause(
+    shocker: zap.Shocker,
+    responses: RequestsMock,
+    was_paused: bool,
+    pause: bool,
+):
     responses.post(
         APIURLs.SHOCKER_INFO,
         json={
             "name": "test shocker",
             "clientId": "0001",
             "id": "0002",
-            "paused": pause,
+            "paused": was_paused,
             "online": True,
             "maxIntensity": 100,
             "maxDuration": 15,
@@ -204,4 +210,3 @@ def test_pause(shocker: zap.Shocker, pause: bool, responses: RequestsMock):
         ],
     )
     shocker.pause(pause)
-    assert shocker.info().is_paused == pause
