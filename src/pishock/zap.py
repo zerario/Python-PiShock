@@ -7,11 +7,7 @@ from typing import Any
 
 import requests
 
-# TODO:
-# - Better error classes for endpoints using 403/404
-
-
-class Operation(enum.Enum):
+class _Operation(enum.Enum):
     SHOCK = 0
     VIBRATE = 1
     BEEP = 2
@@ -64,6 +60,9 @@ class UnknownError(APIError):
 
 
 class API:
+
+    """Base entry point for the PiShock API."""
+
     def __init__(self, username: str, apikey: str) -> None:
         self.username = username
         self.apikey = apikey
@@ -72,6 +71,13 @@ class API:
         return f"API(username={self.username!r}, apikey=...)"
 
     def request(self, endpoint: str, params: dict[str, Any]) -> requests.Response:
+        """Make a request to the API.
+
+        All requests are POST requests with `params` passed as JSON, because the
+        API seems to be like that.
+
+        Normally, you should not need to use this method directly.
+        """
         params = {
             "Username": self.username,
             "Apikey": self.apikey,
@@ -87,9 +93,19 @@ class API:
         return response
 
     def shocker(self, sharecode: str) -> Shocker:
+        """Get a Shocker instance for the given share code.
+
+        This is the main entry point for almost all remaining API usages.
+        """
         return Shocker(api=self, sharecode=sharecode)
 
     def get_shockers(self, client_id: int) -> list[BasicShockerInfo]:
+        """Get a list of all shockers for the given client (PiShock) ID.
+
+        Raises:
+            - `HTTPError` with a 403 status code if username/API key is wrong.
+            - `UnknownError` if the response is not JSON.
+        """
         params = {"ClientId": client_id}
         response = self.request("GetShockers", params)
 
@@ -105,6 +121,12 @@ class API:
 
 @dataclasses.dataclass
 class BasicShockerInfo:
+    """Basic information about a shocker.
+
+    Used by `API.get_shockers`. Calling `Shocker.info()` returns a `ShockerInfo`
+    instance instead.
+    """
+
     name: str
     client_id: int
     shocker_id: int
@@ -124,6 +146,8 @@ class BasicShockerInfo:
 
 @dataclasses.dataclass
 class ShockerInfo(BasicShockerInfo):
+    """Detailed information about a shocker."""
+
     is_online: bool
     max_intensity: int
     max_duration: int
@@ -142,6 +166,8 @@ class ShockerInfo(BasicShockerInfo):
 
 
 class Shocker:
+    """Represents a single shocker / share code."""
+
     NAME = "random"
     SUCCESS_MESSAGES = [
         "Operation Succeeded.",
@@ -165,15 +191,36 @@ class Shocker:
         self._cached_info: ShockerInfo | None = None
 
     def shock(self, duration: int, intensity: int) -> None:
-        return self._call(Operation.SHOCK, duration=duration, intensity=intensity)
+        """Send a shock with the given duration (0-15) and intensity (0-100).
+
+        Raises:
+            - `ValueError` if `duration` or `intensity` are out of range.
+            - Any of the `APIError` subclasses in this module, refer to their
+              documenation for details.
+        """
+        return self._call(_Operation.SHOCK, duration=duration, intensity=intensity)
 
     def vibrate(self, duration: int, intensity: int) -> None:
-        return self._call(Operation.VIBRATE, duration=duration, intensity=intensity)
+        """Send a vibration with the given duration (0-15) and intensity (0-100).
+
+        Raises:
+            - `ValueError` if `duration` or `intensity` are out of range.
+            - Any of the `APIError` subclasses in this module, refer to their
+              documenation for details.
+        """
+        return self._call(_Operation.VIBRATE, duration=duration, intensity=intensity)
 
     def beep(self, duration: int) -> None:
-        return self._call(Operation.BEEP, duration=duration, intensity=None)
+        """Send a beep with the given duration (0-15).
 
-    def _call(self, operation: Operation, duration: int, intensity: int | None) -> None:
+        Raises:
+            - `ValueError` if `duration` is out of range.
+            - Any of the `APIError` subclasses in this module, refer to their
+              documenation for details.
+        """
+        return self._call(_Operation.BEEP, duration=duration, intensity=None)
+
+    def _call(self, operation: _Operation, duration: int, intensity: int | None) -> None:
         if not 0 <= duration <= 15:
             raise ValueError(f"duration needs to be between 0 and 15, not {duration}")
         if intensity is not None and not 0 <= intensity <= 100:
@@ -181,8 +228,8 @@ class Shocker:
                 f"intensity needs to be between 0 and 100, not {intensity}"
             )
 
-        assert (intensity is None) == (operation == Operation.BEEP)
-        assert operation in Operation
+        assert (intensity is None) == (operation == _Operation.BEEP)
+        assert operation in _Operation
 
         params = {
             "Name": self.NAME,
@@ -201,6 +248,15 @@ class Shocker:
             raise UnknownError(response.text)
 
     def pause(self, pause: bool) -> None:
+        """Pause/unpause the shocker.
+
+        Args:
+            - `pause`: Whether to pause or unpause the shocker.
+
+        Raises:
+            - `NotAuthorizedError` if the API credentials are wrong.
+            - `UnknownError` if the response is not JSON.
+        """
         if self._cached_info is None:
             self._cached_info = self.info()
 
@@ -216,6 +272,12 @@ class Shocker:
             raise UnknownError(response.text)
 
     def info(self) -> ShockerInfo:
+        """Get detailed information about the shocker.
+
+        Raises:
+            - `HTTPError` with a 403 status code if username/API key is wrong.
+            - `UnknownError` if the response is not JSON.
+        """
         params = {"Code": self.sharecode}
         response = self.api.request("GetShockerInfo", params)
 
