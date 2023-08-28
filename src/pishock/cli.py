@@ -47,12 +47,6 @@ def handle_api_error() -> None:
         raise typer.Exit(1)
 
 
-def generate_keysmash():
-    length = random.randint(5, 20)
-    return "".join(random.choices("asdfghjkl", k=length))
-
-
-
 @app.command()
 def shock(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt):
     """Send a shock to the given share code."""
@@ -62,8 +56,8 @@ def shock(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityO
         shocker.shock(duration=duration, intensity=intensity)
 
     rich.print(":zap:" * duration)
-    if random.random() < 0.1:  # 10% chance
-        print(generate_keysmash())
+    if random.random() < 0.1:
+        print("".join(random.choices("asdfghjkl", k=random.randint(5, 20))))
 
 
 @app.command()
