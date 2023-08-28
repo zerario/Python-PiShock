@@ -38,7 +38,7 @@ def get_operate_matchers(**kwargs):
             template[k] = v
     return [
         matchers.json_params_matcher(template),
-        matchers.header_matcher({"User-Agent": f"{zap.NAME}/{zap.__version__}"})
+        matchers.header_matcher({"User-Agent": f"{zap.NAME}/{zap.__version__}"}),
     ]
 
 
@@ -111,18 +111,46 @@ def test_name_override(api: zap.API, responses: RequestsMock):
     shocker.vibrate(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("duration", [-1, 16])
+@pytest.mark.parametrize(
+    "duration, expected",
+    [
+        (0, 0),
+        (1, 1),
+        (15, 15),
+        # floats
+        (0.0, 0),
+        (1.0, 1),
+        (15.0, 15),
+        (0.1, 100),
+        (0.3, 300),
+        (1.1, 1100),
+        (1.15, 1150),  # rounded down by API
+        (1.51, 1510),  # rounded down by API
+    ],
+)
+def test_valid_durations(
+    shocker: zap.Shocker, responses: RequestsMock, duration: float, expected: int
+):
+    responses.post(
+        APIURLs.OPERATE,
+        body=zap.Shocker.SUCCESS_MESSAGES[0],
+        match=get_operate_matchers(duration=expected),
+    )
+    shocker.vibrate(duration=duration, intensity=2)
+
+
+@pytest.mark.parametrize("duration", [-1, 16, -1.0, 16.0, 1.6])
 class TestInvalidDuration:
     def test_vibrate(self, shocker: zap.Shocker, duration: int):
-        with pytest.raises(ValueError, match="duration needs to be between 0 and 15"):
+        with pytest.raises(ValueError, match="duration needs to be between"):
             shocker.vibrate(duration=duration, intensity=2)
 
     def test_shock(self, shocker: zap.Shocker, duration: int):
-        with pytest.raises(ValueError, match="duration needs to be between 0 and 15"):
+        with pytest.raises(ValueError, match="duration needs to be between"):
             shocker.shock(duration=duration, intensity=2)
 
     def test_beep(self, shocker: zap.Shocker, duration: int):
-        with pytest.raises(ValueError, match="duration needs to be between 0 and 15"):
+        with pytest.raises(ValueError, match="duration needs to be between"):
             shocker.beep(duration=duration)
 
 
@@ -138,7 +166,6 @@ class TestInvalidIntensity:
 
 
 class TestOperationsNotAllowed:
-
     def test_vibrate(self, shocker: zap.Shocker, responses: RequestsMock):
         responses.post(
             APIURLs.OPERATE,
