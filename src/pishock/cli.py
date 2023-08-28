@@ -5,6 +5,10 @@ try:
     from typing import Annotated
 except ImportError:
     from typing_extensions import Annotated
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing_extensions import TypeAlias
 
 import typer
 import rich
@@ -18,6 +22,21 @@ app = typer.Typer()
 api = None
 
 
+ShareCodeArg: TypeAlias = Annotated[
+    str, typer.Argument(help="Share code for the shocker.")
+]
+DurationOpt: TypeAlias = Annotated[
+    int,
+    typer.Option("-d", "--duration", min=0, max=15, help="Duration in seconds (0-15)."),
+]
+IntensityOpt: TypeAlias = Annotated[
+    int,
+    typer.Option(
+        "-i", "--intensity", min=0, max=100, help="Intensity in percent (0-100)."
+    ),
+]
+
+
 @contextlib.contextmanager
 def handle_api_error() -> None:
     try:
@@ -28,17 +47,7 @@ def handle_api_error() -> None:
 
 
 @app.command()
-def shock(
-    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
-    duration: Annotated[
-        int,
-        typer.Option(min=0, max=15, help="Duration of the shock in seconds (0-15)."),
-    ],
-    intensity: Annotated[
-        int,
-        typer.Option(min=0, max=100, help="Intensity of the shock in percent (0-100)."),
-    ],
-):
+def shock(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt):
     """Send a shock to the given share code."""
     assert api is not None
     shocker = api.shocker(share_code)
@@ -47,21 +56,7 @@ def shock(
 
 
 @app.command()
-def vibrate(
-    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
-    duration: Annotated[
-        int,
-        typer.Option(
-            min=0, max=15, help="Duration of the vibration in seconds (0-15)."
-        ),
-    ],
-    intensity: Annotated[
-        int,
-        typer.Option(
-            min=0, max=100, help="Intensity of the vibration in percent (0-100)."
-        ),
-    ],
-):
+def vibrate(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt):
     """Send a vibration to the given share code."""
     assert api is not None
     shocker = api.shocker(share_code)
@@ -70,13 +65,7 @@ def vibrate(
 
 
 @app.command()
-def beep(
-    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
-    duration: Annotated[
-        int,
-        typer.Option(min=0, max=15, help="Duration of the beep in seconds (0-15)."),
-    ],
-):
+def beep(share_code: ShareCodeArg, duration: DurationOpt):
     """Send a beep to the given share code."""
     assert api is not None
     shocker = api.shocker(share_code)
@@ -89,9 +78,7 @@ def paused_emoji(is_paused: bool) -> str:
 
 
 @app.command()
-def info(
-    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
-):
+def info(share_code: ShareCodeArg):
     """Get information about the given shocker."""
     assert api is not None
     shocker = api.shocker(share_code)
@@ -117,9 +104,7 @@ def info(
 
 
 @app.command()
-def pause(
-    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
-):
+def pause(share_code: ShareCodeArg):
     """Pause the given shocker."""
     assert api is not None
     shocker = api.shocker(share_code)
@@ -128,9 +113,7 @@ def pause(
 
 
 @app.command()
-def unpause(
-    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
-):
+def unpause(share_code: ShareCodeArg):
     """Unpause the given shocker."""
     assert api is not None
     shocker = api.shocker(share_code)
@@ -154,8 +137,16 @@ def shockers(
 
 @app.callback()
 def main(
-    username: Annotated[str, typer.Option(help="Username for the PiShock account.")],
-    api_key: Annotated[str, typer.Option(help="API key for the PiShock account.")],
+    username: Annotated[
+        str,
+        typer.Option(
+            help="Username for the PiShock account.", envvar="PISHOCK_API_USER"
+        ),
+    ],
+    api_key: Annotated[
+        str,
+        typer.Option(help="API key for the PiShock account.", envvar="PISHOCK_API_KEY"),
+    ],
 ):
     global api
     api = zap.API(username, api_key)
