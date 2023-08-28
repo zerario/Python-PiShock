@@ -1,4 +1,5 @@
 import contextlib
+import random
 from typing import Union
 
 try:
@@ -46,6 +47,12 @@ def handle_api_error() -> None:
         raise typer.Exit(1)
 
 
+def generate_keysmash():
+    length = random.randint(5, 20)
+    return "".join(random.choices("asdfghjkl", k=length))
+
+
+
 @app.command()
 def shock(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt):
     """Send a shock to the given share code."""
@@ -53,6 +60,10 @@ def shock(share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityO
     shocker = api.shocker(share_code)
     with handle_api_error():
         shocker.shock(duration=duration, intensity=intensity)
+
+    rich.print(":zap:" * duration)
+    if random.random() < 0.1:  # 10% chance
+        print(generate_keysmash())
 
 
 @app.command()
@@ -62,6 +73,7 @@ def vibrate(share_code: ShareCodeArg, duration: DurationOpt, intensity: Intensit
     shocker = api.shocker(share_code)
     with handle_api_error():
         shocker.vibrate(duration=duration, intensity=intensity)
+    rich.print(":vibration_mode:" * duration)
 
 
 @app.command()
@@ -71,6 +83,7 @@ def beep(share_code: ShareCodeArg, duration: DurationOpt):
     shocker = api.shocker(share_code)
     with handle_api_error():
         shocker.beep(duration=duration)
+    rich.print(":loud_sound:" * duration)
 
 
 def paused_emoji(is_paused: bool) -> str:
