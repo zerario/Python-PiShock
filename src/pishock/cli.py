@@ -1,0 +1,165 @@
+import contextlib
+from typing import Union
+
+try:
+    from typing import Annotated
+except ImportError:
+    from typing_extensions import Annotated
+
+import typer
+import rich
+import rich.table
+
+from pishock import zap
+
+"""Command-line interface for PiShock."""
+
+app = typer.Typer()
+api = None
+
+
+@contextlib.contextmanager
+def handle_api_error() -> None:
+    try:
+        yield
+    except zap.APIError as e:
+        rich.print(f"[red]API Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def shock(
+    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
+    duration: Annotated[
+        int,
+        typer.Option(min=0, max=15, help="Duration of the shock in seconds (0-15)."),
+    ],
+    intensity: Annotated[
+        int,
+        typer.Option(min=0, max=100, help="Intensity of the shock in percent (0-100)."),
+    ],
+):
+    """Send a shock to the given share code."""
+    assert api is not None
+    shocker = api.shocker(share_code)
+    with handle_api_error():
+        shocker.shock(duration=duration, intensity=intensity)
+
+
+@app.command()
+def vibrate(
+    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
+    duration: Annotated[
+        int,
+        typer.Option(
+            min=0, max=15, help="Duration of the vibration in seconds (0-15)."
+        ),
+    ],
+    intensity: Annotated[
+        int,
+        typer.Option(
+            min=0, max=100, help="Intensity of the vibration in percent (0-100)."
+        ),
+    ],
+):
+    """Send a vibration to the given share code."""
+    assert api is not None
+    shocker = api.shocker(share_code)
+    with handle_api_error():
+        shocker.vibrate(duration=duration, intensity=intensity)
+
+
+@app.command()
+def beep(
+    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
+    duration: Annotated[
+        int,
+        typer.Option(min=0, max=15, help="Duration of the beep in seconds (0-15)."),
+    ],
+):
+    """Send a beep to the given share code."""
+    assert api is not None
+    shocker = api.shocker(share_code)
+    with handle_api_error():
+        shocker.beep(duration=duration)
+
+
+def paused_emoji(is_paused: bool) -> str:
+    return ":double_vertical_bar:" if is_paused else ":arrow_forward:"
+
+
+@app.command()
+def info(
+    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
+):
+    """Get information about the given shocker."""
+    assert api is not None
+    shocker = api.shocker(share_code)
+    with handle_api_error():
+        info = shocker.info()
+
+    table = rich.table.Table(show_header=False)
+    table.add_column()
+    table.add_column()
+
+    table.add_row("Name", info.name)
+    table.add_row("PiShock ID", str(info.client_id))
+    table.add_row("Shocker ID", str(info.shocker_id))
+
+    pause = ":double_vertical_bar:" if info.is_paused else ":arrow_forward:"
+    online = ":white_check_mark:" if info.is_online else ":x:"
+
+    table.add_row("Online / Paused", f"{online} {pause}")
+    table.add_row("Max intensity", str(info.max_intensity))
+    table.add_row("Max duration", str(info.max_duration))
+
+    rich.print(table)
+
+
+@app.command()
+def pause(
+    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
+):
+    """Pause the given shocker."""
+    assert api is not None
+    shocker = api.shocker(share_code)
+    with handle_api_error():
+        shocker.pause(True)
+
+
+@app.command()
+def unpause(
+    share_code: Annotated[str, typer.Argument(help="Share code for the shocker.")],
+):
+    """Unpause the given shocker."""
+    assert api is not None
+    shocker = api.shocker(share_code)
+    with handle_api_error():
+        shocker.pause(False)
+
+
+@app.command()
+def shockers(
+    client_id: Annotated[int, typer.Argument(help="PiShock client ID.")],
+):
+    """Get a list of all shockers for the given client (PiShock) ID."""
+    assert api is not None
+    with handle_api_error():
+        shockers = api.get_shockers(client_id)
+
+    for shocker in shockers:
+        emoji = paused_emoji(shocker.is_paused)
+        rich.print(f"{shocker.shocker_id}: {shocker.name} {emoji}")
+
+
+@app.callback()
+def main(
+    username: Annotated[str, typer.Option(help="Username for the PiShock account.")],
+    api_key: Annotated[str, typer.Option(help="API key for the PiShock account.")],
+):
+    global api
+    api = zap.API(username, api_key)
+
+
+if __name__ == "__main__":
+    app()

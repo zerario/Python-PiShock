@@ -9,6 +9,9 @@ packages = [{include = "pishock", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 requests = "^2.31.0"
+typer = "^0.9.0"
+rich = "^13.5.2"
+typing-extensions = {version = "^4.7.1", python = "<3.9"}
 
 
 [build-system]

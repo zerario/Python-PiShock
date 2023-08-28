@@ -190,7 +190,7 @@ class Shocker:
         self.sharecode = sharecode
         self._cached_info: ShockerInfo | None = None
 
-    def shock(self, duration: int, intensity: int) -> None:
+    def shock(self, *, duration: int, intensity: int) -> None:
         """Send a shock with the given duration (0-15) and intensity (0-100).
 
         Raises:
@@ -200,7 +200,7 @@ class Shocker:
         """
         return self._call(_Operation.SHOCK, duration=duration, intensity=intensity)
 
-    def vibrate(self, duration: int, intensity: int) -> None:
+    def vibrate(self, *, duration: int, intensity: int) -> None:
         """Send a vibration with the given duration (0-15) and intensity (0-100).
 
         Raises:
