@@ -12,7 +12,6 @@ import requests
 # - Better error classes for endpoints using 403/404
 
 
-
 class Operation(enum.Enum):
     SHOCK = 0
     VIBRATE = 1
@@ -90,7 +89,10 @@ class API:
             data = response.json()
         except json.JSONDecodeError:
             raise UnknownError(response.text)
-        return [BasicShockerInfo.from_api_dict(d, client_id=client_id) for d in data]
+        return [
+            BasicShockerInfo.from_get_shockers_api_dict(d, client_id=client_id)
+            for d in data
+        ]
 
 
 @dataclasses.dataclass
@@ -101,7 +103,9 @@ class BasicShockerInfo:
     is_paused: bool
 
     @classmethod
-    def from_api_dict(cls, data: dict[str, Any], client_id: int) -> BasicShockerInfo:
+    def from_get_shockers_api_dict(
+        cls, data: dict[str, Any], client_id: int
+    ) -> BasicShockerInfo:
         return cls(
             name=data["name"],
             client_id=client_id,
@@ -117,7 +121,7 @@ class ShockerInfo(BasicShockerInfo):
     max_duration: int
 
     @classmethod
-    def from_api_dict(cls, data: dict[str, Any]) -> ShockerInfo:
+    def from_info_api_dict(cls, data: dict[str, Any]) -> ShockerInfo:
         return cls(
             name=data["name"],
             client_id=data["clientId"],
@@ -211,4 +215,4 @@ class Shocker:
             data = response.json()
         except json.JSONDecodeError:
             raise UnknownError(response.text)
-        return ShockerInfo.from_api_dict(data)
+        return ShockerInfo.from_info_api_dict(data)
