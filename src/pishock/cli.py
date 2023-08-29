@@ -1,8 +1,13 @@
 import contextlib
+import json
+import pathlib
 import random
-from typing import Iterator
+import sys
+from typing import Iterator, Optional
 
+import platformdirs
 import rich
+import rich.prompt
 import rich.table
 import typer
 from typing_extensions import Annotated, TypeAlias
@@ -13,6 +18,36 @@ from pishock import zap
 
 app = typer.Typer()
 api = None
+config = None
+
+
+class Config:
+    def __init__(self) -> None:
+        self.username: Optional[str] = None
+        self.api_key: Optional[str] = None
+        self._path = pathlib.Path(
+            platformdirs.user_config_dir(appname="PiShock-CLI", appauthor="PiShock"),
+            "config.json",
+        )
+
+    def load(self) -> None:
+        if not self._path.exists():
+            return
+        with self._path.open("r") as f:
+            data = json.load(f)
+        self.username = data["api"]["username"]
+        self.api_key = data["api"]["key"]
+
+    def save(self) -> None:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "api": {
+                "username": self.username,
+                "key": self.api_key,
+            }
+        }
+        with self._path.open("w") as f:
+            json.dump(data, f)
 
 
 ShareCodeArg: TypeAlias = Annotated[
@@ -148,26 +183,91 @@ def verify_credentials() -> None:
     with handle_errors():
         ok = api.verify_credentials()
     if ok:
-        rich.print("[green]:white_check_mark: Credentials are valid.[/green]")
+        rich.print("[green]:white_check_mark: Credentials are valid.[/]")
     else:
-        rich.print("[red]:x: Credentials are invalid.[/red]")
+        rich.print("[red]:x: Credentials are invalid.[/]")
         raise typer.Exit(1)
+
+
+@app.command(rich_help_panel="API credentials")
+def init() -> None:
+    """Initialize the API credentials."""
+    assert config is not None
+    if config.username is not None or config.api_key is not None:
+        yes = rich.prompt.Confirm.ask(
+            f"Overwrite existing information for [green]{config.username}[/]?"
+        )
+        if not yes:
+            raise typer.Abort()
+
+    if api is None:
+        username = rich.prompt.Prompt.ask(
+            ":bust_in_silhouette: PiShock [green]username[/] "
+            "([blue]your own username[/])"
+        ).strip()
+        api_key = rich.prompt.Prompt.ask(
+            ":key: PiShock [green]API key[/] "
+            "([blue][link]https://pishock.com/#/account[/][/])"
+        ).strip()
+        temp_api = zap.API(username, api_key)
+    else:
+        # Credentials already given via environment or arguments
+        username = api.username
+        api_key = api.api_key
+        temp_api = api
+
+    if not temp_api.verify_credentials():
+        rich.print("[red]:x: Credentials are invalid.[/]")
+        raise typer.Exit(1)
+
+    config.username = username
+    config.api_key = api_key
+    config.save()
+
+    rich.print("[green]:white_check_mark: Credentials saved.[/]")
 
 
 @app.callback()
 def main(
+    ctx: typer.Context,
     username: Annotated[
-        str,
+        Optional[str],
         typer.Option(
-            help="Username for the PiShock account.", envvar="PISHOCK_API_USER"
+            help="Username for the PiShock account.",
+            envvar="PISHOCK_API_USER",
         ),
-    ],
+    ] = None,
     api_key: Annotated[
-        str,
-        typer.Option(help="API key for the PiShock account.", envvar="PISHOCK_API_KEY"),
-    ],
+        Optional[str],
+        typer.Option(
+            help="API key for the PiShock account.",
+            envvar="PISHOCK_API_KEY",
+        ),
+    ] = None,
 ) -> None:
-    global api
+    global api, config
+    config = Config()
+    config.load()
+
+    if username is None or api_key is None:
+        if ctx.invoked_subcommand == "init":
+            return
+
+        if config.username is None or config.api_key is None:
+            cmd = pathlib.PurePath(sys.argv[0]).name
+            rich.print(
+                "[red]No API credentials found.[/] To fix this, do either of:\n\n"
+                f"- Run [green]{cmd} init[/] to create a new config file\n"
+                "- Set [green]PISHOCK_API_USER[/] and [green]PISHOCK_API_KEY[/] "
+                "environment variables\n"
+                "- Pass [green]--username[/] and [green]--api-key[/] options"
+            )
+            raise typer.Exit(1)
+        username = config.username
+        api_key = config.api_key
+
+    assert username is not None
+    assert api_key is not None
     api = zap.API(username, api_key)
 
 

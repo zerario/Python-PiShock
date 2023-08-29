@@ -125,12 +125,12 @@ class API:
 
     """Base entry point for the PiShock API."""
 
-    def __init__(self, username: str, apikey: str) -> None:
+    def __init__(self, username: str, api_key: str) -> None:
         self.username = username
-        self.apikey = apikey
+        self.api_key = api_key
 
     def __repr__(self) -> str:
-        return f"API(username={self.username!r}, apikey=...)"
+        return f"API(username={self.username!r}, api_key=...)"
 
     def request(self, endpoint: str, params: dict[str, Any]) -> requests.Response:
         """Make a request to the API.
@@ -142,7 +142,7 @@ class API:
         """
         params = {
             "Username": self.username,
-            "Apikey": self.apikey,
+            "Apikey": self.api_key,
             **params,
         }
         headers = {"User-Agent": f"{NAME}/{__version__}"}

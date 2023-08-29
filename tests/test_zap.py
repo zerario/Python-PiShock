@@ -11,7 +11,7 @@ from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
 @pytest.fixture
 def api(credentials: FakeCredentials) -> zap.API:
-    return zap.API(username=credentials.USERNAME, apikey=credentials.APIKEY)
+    return zap.API(username=credentials.USERNAME, api_key=credentials.API_KEY)
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def shocker(api: zap.API, credentials: FakeCredentials) -> zap.Shocker:
 
 
 def test_api_repr(api: zap.API, credentials: FakeCredentials) -> None:
-    assert repr(api) == f"API(username='{credentials.USERNAME}', apikey=...)"
+    assert repr(api) == f"API(username='{credentials.USERNAME}', api_key=...)"
 
 
 def test_api_not_found(api: zap.API, patcher: PiShockPatcher) -> None:
@@ -164,7 +164,7 @@ def test_unauthorized(patcher: PiShockPatcher, credentials: FakeCredentials) -> 
         apikey="wrong",
         code="wrong",
     )
-    api = zap.API(username=credentials.USERNAME, apikey="wrong")
+    api = zap.API(username=credentials.USERNAME, api_key="wrong")
     shocker = api.shocker(sharecode="wrong")
     with pytest.raises(zap.NotAuthorizedError):
         shocker.vibrate(duration=1, intensity=2)

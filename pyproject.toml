@@ -12,6 +12,7 @@ requests = "^2.31.0"
 typer = "^0.9.0"
 rich = "^13.5.2"
 typing-extensions = {version = "^4.7.1", python = "<3.9"}
+platformdirs = "^3.10.0"
 
 [tool.poetry.scripts]
 pishock = "pishock.cli:app"

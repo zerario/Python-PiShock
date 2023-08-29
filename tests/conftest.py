@@ -14,7 +14,7 @@ _MatcherType: TypeAlias = Callable[..., Any]
 
 class FakeCredentials:
     USERNAME = "PISHOCK-USERNAME"
-    APIKEY = "PISHOCK-APIKEY"
+    API_KEY = "PISHOCK-APIKEY"
     SHARECODE = "PISHOCK-SHARECODE"
 
 
@@ -61,7 +61,7 @@ class PiShockPatcher:
     def operate_matchers(self, **kwargs: Any) -> list[_MatcherType]:
         template = {
             "Username": FakeCredentials.USERNAME,
-            "Apikey": FakeCredentials.APIKEY,
+            "Apikey": FakeCredentials.API_KEY,
             "Code": FakeCredentials.SHARECODE,
             "Name": self.NAME,
             "Op": zap._Operation.VIBRATE.value,
@@ -97,7 +97,7 @@ class PiShockPatcher:
             matchers.json_params_matcher(
                 {
                     "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
+                    "Apikey": FakeCredentials.API_KEY,
                     "Code": FakeCredentials.SHARECODE,
                 }
             ),
@@ -128,7 +128,7 @@ class PiShockPatcher:
             matchers.json_params_matcher(
                 {
                     "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
+                    "Apikey": FakeCredentials.API_KEY,
                     "ShockerId": 1001,
                     "Pause": pause,
                 }
@@ -149,7 +149,7 @@ class PiShockPatcher:
             matchers.json_params_matcher(
                 {
                     "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
+                    "Apikey": FakeCredentials.API_KEY,
                     "ClientId": 1000,
                 }
             ),
@@ -173,12 +173,15 @@ class PiShockPatcher:
 
     # VerifyApiCredentials
 
-    def verify_credentials_matchers(self) -> list[_MatcherType]:
+    def verify_credentials_matchers(
+        self,
+        username: str = FakeCredentials.USERNAME,
+    ) -> list[_MatcherType]:
         return [
             matchers.json_params_matcher(
                 {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
+                    "Username": username,
+                    "Apikey": FakeCredentials.API_KEY,
                 }
             ),
             matchers.header_matcher(self.HEADERS),
@@ -190,10 +193,14 @@ class PiShockPatcher:
             **kwargs,
         )
 
-    def verify_credentials(self, valid: bool) -> None:
+    def verify_credentials(
+        self,
+        valid: bool,
+        username: str = FakeCredentials.USERNAME,
+    ) -> None:
         self.verify_credentials_raw(
             status=http.HTTPStatus.OK if valid else http.HTTPStatus.FORBIDDEN,
-            match=self.verify_credentials_matchers(),
+            match=self.verify_credentials_matchers(username=username),
         )
 
 
