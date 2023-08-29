@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import dataclasses
 import enum
-import json
 import http
+import json
 from typing import Any
 
 import requests
@@ -200,6 +200,7 @@ class API:
                 return False
             raise
         return True
+
 
 @dataclasses.dataclass
 class BasicShockerInfo:

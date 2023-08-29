@@ -1,13 +1,13 @@
-import http
 import random
 
-import pytest
-from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import]
-import typer.testing
 import click.testing
+import pytest
+import typer.testing
+from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import]
 
-from tests.conftest import PiShockPatcher, FakeCredentials  # for type hints
 from pishock import cli, zap
+
+from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
 
 class Runner:
