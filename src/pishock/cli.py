@@ -141,6 +141,19 @@ def shockers(
         rich.print(f"{shocker.shocker_id}: {shocker.name} {emoji}")
 
 
+@app.command()
+def verify_credentials() -> None:
+    """Verify that the API credentials are correct."""
+    assert api is not None
+    with handle_errors():
+        ok = api.verify_credentials()
+    if ok:
+        rich.print("[green]:white_check_mark: Credentials are valid.[/green]")
+    else:
+        rich.print("[red]:x: Credentials are invalid.[/red]")
+        raise typer.Exit(1)
+
+
 @app.callback()
 def main(
     username: Annotated[

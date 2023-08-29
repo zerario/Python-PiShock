@@ -1,13 +1,13 @@
+import http
 import random
 
-import click.testing
 import pytest
-import typer.testing
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import]
+import typer.testing
+import click.testing
 
+from tests.conftest import PiShockPatcher, FakeCredentials  # for type hints
 from pishock import cli, zap
-
-from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
 
 class Runner:
@@ -185,3 +185,19 @@ def test_shockers(
     patcher.get_shockers()
     result = runner.run("shockers", "1000")
     assert result.output == golden.out["output"]
+
+
+@pytest.mark.parametrize("valid", [True, False])
+def test_verify_credentials(
+    runner: Runner,
+    patcher: PiShockPatcher,
+    golden: GoldenTestFixture,
+    valid: bool,
+) -> None:
+    patcher.verify_credentials(valid)
+    filename = "valid" if valid else "invalid"
+    golden = golden.open(f"golden/verify-credentials/{filename}.yml")
+
+    result = runner.run("verify-credentials")
+    assert result.output == golden.out["output"]
+    assert result.exit_code == (0 if valid else 1)

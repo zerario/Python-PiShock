@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http
 from typing import Any, Callable
 
 import pytest
@@ -23,6 +24,7 @@ class APIURLs:
     PAUSE = f"{BASE}/PauseShocker"
     SHOCKER_INFO = f"{BASE}/GetShockerInfo"
     GET_SHOCKERS = f"{BASE}/GetShockers"
+    VERIFY_CREDENTIALS = f"{BASE}/VerifyApiCredentials"
 
 
 @pytest.fixture
@@ -167,6 +169,31 @@ class PiShockPatcher:
                 {"name": "test shocker 2", "id": 1002, "paused": True},
             ],
             match=self.get_shockers_matchers(),
+        )
+
+    # VerifyApiCredentials
+
+    def verify_credentials_matchers(self) -> list[_MatcherType]:
+        return [
+            matchers.json_params_matcher(
+                {
+                    "Username": FakeCredentials.USERNAME,
+                    "Apikey": FakeCredentials.APIKEY,
+                }
+            ),
+            matchers.header_matcher(self.HEADERS),
+        ]
+
+    def verify_credentials_raw(self, **kwargs: Any) -> None:
+        self.responses.post(
+            APIURLs.VERIFY_CREDENTIALS,
+            **kwargs,
+        )
+
+    def verify_credentials(self, valid: bool) -> None:
+        self.verify_credentials_raw(
+            status=http.HTTPStatus.OK if valid else http.HTTPStatus.FORBIDDEN,
+            match=self.verify_credentials_matchers(),
         )
 
 

@@ -254,3 +254,18 @@ def test_get_shockers_invalid(api: zap.API, patcher: PiShockPatcher) -> None:
     patcher.get_shockers_raw(body=message, match=patcher.get_shockers_matchers())
     with pytest.raises(zap.UnknownError, match=message):
         api.get_shockers(client_id=1000)
+
+
+@pytest.mark.parametrize("valid", [True, False])
+def test_verify_credentials(api: zap.API, patcher: PiShockPatcher, valid: bool) -> None:
+    patcher.verify_credentials(valid)
+    assert api.verify_credentials() == valid
+
+
+def test_verify_credentials_error(api: zap.API, patcher: PiShockPatcher) -> None:
+    patcher.verify_credentials_raw(
+        status=http.HTTPStatus.IM_A_TEAPOT,
+        match=patcher.verify_credentials_matchers(),
+    )
+    with pytest.raises(zap.HTTPError):
+        api.verify_credentials()

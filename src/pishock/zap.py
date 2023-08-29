@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import enum
 import json
+import http
 from typing import Any
 
 import requests
@@ -10,9 +11,6 @@ import requests
 from . import __version__ as __version__
 
 # TODO:
-# - Move patching out of test_zap.py
-# - Test CLI
-# - Add more functionality (check API permissions)
 # - Address book
 # - Random mode
 # - PiVault
@@ -190,6 +188,18 @@ class API:
             for d in data
         ]
 
+    def verify_credentials(self) -> bool:
+        """Check if the API credentials are valid.
+
+        Returns True on success, False on authentication failure.
+        """
+        try:
+            self.request("VerifyApiCredentials", {})
+        except HTTPError as e:
+            if e.status_code == http.HTTPStatus.FORBIDDEN:
+                return False
+            raise
+        return True
 
 @dataclasses.dataclass
 class BasicShockerInfo:
