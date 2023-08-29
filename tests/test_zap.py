@@ -1,69 +1,30 @@
+from __future__ import annotations
+
 import http
 
 import pytest
-from responses import RequestsMock, matchers
 
 from pishock import zap
-
-
-class FakeCredentials:
-    USERNAME = "PISHOCK-USERNAME"
-    APIKEY = "PISHOCK-APIKEY"
-    SHARECODE = "PISHOCK-SHARECODE"
-
-
-class APIURLs:
-    BASE = "https://do.pishock.com/api"
-    OPERATE = f"{BASE}/apioperate"
-    PAUSE = f"{BASE}/PauseShocker"
-    SHOCKER_INFO = f"{BASE}/GetShockerInfo"
-    GET_SHOCKERS = f"{BASE}/GetShockers"
-
-
-def get_operate_matchers(**kwargs):
-    template = {
-        "Username": FakeCredentials.USERNAME,
-        "Apikey": FakeCredentials.APIKEY,
-        "Code": FakeCredentials.SHARECODE,
-        "Name": zap.NAME,
-        "Op": zap._Operation.VIBRATE.value,
-        "Duration": 1,
-        "Intensity": 2,
-    }
-    for k, v in kwargs.items():
-        k = k.capitalize()
-        if v is None:
-            del template[k]
-        else:
-            template[k] = v
-    return [
-        matchers.json_params_matcher(template),
-        matchers.header_matcher({"User-Agent": f"{zap.NAME}/{zap.__version__}"}),
-    ]
+from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
 
 @pytest.fixture
-def api() -> zap.API:
-    return zap.API(username=FakeCredentials.USERNAME, apikey=FakeCredentials.APIKEY)
+def api(credentials: FakeCredentials) -> zap.API:
+    return zap.API(username=credentials.USERNAME, apikey=credentials.APIKEY)
 
 
 @pytest.fixture
-def shocker(api: zap.API) -> zap.Shocker:
-    return api.shocker(FakeCredentials.SHARECODE)
+def shocker(api: zap.API, credentials: FakeCredentials) -> zap.Shocker:
+    return api.shocker(credentials.SHARECODE)
 
 
-def test_api_repr(api: zap.API):
-    assert repr(api) == f"API(username='{FakeCredentials.USERNAME}', apikey=...)"
+def test_api_repr(api: zap.API, credentials: FakeCredentials):
+    assert repr(api) == f"API(username='{credentials.USERNAME}', apikey=...)"
 
 
-def test_api_not_found(api: zap.API, responses: RequestsMock):
+def test_api_not_found(api: zap.API, patcher: PiShockPatcher):
     status = http.HTTPStatus.NOT_FOUND
-    responses.add(
-        responses.POST,
-        APIURLs.OPERATE,
-        body=status.description,
-        status=status,
-    )
+    patcher.operate_raw(body=status.description, status=status)
     with pytest.raises(zap.HTTPError) as excinfo:
         api.request("apioperate", {})
 
@@ -72,42 +33,37 @@ def test_api_not_found(api: zap.API, responses: RequestsMock):
 
 
 @pytest.mark.parametrize("success_msg", zap.Shocker.SUCCESS_MESSAGES)
-def test_vibrate(shocker: zap.Shocker, responses: RequestsMock, success_msg: str):
-    responses.post(
-        APIURLs.OPERATE,
-        body=success_msg,
-        match=get_operate_matchers(),
-    )
+def test_vibrate(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str):
+    patcher.operate(body=success_msg)
     shocker.vibrate(duration=1, intensity=2)
 
 
 @pytest.mark.parametrize("success_msg", zap.Shocker.SUCCESS_MESSAGES)
-def test_shock(shocker: zap.Shocker, responses: RequestsMock, success_msg: str):
-    responses.post(
-        APIURLs.OPERATE,
+def test_shock(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str):
+    patcher.operate(
         body=success_msg,
-        match=get_operate_matchers(op=zap._Operation.SHOCK.value),
+        op=zap._Operation.SHOCK.value,
     )
     shocker.shock(duration=1, intensity=2)
 
 
 @pytest.mark.parametrize("success_msg", zap.Shocker.SUCCESS_MESSAGES)
-def test_beep(shocker: zap.Shocker, responses: RequestsMock, success_msg: str):
-    responses.post(
-        APIURLs.OPERATE,
+def test_beep(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str):
+    patcher.operate(
         body=success_msg,
-        match=get_operate_matchers(op=zap._Operation.BEEP.value, intensity=None),
+        op=zap._Operation.BEEP.value,
+        intensity=None,
     )
     shocker.beep(duration=1)
 
 
-def test_name_override(api: zap.API, responses: RequestsMock):
-    responses.post(
-        APIURLs.OPERATE,
-        body=zap.Shocker.SUCCESS_MESSAGES[0],
-        match=get_operate_matchers(name="test"),
-    )
-    shocker = api.shocker(FakeCredentials.SHARECODE, name="test")
+def test_name_override(
+    api: zap.API,
+    patcher: PiShockPatcher,
+    credentials: FakeCredentials,
+):
+    patcher.operate(name="test")
+    shocker = api.shocker(credentials.SHARECODE, name="test")
     shocker.vibrate(duration=1, intensity=2)
 
 
@@ -129,13 +85,9 @@ def test_name_override(api: zap.API, responses: RequestsMock):
     ],
 )
 def test_valid_durations(
-    shocker: zap.Shocker, responses: RequestsMock, duration: float, expected: int
+    shocker: zap.Shocker, patcher: PiShockPatcher, duration: float, expected: int
 ):
-    responses.post(
-        APIURLs.OPERATE,
-        body=zap.Shocker.SUCCESS_MESSAGES[0],
-        match=get_operate_matchers(duration=expected),
-    )
+    patcher.operate(duration=expected)
     shocker.vibrate(duration=duration, intensity=2)
 
 
@@ -166,29 +118,27 @@ class TestInvalidIntensity:
 
 
 class TestOperationsNotAllowed:
-    def test_vibrate(self, shocker: zap.Shocker, responses: RequestsMock):
-        responses.post(
-            APIURLs.OPERATE,
+    def test_vibrate(self, shocker: zap.Shocker, patcher: PiShockPatcher):
+        patcher.operate(
             body=zap.VibrateNotAllowedError.TEXT,
-            match=get_operate_matchers(op=zap._Operation.VIBRATE.value),
+            op=zap._Operation.VIBRATE.value,
         )
         with pytest.raises(zap.VibrateNotAllowedError):
             shocker.vibrate(duration=1, intensity=2)
 
-    def test_shock(self, shocker: zap.Shocker, responses: RequestsMock):
-        responses.post(
-            APIURLs.OPERATE,
+    def test_shock(self, shocker: zap.Shocker, patcher: PiShockPatcher):
+        patcher.operate(
             body=zap.ShockNotAllowedError.TEXT,
-            match=get_operate_matchers(op=zap._Operation.SHOCK.value),
+            op=zap._Operation.SHOCK.value,
         )
         with pytest.raises(zap.ShockNotAllowedError):
             shocker.shock(duration=1, intensity=2)
 
-    def test_beep(self, shocker: zap.Shocker, responses: RequestsMock):
-        responses.post(
-            APIURLs.OPERATE,
+    def test_beep(self, shocker: zap.Shocker, patcher: PiShockPatcher):
+        patcher.operate(
             body=zap.BeepNotAllowedError.TEXT,
-            match=get_operate_matchers(op=zap._Operation.BEEP.value, intensity=None),
+            op=zap._Operation.BEEP.value,
+            intensity=None,
         )
         with pytest.raises(zap.BeepNotAllowedError):
             shocker.beep(duration=1)
@@ -199,147 +149,65 @@ def test_beep_no_intensity(shocker: zap.Shocker):
         shocker.beep(duration=1, intensity=2)
 
 
-def test_device_in_use(shocker: zap.Shocker, responses: RequestsMock):
-    responses.post(
-        APIURLs.OPERATE,
-        body=zap.DeviceInUseError.TEXT,
-        match=get_operate_matchers(),
-    )
+def test_device_in_use(shocker: zap.Shocker, patcher: PiShockPatcher):
+    patcher.operate(body=zap.DeviceInUseError.TEXT)
     with pytest.raises(zap.DeviceInUseError):
         shocker.vibrate(duration=1, intensity=2)
 
 
-def test_unauthorized(responses: RequestsMock):
-    responses.post(
-        APIURLs.OPERATE,
+def test_unauthorized(patcher: PiShockPatcher, credentials: FakeCredentials):
+    patcher.operate(
         body=zap.NotAuthorizedError.TEXT,
-        match=get_operate_matchers(apikey="wrong", code="wrong"),
+        apikey="wrong",
+        code="wrong",
     )
-    api = zap.API(username=FakeCredentials.USERNAME, apikey="wrong")
+    api = zap.API(username=credentials.USERNAME, apikey="wrong")
     shocker = api.shocker(sharecode="wrong")
     with pytest.raises(zap.NotAuthorizedError):
         shocker.vibrate(duration=1, intensity=2)
 
 
-def test_unknown_share_code(api: zap.API, responses: RequestsMock):
-    responses.post(
-        APIURLs.OPERATE,
+def test_unknown_share_code(api: zap.API, patcher: PiShockPatcher):
+    patcher.operate(
         body=zap.ShareCodeNotFoundError.TEXT,
-        match=get_operate_matchers(code="wrong"),
+        code="wrong",
     )
     shocker = api.shocker(sharecode="wrong")
     with pytest.raises(zap.ShareCodeNotFoundError):
         shocker.vibrate(duration=1, intensity=2)
 
 
-def test_unknown_error(shocker: zap.Shocker, api: zap.API, responses: RequestsMock):
+def test_unknown_error(shocker: zap.Shocker, api: zap.API, patcher: PiShockPatcher):
     message = "Failed to frobnicate the zap."
-    responses.post(
-        APIURLs.OPERATE,
-        body=message,
-        match=get_operate_matchers(),
-    )
+    patcher.operate(body=message)
     with pytest.raises(zap.UnknownError, match=message):
         shocker.vibrate(duration=1, intensity=2)
 
 
-@pytest.fixture
-def info_setup(responses: RequestsMock) -> None:
-    responses.post(
-        APIURLs.SHOCKER_INFO,
-        json={
-            "name": "test shocker",
-            "clientId": 1000,
-            "id": 1001,
-            "paused": False,
-            "online": True,
-            "maxIntensity": 100,
-            "maxDuration": 15,
-        },
-        match=[
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
-                    "Code": FakeCredentials.SHARECODE,
-                }
-            )
-        ],
-    )
-
-
 @pytest.mark.parametrize("pause", [True, False])
-def test_pause(
-    shocker: zap.Shocker,
-    responses: RequestsMock,
-    info_setup: None,
-    pause: bool,
-):
-    responses.post(
-        APIURLs.PAUSE,
-        body=zap.Shocker.SUCCESS_MESSAGE_PAUSE,
-        match=[
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
-                    "ShockerId": 1001,
-                    "Pause": pause,
-                }
-            )
-        ],
-    )
+def test_pause(shocker: zap.Shocker, patcher: PiShockPatcher, pause: bool):
+    patcher.info()
+    patcher.pause(pause)
     shocker.pause(pause)
 
 
-def test_pause_unauthorized(
-    shocker: zap.Shocker,
-    responses: RequestsMock,
-    info_setup: None,
-):
-    responses.post(
-        APIURLs.PAUSE,
-        body=zap.NotAuthorizedError.TEXT,
-        match=[
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
-                    "ShockerId": 1001,
-                    "Pause": True,
-                }
-            )
-        ],
-    )
+def test_pause_unauthorized(shocker: zap.Shocker, patcher: PiShockPatcher):
+    patcher.info()
+    patcher.pause(True, body=zap.NotAuthorizedError.TEXT)
     with pytest.raises(zap.NotAuthorizedError):
         shocker.pause(True)
 
 
-def test_pause_unknown_error(
-    shocker: zap.Shocker,
-    responses: RequestsMock,
-    info_setup: None,
-):
+def test_pause_unknown_error(shocker: zap.Shocker, patcher: PiShockPatcher):
     message = "Shocker wanna go brrrrr."
-    responses.post(
-        APIURLs.PAUSE,
-        body=message,
-        match=[
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
-                    "ShockerId": 1001,
-                    "Pause": True,
-                }
-            )
-        ],
-    )
+    patcher.info()
+    patcher.pause(True, body=message)
     with pytest.raises(zap.UnknownError, match=message):
         shocker.pause(True)
 
 
-def test_info(shocker: zap.Shocker, info_setup: None):
+def test_info(shocker: zap.Shocker, patcher: PiShockPatcher):
+    patcher.info()
     info = shocker.info()
     assert info.name == "test shocker"
     assert info.client_id == 1000
@@ -350,42 +218,15 @@ def test_info(shocker: zap.Shocker, info_setup: None):
     assert info.max_duration == 15
 
 
-def test_info_invalid(shocker: zap.Shocker, responses: RequestsMock):
+def test_info_invalid(shocker: zap.Shocker, patcher: PiShockPatcher):
     message = "Not JSON lol"
-    responses.post(
-        APIURLs.SHOCKER_INFO,
-        body=message,
-        match=[
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
-                    "Code": FakeCredentials.SHARECODE,
-                }
-            )
-        ],
-    )
+    patcher.info_raw(body=message, match=patcher.info_matchers())
     with pytest.raises(zap.UnknownError, match=message):
         shocker.info()
 
 
-def test_get_shockers(api: zap.API, responses: RequestsMock):
-    responses.post(
-        APIURLs.GET_SHOCKERS,
-        json=[
-            {"name": "test shocker", "id": 1001, "paused": False},
-            {"name": "test shocker 2", "id": 1002, "paused": True},
-        ],
-        match=[
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
-                    "ClientId": 1000,
-                }
-            )
-        ],
-    )
+def test_get_shockers(api: zap.API, patcher: PiShockPatcher):
+    patcher.get_shockers()
     shockers = api.get_shockers(client_id=1000)
     assert shockers == [
         zap.BasicShockerInfo(
@@ -403,20 +244,8 @@ def test_get_shockers(api: zap.API, responses: RequestsMock):
     ]
 
 
-def test_get_shockers_invalid(api: zap.API, responses: RequestsMock):
+def test_get_shockers_invalid(api: zap.API, patcher: PiShockPatcher):
     message = "Not JSON lol"
-    responses.post(
-        APIURLs.GET_SHOCKERS,
-        body=message,
-        match=[
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.APIKEY,
-                    "ClientId": 1000,
-                }
-            )
-        ],
-    )
+    patcher.get_shockers_raw(body=message, match=patcher.get_shockers_matchers())
     with pytest.raises(zap.UnknownError, match=message):
         api.get_shockers(client_id=1000)
