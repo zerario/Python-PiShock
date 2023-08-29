@@ -48,7 +48,7 @@ def print_emoji(name: str, duration: float) -> None:
     rich.print(f":{name}:" * max(int(duration), 1))
 
 
-@app.command()
+@app.command(rich_help_panel="Actions")
 def shock(
     share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt
 ) -> None:
@@ -62,7 +62,7 @@ def shock(
         print("".join(random.choices("asdfghjkl", k=random.randint(5, 20))))
 
 
-@app.command()
+@app.command(rich_help_panel="Actions")
 def vibrate(
     share_code: ShareCodeArg, duration: DurationOpt, intensity: IntensityOpt
 ) -> None:
@@ -73,7 +73,7 @@ def vibrate(
     print_emoji("vibration_mode", duration)
 
 
-@app.command()
+@app.command(rich_help_panel="Actions")
 def beep(share_code: ShareCodeArg, duration: DurationOpt) -> None:
     """Send a beep to the given share code."""
     shocker = get_shocker(share_code)
@@ -86,7 +86,7 @@ def paused_emoji(is_paused: bool) -> str:
     return ":double_vertical_bar:" if is_paused else ":arrow_forward:"
 
 
-@app.command()
+@app.command(rich_help_panel="Shockers")
 def info(share_code: ShareCodeArg) -> None:
     """Get information about the given shocker."""
     shocker = get_shocker(share_code)
@@ -111,7 +111,7 @@ def info(share_code: ShareCodeArg) -> None:
     rich.print(table)
 
 
-@app.command()
+@app.command(rich_help_panel="Shockers")
 def pause(share_code: ShareCodeArg) -> None:
     """Pause the given shocker."""
     shocker = get_shocker(share_code)
@@ -119,7 +119,7 @@ def pause(share_code: ShareCodeArg) -> None:
         shocker.pause(True)
 
 
-@app.command()
+@app.command(rich_help_panel="Shockers")
 def unpause(share_code: ShareCodeArg) -> None:
     """Unpause the given shocker."""
     shocker = get_shocker(share_code)
@@ -127,7 +127,7 @@ def unpause(share_code: ShareCodeArg) -> None:
         shocker.pause(False)
 
 
-@app.command()
+@app.command(rich_help_panel="Shockers")
 def shockers(
     client_id: Annotated[int, typer.Argument(help="PiShock client ID.")],
 ) -> None:
@@ -141,7 +141,7 @@ def shockers(
         rich.print(f"{shocker.shocker_id}: {shocker.name} {emoji}")
 
 
-@app.command()
+@app.command(rich_help_panel="API credentials")
 def verify_credentials() -> None:
     """Verify that the API credentials are correct."""
     assert api is not None
