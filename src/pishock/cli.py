@@ -4,11 +4,11 @@ from typing import Union
 
 try:
     from typing import Annotated
-except ImportError:
+except ImportError:  # pragma: no cover
     from typing_extensions import Annotated
 try:
     from typing import TypeAlias
-except ImportError:
+except ImportError:  # pragma: no cover
     from typing_extensions import TypeAlias
 
 import typer
@@ -167,4 +167,4 @@ def main(
 
 
 if __name__ == "__main__":
-    app()
+    app()  # pragma: no cover

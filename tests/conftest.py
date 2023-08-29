@@ -46,6 +46,7 @@ class PiShockPatcher:
         "User-Agent": f"{zap.NAME}/{zap.__version__}",
         "Content-Type": "application/json",
     }
+    NAME = zap.NAME
 
     def __init__(self, responses: RequestsMock) -> None:
         self.responses = responses
@@ -57,7 +58,7 @@ class PiShockPatcher:
             "Username": FakeCredentials.USERNAME,
             "Apikey": FakeCredentials.APIKEY,
             "Code": FakeCredentials.SHARECODE,
-            "Name": zap.NAME,
+            "Name": self.NAME,
             "Op": zap._Operation.VIBRATE.value,
             "Duration": 1,
             "Intensity": 2,
@@ -101,14 +102,14 @@ class PiShockPatcher:
     def info_raw(self, **kwargs: Any) -> None:
         self.responses.post(APIURLs.SHOCKER_INFO, **kwargs)
 
-    def info(self) -> None:
+    def info(self, paused: bool = False, online: bool = True) -> None:
         self.info_raw(
             json={
                 "name": "test shocker",
                 "clientId": 1000,
                 "id": 1001,
-                "paused": False,
-                "online": True,
+                "paused": paused,
+                "online": online,
                 "maxIntensity": 100,
                 "maxDuration": 15,
             },
