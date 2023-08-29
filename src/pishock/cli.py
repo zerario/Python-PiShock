@@ -2,11 +2,10 @@ import contextlib
 import random
 from typing import Iterator
 
-from typing_extensions import Annotated, TypeAlias
-
-import typer
 import rich
 import rich.table
+import typer
+from typing_extensions import Annotated, TypeAlias
 
 from pishock import zap
 

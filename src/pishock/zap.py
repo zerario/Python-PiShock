@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import json
-import enum
 import dataclasses
+import enum
+import json
 from typing import Any
 
 import requests
 
 from . import __version__ as __version__
-
 
 # TODO:
 # - Move patching out of test_zap.py

@@ -5,6 +5,7 @@ import http
 import pytest
 
 from pishock import zap
+
 from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
 

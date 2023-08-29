@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from typing import Callable, Any
-from typing_extensions import TypeAlias
+from typing import Any, Callable
 
 import pytest
 from responses import RequestsMock, matchers
+from typing_extensions import TypeAlias
 
 from pishock import zap
-
 
 _MatcherType: TypeAlias = Callable[..., Any]
 
