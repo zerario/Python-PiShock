@@ -1,15 +1,8 @@
 import contextlib
 import random
-from typing import Union
+from typing import Iterator
 
-try:
-    from typing import Annotated
-except ImportError:  # pragma: no cover
-    from typing_extensions import Annotated
-try:
-    from typing import TypeAlias
-except ImportError:  # pragma: no cover
-    from typing_extensions import TypeAlias
+from typing_extensions import Annotated, TypeAlias
 
 import typer
 import rich
@@ -39,7 +32,7 @@ IntensityOpt: TypeAlias = Annotated[
 
 
 @contextlib.contextmanager
-def handle_errors() -> None:
+def handle_errors() -> Iterator[None]:
     try:
         yield
     except (zap.APIError, ValueError) as e:
@@ -95,7 +88,7 @@ def paused_emoji(is_paused: bool) -> str:
 
 
 @app.command()
-def info(share_code: ShareCodeArg):
+def info(share_code: ShareCodeArg) -> None:
     """Get information about the given shocker."""
     shocker = get_shocker(share_code)
     with handle_errors():
@@ -120,7 +113,7 @@ def info(share_code: ShareCodeArg):
 
 
 @app.command()
-def pause(share_code: ShareCodeArg):
+def pause(share_code: ShareCodeArg) -> None:
     """Pause the given shocker."""
     shocker = get_shocker(share_code)
     with handle_errors():
@@ -128,7 +121,7 @@ def pause(share_code: ShareCodeArg):
 
 
 @app.command()
-def unpause(share_code: ShareCodeArg):
+def unpause(share_code: ShareCodeArg) -> None:
     """Unpause the given shocker."""
     shocker = get_shocker(share_code)
     with handle_errors():
@@ -138,7 +131,7 @@ def unpause(share_code: ShareCodeArg):
 @app.command()
 def shockers(
     client_id: Annotated[int, typer.Argument(help="PiShock client ID.")],
-):
+) -> None:
     """Get a list of all shockers for the given client (PiShock) ID."""
     assert api is not None
     with handle_errors():
@@ -161,7 +154,7 @@ def main(
         str,
         typer.Option(help="API key for the PiShock account.", envvar="PISHOCK_API_KEY"),
     ],
-):
+) -> None:
     global api
     api = zap.API(username, api_key)
 

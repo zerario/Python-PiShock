@@ -1,8 +1,10 @@
 import http
+import random
 
 import pytest
-from pytest_golden.plugin import GoldenTestFixture
+from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import]
 import typer.testing
+import click.testing
 
 from tests.conftest import PiShockPatcher, FakeCredentials  # for type hints
 from pishock import cli, zap
@@ -13,7 +15,7 @@ class Runner:
         self._runner = typer.testing.CliRunner()
         self.sharecode = sharecode  # for ease of access
 
-    def run(self, *args: str) -> typer.testing.Result:
+    def run(self, *args: str) -> click.testing.Result:
         result = self._runner.invoke(cli.app, args, catch_exceptions=False)
         print(result.output)
         return result
@@ -85,8 +87,8 @@ def test_shock(
 
     golden = golden.open(f"golden/shock/{filename}.yml")
     patcher.operate(duration=api_duration, op=zap._Operation.SHOCK.value)
-    monkeypatch.setattr(cli.random, "random", lambda: 0.01 if keysmash else 0.2)
-    monkeypatch.setattr(cli.random, "choices", lambda values, k: "asdfg")
+    monkeypatch.setattr(random, "random", lambda: 0.01 if keysmash else 0.2)
+    monkeypatch.setattr(random, "choices", lambda values, k: "asdfg")
 
     result = runner.run("shock", runner.sharecode, "-d", str(duration), "-i", "2")
     assert result.output == golden.out["output"]
@@ -167,7 +169,7 @@ def test_pause_unauthorized(
     paused: bool,
     runner: Runner,
     patcher: PiShockPatcher,
-):
+) -> None:
     patcher.info()
     patcher.pause(paused, body=zap.NotAuthorizedError.TEXT)
     result = runner.run(cmd, runner.sharecode)

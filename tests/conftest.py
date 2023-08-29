@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Callable, Any
+from typing_extensions import TypeAlias
 
 import pytest
 from responses import RequestsMock, matchers
 
 from pishock import zap
+
+
+_MatcherType: TypeAlias = Callable[..., Any]
 
 
 class FakeCredentials:
@@ -53,7 +57,7 @@ class PiShockPatcher:
 
     # ApiOperate
 
-    def operate_matchers(self, **kwargs):
+    def operate_matchers(self, **kwargs: Any) -> list[_MatcherType]:
         template = {
             "Username": FakeCredentials.USERNAME,
             "Apikey": FakeCredentials.APIKEY,
@@ -87,7 +91,7 @@ class PiShockPatcher:
 
     # GetShockerInfo
 
-    def info_matchers(self) -> list[matchers.BaseMatcher]:
+    def info_matchers(self) -> list[_MatcherType]:
         return [
             matchers.json_params_matcher(
                 {
@@ -118,7 +122,7 @@ class PiShockPatcher:
 
     # PauseShocker
 
-    def pause_matchers(self, pause: bool) -> list[matchers.BaseMatcher]:
+    def pause_matchers(self, pause: bool) -> list[_MatcherType]:
         return [
             matchers.json_params_matcher(
                 {
@@ -139,7 +143,7 @@ class PiShockPatcher:
 
     # GetShockers
 
-    def get_shockers_matchers(self) -> list[matchers.BaseMatcher]:
+    def get_shockers_matchers(self) -> list[_MatcherType]:
         return [
             matchers.json_params_matcher(
                 {

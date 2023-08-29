@@ -7,7 +7,7 @@ from typing import Any
 
 import requests
 
-from . import __version__
+from . import __version__ as __version__
 
 
 # TODO:
@@ -46,6 +46,8 @@ class APIError(Exception):
     # "Unknown Op, use 0 for shock, 1 for vibrate and 2 for beep"
     # "Duration must be between 1 and {maxdur}"
     # "Intensity must be between 0 and {maxint}"
+
+    TEXT: str  # set by subclasses
 
 
 class ShareCodeAlreadyUsedError(APIError):
