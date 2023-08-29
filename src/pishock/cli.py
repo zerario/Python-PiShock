@@ -109,7 +109,7 @@ def info(share_code: ShareCodeArg):
     table.add_row("PiShock ID", str(info.client_id))
     table.add_row("Shocker ID", str(info.shocker_id))
 
-    pause = ":double_vertical_bar:" if info.is_paused else ":arrow_forward:"
+    pause = paused_emoji(info.is_paused)
     online = ":white_check_mark:" if info.is_online else ":x:"
 
     table.add_row("Online / Paused", f"{online} {pause}")
