@@ -11,11 +11,8 @@ import requests
 from . import __version__ as __version__
 
 # TODO:
-# - Address book
-# - Random mode
 # - PiVault
 # - Readme / API docs
-# - Rename to PyShock?
 
 
 NAME = "Python-PiShock"

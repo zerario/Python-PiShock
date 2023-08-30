@@ -21,6 +21,22 @@ api = None
 config = None
 
 
+# TODO:
+# - Address book
+#   code-add [--force]
+#   code-del
+#   code-list [--info]
+#   code-rename
+#
+# - Accept multiple share codes for commands
+# - --force for init
+# - Rename verify-credentials to verify
+# - Random mode
+# - Warn when only username or only API key was given
+# - Handle basic invalid configs?
+# - selftest mode?
+
+
 class Config:
     def __init__(self) -> None:
         self.username: Optional[str] = None
