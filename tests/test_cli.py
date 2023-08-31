@@ -184,7 +184,7 @@ class TestInit:
 
     @pytest.mark.golden_test("golden/no_config.yml")
     def test_no_config(self, runner_noenv: Runner, golden: GoldenTestFixture) -> None:
-        result = runner_noenv.run("verify-credentials")
+        result = runner_noenv.run("verify")
         assert result.output == golden.out["output"]
         assert result.exit_code == 1
 
@@ -198,7 +198,7 @@ class TestInit:
             json.dump(CONFIG_DATA, f)
         patcher.verify_credentials(True)
 
-        result = runner_noenv.run("verify-credentials")
+        result = runner_noenv.run("verify")
         assert result.exit_code == 0
 
 
@@ -366,6 +366,6 @@ def test_verify_credentials(
     filename = "valid" if valid else "invalid"
     golden = golden.open(f"golden/verify-credentials/{filename}.yml")
 
-    result = runner.run("verify-credentials")
+    result = runner.run("verify")
     assert result.output == golden.out["output"]
     assert result.exit_code == (0 if valid else 1)

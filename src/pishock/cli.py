@@ -30,7 +30,6 @@ config = None
 #
 # - Accept multiple share codes for commands
 # - --force for init
-# - Rename verify-credentials to verify
 # - Random mode
 # - Warn when only username or only API key was given
 # - Handle basic invalid configs?
@@ -193,7 +192,7 @@ def shockers(
 
 
 @app.command(rich_help_panel="API credentials")
-def verify_credentials() -> None:
+def verify() -> None:
     """Verify that the API credentials are correct."""
     assert api is not None
     with handle_errors():
