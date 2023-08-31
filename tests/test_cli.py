@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import json
 import pathlib
@@ -150,7 +152,7 @@ class TestInit:
             data = json.load(f)
         assert data == CONFIG_DATA
 
-    @pytest.mark.parametrize("confirmed", [True, False])
+    @pytest.mark.parametrize("confirmed", [True, False, "--force"])
     def test_init_overwrite(
         self,
         config_path: pathlib.Path,
@@ -158,10 +160,12 @@ class TestInit:
         patcher: PiShockPatcher,
         monkeypatch: pytest.MonkeyPatch,
         credentials: FakeCredentials,
-        confirmed: bool,
+        confirmed: bool | str,
     ) -> None:
         new_username = credentials.USERNAME + "-NEW"
-        monkeypatch.setattr(rich.prompt.Confirm, "ask", lambda text: confirmed)
+
+        if confirmed != "--force":
+            monkeypatch.setattr(rich.prompt.Confirm, "ask", lambda text: confirmed)
 
         if confirmed:
             answers = iter([new_username, credentials.API_KEY])
@@ -171,7 +175,8 @@ class TestInit:
         with config_path.open("w") as f:
             json.dump(CONFIG_DATA, f)
 
-        result = runner_noenv.run("init")
+        force_arg = ["--force"] if confirmed == "--force" else []
+        result = runner_noenv.run("init", *force_arg)
         assert result.exit_code == (0 if confirmed else 1)
 
         expected_data = copy.deepcopy(CONFIG_DATA)

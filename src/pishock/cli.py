@@ -29,7 +29,6 @@ config = None
 #   code-rename
 #
 # - Accept multiple share codes for commands
-# - --force for init
 # - Random mode
 # - Warn when only username or only API key was given
 # - Handle basic invalid configs?
@@ -205,10 +204,14 @@ def verify() -> None:
 
 
 @app.command(rich_help_panel="API credentials")
-def init() -> None:
+def init(
+    force: Annotated[
+        bool, typer.Option(help="Overwrite existing information without asking")
+    ] = False
+) -> None:
     """Initialize the API credentials."""
     assert config is not None
-    if config.username is not None or config.api_key is not None:
+    if (config.username is not None or config.api_key is not None) and not force:
         yes = rich.prompt.Confirm.ask(
             f"Overwrite existing information for [green]{config.username}[/]?"
         )
