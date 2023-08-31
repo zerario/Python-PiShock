@@ -1,8 +1,0 @@
-output: |
-  Warning: API key given but no username. Ignoring.
-
-  No API credentials found. To fix this, do either of:
-
-  - Run pytest init to create a new config file
-  - Set PISHOCK_API_USER and PISHOCK_API_KEY environment variables
-  - Pass --username and --api-key options

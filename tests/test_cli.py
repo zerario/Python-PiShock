@@ -190,13 +190,14 @@ class TestInit:
         assert data == expected_data
 
     @pytest.mark.parametrize(
-        "has_user, has_key, filename",
+        "has_user, has_key, suffix",
         [
-            (True, False, "user-only"),
-            (False, True, "key-only"),
+            (True, False, "user_only"),
+            (False, True, "key_only"),
             (False, False, "none"),
         ],
     )
+    @pytest.mark.golden_test("golden/no-config.yml")
     def test_no_config(
         self,
         runner_noenv: Runner,
@@ -205,17 +206,15 @@ class TestInit:
         golden: GoldenTestFixture,
         has_user: bool,
         has_key: bool,
-        filename: str,
+        suffix: str,
     ) -> None:
         if has_key:
             monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
         if has_user:
             monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
 
-        golden = golden.open(f"golden/no-config/{filename}.yml")
-
         result = runner_noenv.run("verify")
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out[f"output_{suffix}"]
         assert result.exit_code == 1
 
     def test_from_config(
@@ -234,6 +233,7 @@ class TestInit:
 
 @pytest.mark.parametrize("online", [True, False])
 @pytest.mark.parametrize("paused", [True, False])
+@pytest.mark.golden_test("golden/info.yml")
 def test_info(
     runner: Runner,
     golden: GoldenTestFixture,
@@ -241,25 +241,24 @@ def test_info(
     online: bool,
     paused: bool,
 ) -> None:
-    filename = "info"
+    key = "output"
     if not online:
-        filename += "-offline"
+        key += "_offline"
     if paused:
-        filename += "-paused"
-    golden = golden.open(f"golden/info/{filename}.yml")
+        key += "_paused"
 
     patcher.info(online=online, paused=paused)
     result = runner.run("info", runner.sharecode)
-    assert result.output == golden.out["output"]
+    assert result.output == golden.out[key]
 
 
-@pytest.mark.golden_test("golden/info/info-error.yml")
+@pytest.mark.golden_test("golden/info.yml")
 def test_info_error(
     runner: Runner, patcher: PiShockPatcher, golden: GoldenTestFixture
 ) -> None:
     patcher.info_raw(body="Not JSON lol")
     result = runner.run("info", runner.sharecode)
-    assert result.output == golden.out["output"]
+    assert result.output == golden.out["output_error"]
     assert result.exit_code == 1
 
 
@@ -268,6 +267,7 @@ def test_info_error(
     [(0.3, 300), (1, 1), (2, 2)],
 )
 @pytest.mark.parametrize("keysmash", [True, False])
+@pytest.mark.golden_test("golden/shock.yml")
 def test_shock(
     runner: Runner,
     patcher: PiShockPatcher,
@@ -277,22 +277,21 @@ def test_shock(
     api_duration: int,
     keysmash: bool,
 ) -> None:
-    filename = "shock"
+    key = "output"
     if duration > 1:
-        filename += "-long"
+        key += "_long"
     if keysmash:
-        filename += "-keysmash"
+        key += "_keysmash"
 
-    golden = golden.open(f"golden/shock/{filename}.yml")
     patcher.operate(duration=api_duration, op=zap._Operation.SHOCK.value)
     monkeypatch.setattr(random, "random", lambda: 0.01 if keysmash else 0.2)
     monkeypatch.setattr(random, "choices", lambda values, k: "asdfg")
 
     result = runner.run("shock", runner.sharecode, "-d", str(duration), "-i", "2")
-    assert result.output == golden.out["output"]
+    assert result.output == golden.out[key]
 
 
-@pytest.mark.golden_test("golden/vibrate/vibrate.yml")
+@pytest.mark.golden_test("golden/beep-vibrate.yml")
 @pytest.mark.parametrize(
     "duration, api_duration",
     [(0.3, 300), (1, 1)],
@@ -306,10 +305,10 @@ def test_vibrate(
 ) -> None:
     patcher.operate(duration=api_duration, op=zap._Operation.VIBRATE.value)
     result = runner.run("vibrate", runner.sharecode, "-d", str(duration), "-i", "2")
-    assert result.output == golden.out["output"]
+    assert result.output == golden.out["output_vibrate"]
 
 
-@pytest.mark.golden_test("golden/beep/beep.yml")
+@pytest.mark.golden_test("golden/beep-vibrate.yml")
 @pytest.mark.parametrize(
     "duration, api_duration",
     [(0.3, 300), (1, 1)],
@@ -323,7 +322,7 @@ def test_beep(
 ) -> None:
     patcher.operate(op=zap._Operation.BEEP.value, intensity=None, duration=api_duration)
     result = runner.run("beep", runner.sharecode, "-d", str(duration))
-    assert result.output == golden.out["output"]
+    assert result.output == golden.out["output_beep"]
 
 
 @pytest.mark.parametrize(
@@ -458,9 +457,9 @@ def test_shockers(
     assert result.output == golden.out[f"output_{outcome}"]
 
 
-@pytest.mark.golden_test("golden/verify-credentials.yml")
+@pytest.mark.golden_test("golden/verify.yml")
 @pytest.mark.parametrize("outcome", ["ok", "not_authorized", "http_error"])
-def test_verify_credentials(
+def test_verify(
     runner: Runner,
     patcher: PiShockPatcher,
     golden: GoldenTestFixture,
@@ -506,31 +505,30 @@ class TestSharecodes:
         assert result.exit_code == 0
 
     @has_codes_parametrize
+    @pytest.mark.golden_test("golden/sharecodes/invalid.yml")
     def test_invalid_code(
         self,
         runner: Runner,
         golden: GoldenTestFixture,
         has_codes: bool,
     ) -> None:
-        filename = "with-codes" if has_codes else "no-codes"
-        golden = golden.open(f"golden/sharecodes/invalid-{filename}.yml")
-
+        suffix = "with_codes" if has_codes else "no_codes"
         result = runner.run("info", "tset1")
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out[f"output_{suffix}"]
         assert result.exit_code == 1
 
     @pytest.mark.empty_config
-    @pytest.mark.golden_test("golden/sharecodes/list-empty.yml")
+    @pytest.mark.golden_test("golden/sharecodes/list.yml")
     def test_list_info_empty(
         self,
         runner: Runner,
         golden: GoldenTestFixture,
     ) -> None:
         result = runner.run("code-list", "--info")
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out["output_empty"]
         assert result.exit_code == 0
 
-    @pytest.mark.golden_test("golden/sharecodes/list-info-not-authorized.yml")
+    @pytest.mark.golden_test("golden/sharecodes/list.yml")
     def test_list_info_not_authorized(
         self,
         runner: Runner,
@@ -539,10 +537,10 @@ class TestSharecodes:
     ) -> None:
         patcher.verify_credentials(False)
         result = runner.run("code-list", "--info")
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out["output_info_not_authorized"]
         assert result.exit_code == 1
 
-    @pytest.mark.golden_test("golden/sharecodes/list-info.yml")
+    @pytest.mark.golden_test("golden/sharecodes/list.yml")
     def test_list_info(
         self,
         runner: Runner,
@@ -554,20 +552,20 @@ class TestSharecodes:
         patcher.info_raw(status=http.HTTPStatus.NOT_FOUND)  # for ...AA2
         patcher.info(sharecode="62142069AA3")
         result = runner.run("code-list", "--info")
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out["output_info"]
         assert result.exit_code == 0
 
     @has_codes_parametrize
+    @pytest.mark.golden_test("golden/sharecodes/list.yml")
     def test_list(
         self,
         runner: Runner,
         golden: GoldenTestFixture,
         has_codes: bool,
     ) -> None:
-        suffix = "" if has_codes else "-empty"
-        golden = golden.open(f"golden/sharecodes/list{suffix}.yml")
+        suffix = "" if has_codes else "_empty"
         result = runner.run("code-list")
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out[f"output{suffix}"]
         assert result.exit_code == 0
 
     @has_codes_parametrize
@@ -602,6 +600,7 @@ class TestSharecodes:
             assert data["sharecodes"] == {"test4": "62142069AA4"}
 
     @pytest.mark.parametrize("confirmed", [True, False, "--force"])
+    @pytest.mark.golden_test("golden/sharecodes/add.yml")
     def test_add_overwrite(
         self,
         runner: Runner,
@@ -619,11 +618,10 @@ class TestSharecodes:
             False: "no",
         }
         suffix = suffixes[confirmed]
-        golden = golden.open(f"golden/sharecodes/add-overwrite-{suffix}.yml")
 
         force_arg = ["--force"] if confirmed == "--force" else []
         result = runner.run("code-add", "test1", "62142069AB1", *force_arg)
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out[f"output_overwrite_{suffix}"]
         assert result.exit_code == (0 if confirmed else 1)
 
         with config_path.open("r") as f:
@@ -641,7 +639,7 @@ class TestSharecodes:
                 "test2": "62142069AA2",
             }
 
-    @pytest.mark.golden_test("golden/sharecodes/add-invalid.yml")
+    @pytest.mark.golden_test("golden/sharecodes/add.yml")
     def test_add_invalid(
         self,
         runner: Runner,
@@ -649,7 +647,7 @@ class TestSharecodes:
         config_path: pathlib.Path,
     ) -> None:
         result = runner.run("code-add", "test1", "62142069ABX")
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out["output_invalid"]
         assert result.exit_code == 1
 
         with config_path.open("r") as f:
@@ -661,6 +659,7 @@ class TestSharecodes:
         }
 
     @has_codes_parametrize
+    @pytest.mark.golden_test("golden/sharecodes/del.yml")
     def test_del(
         self,
         runner: Runner,
@@ -668,12 +667,11 @@ class TestSharecodes:
         config_path: pathlib.Path,
         has_codes: bool,
     ) -> None:
-        suffix = "" if has_codes else "-empty"
-        golden = golden.open(f"golden/sharecodes/del{suffix}.yml")
+        suffix = "" if has_codes else "_empty"
 
         result = runner.run("code-del", "test1")
 
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out[f"output{suffix}"]
         assert result.exit_code == 0 if has_codes else 1
 
         with config_path.open("r") as f:
@@ -695,9 +693,10 @@ class TestSharecodes:
             ("test1", "test3", "--force", "exists-force", True),
             ("test1", "test3", False, "exists-abort", False),
             ("test1", "test1", None, "same", False),
-            ("test4", "test5", None, "not-found", False),
+            ("test4", "test5", None, "not_found", False),
         ],
     )
+    @pytest.mark.golden_test("golden/sharecodes/rename.yml")
     def test_rename(
         self,
         runner: Runner,
@@ -716,8 +715,7 @@ class TestSharecodes:
         force_arg = ["--force"] if overwrite == "--force" else []
         result = runner.run("code-rename", old_name, new_name, *force_arg)
 
-        golden = golden.open(f"golden/sharecodes/rename-{suffix}.yml")
-        assert result.output == golden.out["output"]
+        assert result.output == golden.out[f"output_{suffix}"]
         assert result.exit_code == (0 if successful else 1)
 
         with config_path.open("r") as f:

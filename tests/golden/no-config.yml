@@ -1,0 +1,22 @@
+output_user_only: |
+  Warning: Username given but no API key. Ignoring.
+
+  No API credentials found. To fix this, do either of:
+
+  - Run pytest init to create a new config file
+  - Set PISHOCK_API_USER and PISHOCK_API_KEY environment variables
+  - Pass --username and --api-key options
+output_key_only: |
+  Warning: API key given but no username. Ignoring.
+
+  No API credentials found. To fix this, do either of:
+
+  - Run pytest init to create a new config file
+  - Set PISHOCK_API_USER and PISHOCK_API_KEY environment variables
+  - Pass --username and --api-key options
+output_none: |
+  No API credentials found. To fix this, do either of:
+
+  - Run pytest init to create a new config file
+  - Set PISHOCK_API_USER and PISHOCK_API_KEY environment variables
+  - Pass --username and --api-key options

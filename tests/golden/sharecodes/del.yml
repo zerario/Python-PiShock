@@ -2,3 +2,5 @@ output: |
   ❌  test1  62142069AA1
   🔗  test2  62142069AA2
   🔗  test3  62142069AA3
+output_empty: |
+  Error: Name test1 not found.
