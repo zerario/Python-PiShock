@@ -211,49 +211,81 @@ def test_pause_unknown_error(shocker: zap.Shocker, patcher: PiShockPatcher) -> N
         shocker.pause(True)
 
 
-def test_info(shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
-    patcher.info()
-    info = shocker.info()
-    assert info.name == "test shocker"
-    assert info.client_id == 1000
-    assert info.shocker_id == 1001
-    assert not info.is_paused
-    assert info.is_online
-    assert info.max_intensity == 100
-    assert info.max_duration == 15
+class TestInfo:
+    def test_info(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+        patcher.info()
+        info = shocker.info()
+        assert info.name == "test shocker"
+        assert info.client_id == 1000
+        assert info.shocker_id == 1001
+        assert not info.is_paused
+        assert info.is_online
+        assert info.max_intensity == 100
+        assert info.max_duration == 15
+
+    def test_invalid_body(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+        message = "Not JSON lol"
+        patcher.info_raw(body=message, match=patcher.info_matchers())
+        with pytest.raises(zap.UnknownError, match=message):
+            shocker.info()
+
+    @pytest.mark.parametrize(
+        "status, exception",
+        [
+            (http.HTTPStatus.NOT_FOUND, zap.ShareCodeNotFoundError),
+            (http.HTTPStatus.FORBIDDEN, zap.NotAuthorizedError),
+            (http.HTTPStatus.IM_A_TEAPOT, zap.HTTPError),
+        ],
+    )
+    def test_http_errors(
+        self,
+        shocker: zap.Shocker,
+        patcher: PiShockPatcher,
+        status: http.HTTPStatus,
+        exception: type[zap.APIError],
+    ) -> None:
+        patcher.info_raw(status=status)
+        with pytest.raises(exception):
+            shocker.info()
 
 
-def test_info_invalid(shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
-    message = "Not JSON lol"
-    patcher.info_raw(body=message, match=patcher.info_matchers())
-    with pytest.raises(zap.UnknownError, match=message):
-        shocker.info()
+class TestGetShockers:
 
+    def test_get_shockers(self, api: zap.API, patcher: PiShockPatcher) -> None:
+        patcher.get_shockers()
+        shockers = api.get_shockers(client_id=1000)
+        assert shockers == [
+            zap.BasicShockerInfo(
+                name="test shocker",
+                client_id=1000,
+                shocker_id=1001,
+                is_paused=False,
+            ),
+            zap.BasicShockerInfo(
+                name="test shocker 2",
+                client_id=1000,
+                shocker_id=1002,
+                is_paused=True,
+            ),
+        ]
 
-def test_get_shockers(api: zap.API, patcher: PiShockPatcher) -> None:
-    patcher.get_shockers()
-    shockers = api.get_shockers(client_id=1000)
-    assert shockers == [
-        zap.BasicShockerInfo(
-            name="test shocker",
-            client_id=1000,
-            shocker_id=1001,
-            is_paused=False,
-        ),
-        zap.BasicShockerInfo(
-            name="test shocker 2",
-            client_id=1000,
-            shocker_id=1002,
-            is_paused=True,
-        ),
-    ]
+    def test_invalid_body(self, api: zap.API, patcher: PiShockPatcher) -> None:
+        message = "Not JSON lol"
+        patcher.get_shockers_raw(body=message, match=patcher.get_shockers_matchers())
+        with pytest.raises(zap.UnknownError, match=message):
+            api.get_shockers(client_id=1000)
 
-
-def test_get_shockers_invalid(api: zap.API, patcher: PiShockPatcher) -> None:
-    message = "Not JSON lol"
-    patcher.get_shockers_raw(body=message, match=patcher.get_shockers_matchers())
-    with pytest.raises(zap.UnknownError, match=message):
-        api.get_shockers(client_id=1000)
+    @pytest.mark.parametrize(
+        "status, exception",
+        [
+            (http.HTTPStatus.FORBIDDEN, zap.NotAuthorizedError),
+            (http.HTTPStatus.IM_A_TEAPOT, zap.HTTPError),
+        ],
+    )
+    def test_http_errors(self, api: zap.API, patcher: PiShockPatcher, status: http.HTTPStatus, exception: type[zap.APIError]) -> None:
+        patcher.get_shockers_raw(status=status)
+        with pytest.raises(exception):
+            api.get_shockers(client_id=1000)
 
 
 @pytest.mark.parametrize("valid", [True, False])

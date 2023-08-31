@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import enum
 import http
 import json
-from typing import Any
+from typing import Any, Iterator
 
 import requests
 
@@ -156,6 +157,18 @@ class API:
 
         return response
 
+    @contextlib.contextmanager
+    def translate_http_errors(self) -> Iterator[None]:
+        """Translate HTTP errors to APIError subclasses."""
+        try:
+            yield
+        except HTTPError as e:
+            if e.status_code == http.HTTPStatus.NOT_FOUND:
+                raise ShareCodeNotFoundError(ShareCodeNotFoundError.TEXT)
+            elif e.status_code == http.HTTPStatus.FORBIDDEN:
+                raise NotAuthorizedError(NotAuthorizedError.TEXT)
+            raise
+
     def shocker(self, sharecode: str, name: str = NAME) -> Shocker:
         """Get a Shocker instance for the given share code.
 
@@ -170,11 +183,13 @@ class API:
         """Get a list of all shockers for the given client (PiShock) ID.
 
         Raises:
-            - `HTTPError` with a 403 status code if username/API key is wrong.
+            - `NotAuthorizedError` if username/API key is wrong.
             - `UnknownError` if the response is not JSON.
         """
         params = {"ClientId": client_id}
-        response = self.request("GetShockers", params)
+
+        with self.translate_http_errors():
+            response = self.request("GetShockers", params)
 
         try:
             data = response.json()
@@ -399,11 +414,14 @@ class Shocker:
         """Get detailed information about the shocker.
 
         Raises:
-            - `HTTPError` with a 403 status code if username/API key is wrong.
+            - `NotAuthorizedError` if username/API key is wrong.
+            - `ShareCodeNotFoundError` if the given share code was not found.
             - `UnknownError` if the response is not JSON.
         """
         params = {"Code": self.sharecode}
-        response = self.api.request("GetShockerInfo", params)
+
+        with self.api.translate_http_errors():
+            response = self.api.request("GetShockerInfo", params)
 
         try:
             data = response.json()
