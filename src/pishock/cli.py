@@ -1,12 +1,15 @@
 import contextlib
+import difflib
 import json
 import pathlib
 import random
+import re
 import sys
-from typing import Iterator, Optional
+from typing import Dict, Iterator, Optional
 
 import platformdirs
 import rich
+import rich.progress
 import rich.prompt
 import rich.table
 import typer
@@ -21,13 +24,10 @@ api = None
 config = None
 
 
+SHARE_CODE_REGEX = re.compile(r"^[0-9A-F]{11}$")  # 11 upper case hex digits
+
+
 # TODO:
-# - Address book
-#   code-add [--force]
-#   code-del
-#   code-list [--info]
-#   code-rename
-#
 # - Accept multiple share codes for commands
 # - Random mode
 # - Handle basic invalid configs?
@@ -36,20 +36,24 @@ config = None
 
 class Config:
     def __init__(self) -> None:
-        self.username: Optional[str] = None
-        self.api_key: Optional[str] = None
         self._path = pathlib.Path(
             platformdirs.user_config_dir(appname="PiShock-CLI", appauthor="PiShock"),
             "config.json",
         )
+
+        self.username: Optional[str] = None
+        self.api_key: Optional[str] = None
+        self.sharecodes: Dict[str, str] = {}
 
     def load(self) -> None:
         if not self._path.exists():
             return
         with self._path.open("r") as f:
             data = json.load(f)
+
         self.username = data["api"]["username"]
         self.api_key = data["api"]["key"]
+        self.sharecodes = data.get("sharecodes", {})
 
     def save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -57,7 +61,8 @@ class Config:
             "api": {
                 "username": self.username,
                 "key": self.api_key,
-            }
+            },
+            "sharecodes": self.sharecodes,
         }
         with self._path.open("w") as f:
             json.dump(data, f)
@@ -89,6 +94,20 @@ def handle_errors() -> Iterator[None]:
 
 def get_shocker(share_code: str) -> zap.Shocker:
     assert api is not None
+    assert config is not None
+
+    if share_code in config.sharecodes:
+        share_code = config.sharecodes[share_code]
+    elif not SHARE_CODE_REGEX.match(share_code):
+        rich.print(
+            f"[yellow]Error:[/] Share code [green]{share_code}[/] not in valid share "
+            f"code format and not found in saved codes."
+        )
+        matches = difflib.get_close_matches(share_code, config.sharecodes.keys(), n=1)
+        if matches:
+            rich.print(f"Did you mean [green]{matches[0]}[/]?")
+        raise typer.Exit(1)
+
     return api.shocker(share_code, name=f"{zap.NAME} CLI")
 
 
@@ -191,6 +210,172 @@ def shockers(
     for shocker in shockers:
         emoji = paused_emoji(shocker.is_paused)
         rich.print(f"{shocker.shocker_id}: {shocker.name} {emoji}")
+
+
+def list_sharecodes_info() -> None:
+    """List all saved share codes with additional info from the API."""
+    assert config is not None
+    assert api is not None
+
+    if not config.sharecodes:
+        rich.print("[yellow]No share codes saved.[/]")
+        return
+
+    if not api.verify_credentials():
+        # explicit check because this might save a lot of time when invalid, but
+        # when valid, doesn't add much (assuming multiple requests below anyways).
+        rich.print("[yellow]Warning:[/] Credentials are invalid. Skipping info.\n")
+        list_sharecodes()
+        raise typer.Exit(1)
+
+    table = rich.table.Table()
+    table.add_column("Name", style="green")
+    table.add_column("Share code")
+    table.add_column("Shocker Name")
+    table.add_column("PiShock ID")
+    table.add_column("Shocker ID")
+    table.add_column("Online / Paused")
+    table.add_column("Max intensity")
+    table.add_column("Max duration")
+
+    for name, share_code in rich.progress.track(
+        sorted(config.sharecodes.items()), description="Gathering info..."
+    ):
+        try:
+            info = api.shocker(share_code).info()
+        except zap.APIError as e:
+            table.add_row(name, share_code, f"[red]{e}[/]")
+            continue
+
+        pause = paused_emoji(info.is_paused)
+        online = online_emoji(info.is_online)
+        table.add_row(
+            name,
+            share_code,
+            info.name,
+            str(info.client_id),
+            str(info.shocker_id),
+            f"{online} {pause}",
+            f"{info.max_intensity}%",
+            f"{info.max_duration}s",
+        )
+
+    rich.print(table)
+
+
+def list_sharecodes(
+    added: Optional[str] = None,
+    removed: Optional[str] = None,
+) -> None:
+    """List all saved share codes."""
+    assert config is not None
+
+    if not config.sharecodes:
+        rich.print("[yellow]No share codes saved.[/]")
+        return
+
+    table = rich.table.Table.grid(padding=(0, 2))
+
+    table.add_column("")  # emoji
+    table.add_column("Name", style="green")
+    table.add_column("Share code")
+
+    for name, share_code in sorted(config.sharecodes.items()):
+        if name == added:
+            emoji = ":white_check_mark:"
+            style = "green"
+        elif name == removed:
+            emoji = ":x:"
+            style = "red"
+        else:
+            emoji = ":link:"
+            style = None
+        table.add_row(emoji, name, share_code, style=style)
+
+    rich.print(table)
+
+
+@app.command(rich_help_panel="Share codes")
+def code_add(
+    name: Annotated[str, typer.Argument(help="Name for the share code.")],
+    share_code: Annotated[str, typer.Argument(help="Share code to add.")],
+    force: Annotated[bool, typer.Option(help="Overwrite existing code.")] = False,
+) -> None:
+    """Add a new share code to the saved codes."""
+    assert config is not None
+    if not SHARE_CODE_REGEX.match(share_code):
+        rich.print(f"[yellow]Error:[/] Share code [green]{share_code}[/] is not valid.")
+        raise typer.Exit(1)
+
+    if name in config.sharecodes and not force:
+        code = config.sharecodes[name]
+        ok = rich.prompt.Confirm.ask(
+            f"Name [green]{name}[/] already exists ({code}). Overwrite?"
+        )
+        if not ok:
+            raise typer.Abort()
+
+    config.sharecodes[name] = share_code
+    config.save()
+    list_sharecodes(added=name)
+
+
+@app.command(rich_help_panel="Share codes")
+def code_del(
+    name: Annotated[str, typer.Argument(help="Name of the share code to delete.")],
+) -> None:
+    """Delete a saved share code."""
+    assert config is not None
+    if name not in config.sharecodes:
+        rich.print(f"[red]Error:[/] Name [green]{name}[/] not found.")
+        raise typer.Exit(1)
+
+    list_sharecodes(removed=name)
+    del config.sharecodes[name]
+    config.save()
+
+
+@app.command(rich_help_panel="Share codes")
+def code_rename(
+    name: Annotated[str, typer.Argument(help="Name of the share code to rename.")],
+    new_name: Annotated[str, typer.Argument(help="New name for the share code.")],
+    force: Annotated[bool, typer.Option(help="Overwrite existing code.")] = False,
+) -> None:
+    """Rename a saved share code."""
+    assert config is not None
+    if name not in config.sharecodes:
+        rich.print(f"[red]Error:[/] Name [green]{name}[/] not found.")
+        raise typer.Exit(1)
+    if name == new_name:
+        rich.print(f"[red]Error:[/] New name is the same as the old name.")
+        raise typer.Exit(1)
+
+    if new_name in config.sharecodes and not force:
+        code = config.sharecodes[name]
+        ok = rich.prompt.Confirm.ask(
+            f"Name [green]{name}[/] already exists ({code}). Overwrite?"
+        )
+        if not ok:
+            raise typer.Exit(1)
+
+    config.sharecodes[new_name] = config.sharecodes[name]
+    del config.sharecodes[name]
+    config.save()
+    list_sharecodes(added=new_name, removed=name)
+
+
+@app.command(rich_help_panel="Share codes")
+def code_list(
+    info: Annotated[
+        bool, typer.Option(help="Show information about each code.")
+    ] = False,
+) -> None:
+    """List all saved share codes."""
+    assert config is not None
+    if info:
+        list_sharecodes_info()
+    else:
+        list_sharecodes()
 
 
 @app.command(rich_help_panel="API credentials")

@@ -15,7 +15,7 @@ _MatcherType: TypeAlias = Callable[..., Any]
 class FakeCredentials:
     USERNAME = "PISHOCK-USERNAME"
     API_KEY = "PISHOCK-APIKEY"
-    SHARECODE = "PISHOCK-SHARECODE"
+    SHARECODE = "62169420AAA"
 
 
 class APIURLs:
@@ -92,13 +92,15 @@ class PiShockPatcher:
 
     # GetShockerInfo
 
-    def info_matchers(self) -> list[_MatcherType]:
+    def info_matchers(
+        self, sharecode: str = FakeCredentials.SHARECODE
+    ) -> list[_MatcherType]:
         return [
             matchers.json_params_matcher(
                 {
                     "Username": FakeCredentials.USERNAME,
                     "Apikey": FakeCredentials.API_KEY,
-                    "Code": FakeCredentials.SHARECODE,
+                    "Code": sharecode,
                 }
             ),
             matchers.header_matcher(self.HEADERS),
@@ -107,7 +109,12 @@ class PiShockPatcher:
     def info_raw(self, **kwargs: Any) -> None:
         self.responses.post(APIURLs.SHOCKER_INFO, **kwargs)
 
-    def info(self, paused: bool = False, online: bool = True) -> None:
+    def info(
+        self,
+        sharecode: str = FakeCredentials.SHARECODE,
+        paused: bool = False,
+        online: bool = True,
+    ) -> None:
         self.info_raw(
             json={
                 "name": "test shocker",
@@ -118,7 +125,7 @@ class PiShockPatcher:
                 "maxIntensity": 100,
                 "maxDuration": 15,
             },
-            match=self.info_matchers(),
+            match=self.info_matchers(sharecode=sharecode),
         )
 
     # PauseShocker

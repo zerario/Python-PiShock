@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http
 import copy
 import json
 import pathlib
@@ -61,7 +62,8 @@ CONFIG_DATA = {
     "api": {
         "username": FakeCredentials.USERNAME,
         "key": FakeCredentials.API_KEY,
-    }
+    },
+    "sharecodes": {},
 }
 
 
@@ -397,3 +399,262 @@ def test_verify_credentials(
     result = runner.run("verify")
     assert result.output == golden.out["output"]
     assert result.exit_code == (0 if valid else 1)
+
+
+class TestSharecodes:
+    @pytest.fixture(autouse=True)
+    def init_config(
+        self, config_path: pathlib.Path, request: pytest.FixtureRequest
+    ) -> None:
+        """Prepopulate the config with some share codes."""
+        data = copy.deepcopy(CONFIG_DATA)
+
+        if not request.node.get_closest_marker("empty_config"):
+            data["sharecodes"] = {
+                "test1": "62142069AA1",
+                "test3": "62142069AA3",  # unsorted to test sorting too
+                "test2": "62142069AA2",
+            }
+
+        with config_path.open("w") as f:
+            json.dump(data, f)
+
+    has_codes_parametrize = pytest.mark.parametrize(
+        "has_codes", [True, pytest.param(False, marks=pytest.mark.empty_config)]
+    )
+
+    def test_using_saved_code(self, runner: Runner, patcher: PiShockPatcher) -> None:
+        patcher.info(sharecode="62142069AA1")
+        result = runner.run("info", "test1")
+        assert result.exit_code == 0
+
+    @has_codes_parametrize
+    def test_invalid_code(
+        self,
+        runner: Runner,
+        golden: GoldenTestFixture,
+        has_codes: bool,
+    ) -> None:
+        filename = "with-codes" if has_codes else "no-codes"
+        golden = golden.open(f"golden/sharecodes/invalid-{filename}.yml")
+
+        result = runner.run("info", "tset1")
+        assert result.output == golden.out["output"]
+        assert result.exit_code == 1
+
+    @pytest.mark.empty_config
+    @pytest.mark.golden_test("golden/sharecodes/list-empty.yml")
+    def test_list_info_empty(
+        self,
+        runner: Runner,
+        golden: GoldenTestFixture,
+    ) -> None:
+        result = runner.run("code-list", "--info")
+        assert result.output == golden.out["output"]
+        assert result.exit_code == 0
+
+    @pytest.mark.golden_test("golden/sharecodes/list-info-not-authorized.yml")
+    def test_list_info_not_authorized(
+        self,
+        runner: Runner,
+        patcher: PiShockPatcher,
+        golden: GoldenTestFixture,
+    ) -> None:
+        patcher.verify_credentials(False)
+        result = runner.run("code-list", "--info")
+        assert result.output == golden.out["output"]
+        assert result.exit_code == 1
+
+    @pytest.mark.golden_test("golden/sharecodes/list-info.yml")
+    def test_list_info(
+        self,
+        runner: Runner,
+        patcher: PiShockPatcher,
+        golden: GoldenTestFixture,
+    ) -> None:
+        patcher.verify_credentials(True)
+        patcher.info(sharecode="62142069AA1")
+        patcher.info_raw(status=http.HTTPStatus.NOT_FOUND)  # for ...AA2
+        patcher.info(sharecode="62142069AA3")
+        result = runner.run("code-list", "--info")
+        assert result.output == golden.out["output"]
+        assert result.exit_code == 0
+
+    @has_codes_parametrize
+    def test_list(
+        self,
+        runner: Runner,
+        golden: GoldenTestFixture,
+        has_codes: bool,
+    ) -> None:
+        suffix = "" if has_codes else "-empty"
+        golden = golden.open(f"golden/sharecodes/list{suffix}.yml")
+        result = runner.run("code-list")
+        assert result.output == golden.out["output"]
+        assert result.exit_code == 0
+
+    @has_codes_parametrize
+    @pytest.mark.golden_test("golden/sharecodes/add.yml")
+    @pytest.mark.parametrize("force", [True, False])
+    def test_add(
+        self,
+        runner: Runner,
+        golden: GoldenTestFixture,
+        config_path: pathlib.Path,
+        has_codes: bool,
+        force: bool,
+    ):
+        force_arg = ["--force"] if force else []
+        result = runner.run("code-add", "test4", "62142069AA4", *force_arg)
+        assert result.output == golden.out["output"]
+        assert result.exit_code == 0
+
+        with config_path.open("r") as f:
+            data = json.load(f)
+
+        if has_codes:
+            assert data["sharecodes"] == {
+                "test1": "62142069AA1",
+                "test3": "62142069AA3",
+                "test2": "62142069AA2",
+                "test4": "62142069AA4",
+            }
+        else:
+            assert data["sharecodes"] == {"test4": "62142069AA4"}
+
+    @pytest.mark.parametrize("confirmed", [True, False, "--force"])
+    def test_add_overwrite(
+        self,
+        runner: Runner,
+        config_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        golden: GoldenTestFixture,
+        confirmed: bool | str,
+    ) -> None:
+        if confirmed != "--force":
+            monkeypatch.setattr(rich.prompt.Confirm, "ask", lambda text: confirmed)
+
+        suffixes = {
+            "--force": "force",
+            True: "yes",
+            False: "no",
+        }
+        suffix = suffixes[confirmed]
+        golden = golden.open(f"golden/sharecodes/add-overwrite-{suffix}.yml")
+
+        force_arg = ["--force"] if confirmed == "--force" else []
+        result = runner.run("code-add", "test1", "62142069AB1", *force_arg)
+        assert result.output == golden.out["output"]
+        assert result.exit_code == (0 if confirmed else 1)
+
+        with config_path.open("r") as f:
+            data = json.load(f)
+        if confirmed:
+            assert data["sharecodes"] == {
+                "test1": "62142069AB1",
+                "test3": "62142069AA3",
+                "test2": "62142069AA2",
+            }
+        else:
+            assert data["sharecodes"] == {
+                "test1": "62142069AA1",
+                "test3": "62142069AA3",
+                "test2": "62142069AA2",
+            }
+
+    @pytest.mark.golden_test("golden/sharecodes/add-invalid.yml")
+    def test_add_invalid(
+        self,
+        runner: Runner,
+        golden: GoldenTestFixture,
+        config_path: pathlib.Path,
+    ) -> None:
+        result = runner.run("code-add", "test1", "62142069ABX")
+        assert result.output == golden.out["output"]
+        assert result.exit_code == 1
+
+        with config_path.open("r") as f:
+            data = json.load(f)
+        assert data["sharecodes"] == {
+            "test1": "62142069AA1",
+            "test3": "62142069AA3",
+            "test2": "62142069AA2",
+        }
+
+    @has_codes_parametrize
+    def test_del(
+        self,
+        runner: Runner,
+        golden: GoldenTestFixture,
+        config_path: pathlib.Path,
+        has_codes: bool,
+    ) -> None:
+        suffix = "" if has_codes else "-empty"
+        golden = golden.open(f"golden/sharecodes/del{suffix}.yml")
+
+        result = runner.run("code-del", "test1")
+
+        assert result.output == golden.out["output"]
+        assert result.exit_code == 0 if has_codes else 1
+
+        with config_path.open("r") as f:
+            data = json.load(f)
+
+        if has_codes:
+            assert data["sharecodes"] == {
+                "test3": "62142069AA3",
+                "test2": "62142069AA2",
+            }
+        else:
+            assert data["sharecodes"] == {}
+
+    @pytest.mark.parametrize("old_name, new_name, overwrite, suffix, successful", [
+        ("test1", "test4", None, "ok", True),
+        ("test1", "test3", True, "exists-overwrite", True),
+        ("test1", "test3", "--force", "exists-force", True),
+        ("test1", "test3", False, "exists-abort", False),
+        ("test1", "test1", None, "same", False),
+        ("test4", "test5", None, "not-found", False),
+    ])
+    def test_rename(
+        self,
+        runner: Runner,
+        golden: GoldenTestFixture,
+        config_path: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+        old_name: str,
+        new_name: str,
+        overwrite: bool | str | None,
+        suffix: str,
+        successful: bool,
+    ) -> None:
+        if overwrite in [True, False]:
+            monkeypatch.setattr(rich.prompt.Confirm, "ask", lambda text: overwrite)
+
+        force_arg = ["--force"] if overwrite == "--force" else []
+        result = runner.run("code-rename", old_name, new_name, *force_arg)
+
+        golden = golden.open(f"golden/sharecodes/rename-{suffix}.yml")
+        assert result.output == golden.out["output"]
+        assert result.exit_code == (0 if successful else 1)
+
+        with config_path.open("r") as f:
+            data = json.load(f)
+
+        if successful and overwrite:
+            assert data["sharecodes"] == {
+                "test3": "62142069AA1",
+                "test2": "62142069AA2",
+            }
+        elif successful:
+            assert data["sharecodes"] == {
+                "test4": "62142069AA1",
+                "test3": "62142069AA3",
+                "test2": "62142069AA2",
+            }
+        else:
+            assert data["sharecodes"] == {
+                "test1": "62142069AA1",
+                "test3": "62142069AA3",
+                "test2": "62142069AA2",
+            }
