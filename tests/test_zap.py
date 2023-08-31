@@ -45,7 +45,7 @@ def test_vibrate(
 def test_shock(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) -> None:
     patcher.operate(
         body=success_msg,
-        op=zap._Operation.SHOCK.value,
+        op=zap.Operation.SHOCK.value,
     )
     shocker.shock(duration=1, intensity=2)
 
@@ -54,7 +54,7 @@ def test_shock(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) 
 def test_beep(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) -> None:
     patcher.operate(
         body=success_msg,
-        op=zap._Operation.BEEP.value,
+        op=zap.Operation.BEEP.value,
         intensity=None,
     )
     shocker.beep(duration=1)
@@ -124,7 +124,7 @@ class TestOperationsNotAllowed:
     def test_vibrate(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
         patcher.operate(
             body=zap.VibrateNotAllowedError.TEXT,
-            op=zap._Operation.VIBRATE.value,
+            op=zap.Operation.VIBRATE.value,
         )
         with pytest.raises(zap.VibrateNotAllowedError):
             shocker.vibrate(duration=1, intensity=2)
@@ -132,7 +132,7 @@ class TestOperationsNotAllowed:
     def test_shock(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
         patcher.operate(
             body=zap.ShockNotAllowedError.TEXT,
-            op=zap._Operation.SHOCK.value,
+            op=zap.Operation.SHOCK.value,
         )
         with pytest.raises(zap.ShockNotAllowedError):
             shocker.shock(duration=1, intensity=2)
@@ -140,7 +140,7 @@ class TestOperationsNotAllowed:
     def test_beep(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
         patcher.operate(
             body=zap.BeepNotAllowedError.TEXT,
-            op=zap._Operation.BEEP.value,
+            op=zap.Operation.BEEP.value,
             intensity=None,
         )
         with pytest.raises(zap.BeepNotAllowedError):

@@ -19,7 +19,7 @@ from . import __version__ as __version__
 NAME = "Python-PiShock"
 
 
-class _Operation(enum.Enum):
+class Operation(enum.Enum):
     SHOCK = 0
     VIBRATE = 1
     BEEP = 2

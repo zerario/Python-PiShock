@@ -283,7 +283,7 @@ def test_shock(
     if keysmash:
         key += "_keysmash"
 
-    patcher.operate(duration=api_duration, op=zap._Operation.SHOCK.value)
+    patcher.operate(duration=api_duration, op=zap.Operation.SHOCK.value)
     monkeypatch.setattr(random, "random", lambda: 0.01 if keysmash else 0.2)
     monkeypatch.setattr(random, "choices", lambda values, k: "asdfg")
 
@@ -303,7 +303,7 @@ def test_vibrate(
     duration: float,
     api_duration: int,
 ) -> None:
-    patcher.operate(duration=api_duration, op=zap._Operation.VIBRATE.value)
+    patcher.operate(duration=api_duration, op=zap.Operation.VIBRATE.value)
     result = runner.run("vibrate", runner.sharecode, "-d", str(duration), "-i", "2")
     assert result.output == golden.out["output_vibrate"]
 
@@ -320,7 +320,7 @@ def test_beep(
     duration: float,
     api_duration: int,
 ) -> None:
-    patcher.operate(op=zap._Operation.BEEP.value, intensity=None, duration=api_duration)
+    patcher.operate(op=zap.Operation.BEEP.value, intensity=None, duration=api_duration)
     result = runner.run("beep", runner.sharecode, "-d", str(duration))
     assert result.output == golden.out["output_beep"]
 
@@ -371,7 +371,7 @@ def test_invalid_inputs(
     assert result.exit_code in [1, 2]
 
 
-@pytest.mark.parametrize("op", list(zap._Operation))
+@pytest.mark.parametrize("op", list(zap.Operation))
 @pytest.mark.parametrize("name, text", [
     ("not_authorized", zap.NotAuthorizedError.TEXT),
     ("unknown_error", "Frobnicating the zap failed"),
@@ -381,17 +381,17 @@ def test_errors(
     runner: Runner,
     patcher: PiShockPatcher,
     golden: GoldenTestFixture,
-    op: zap._Operation,
+    op: zap.Operation,
     name: str,
     text: str,
 ) -> None:
     cmd = op.name.lower()
 
-    intensity = None if op == zap._Operation.BEEP else 2
+    intensity = None if op == zap.Operation.BEEP else 2
     patcher.operate(body=text, op=op.value, intensity=intensity)
 
     args = [cmd, runner.sharecode, "-d", "1"]
-    if op != zap._Operation.BEEP:
+    if op != zap.Operation.BEEP:
         args += ["-i", "2"]
     result = runner.run(*args)
 

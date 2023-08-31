@@ -64,7 +64,7 @@ class PiShockPatcher:
             "Apikey": FakeCredentials.API_KEY,
             "Code": FakeCredentials.SHARECODE,
             "Name": self.NAME,
-            "Op": zap._Operation.VIBRATE.value,
+            "Op": zap.Operation.VIBRATE.value,
             "Duration": 1,
             "Intensity": 2,
         }

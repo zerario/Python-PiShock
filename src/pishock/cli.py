@@ -3,9 +3,10 @@ import difflib
 import json
 import pathlib
 import random
+import time
 import re
 import sys
-from typing import Dict, Iterator, Optional
+from typing import List, Tuple, Dict, Iterator, Optional
 
 import platformdirs
 import rich
@@ -15,7 +16,7 @@ import rich.table
 import typer
 from typing_extensions import Annotated, TypeAlias
 
-from pishock import zap
+from pishock import zap, cli_random
 
 """Command-line interface for PiShock."""
 
@@ -376,6 +377,48 @@ def code_list(
         list_sharecodes_info()
     else:
         list_sharecodes()
+
+
+@app.command(name="random")
+def random_mode(
+    share_codes: List[ShareCodeArg],
+    duration: cli_random.DurationArg,
+    intensity: cli_random.IntensityArg,
+    pause: cli_random.PauseArg,
+    spam_possibility: cli_random.SpamPossibilityArg = 0,
+    spam_operations: cli_random.SpamOperationsArg = (5, 25),
+    spam_pause: cli_random.SpamPauseArg = (0, 0),
+    spam_duration: cli_random.SpamDurationArg = (1, 1),
+    spam_intensity: cli_random.SpamIntensityArg = None,  # use -i
+    max_runtime: cli_random.MaxRuntimeArg = None,
+    vibrate_duration: cli_random.VibrateDurationArg = None,  # use -d
+    vibrate_intensity: cli_random.VibrateIntensityArg = None,  # use -i
+    shock: cli_random.ShockArg = True,
+    vibrate: cli_random.VibrateArg = False,
+) -> None:
+    """Send operations to random shockers."""
+    assert api is not None
+    spam_settings = cli_random.SpamSettings(
+        possibility=spam_possibility,
+        operations=spam_operations,
+        pause=spam_pause,
+        duration=spam_duration,
+        intensity=spam_intensity,
+    )
+    random_shocker = cli_random.RandomShocker(
+        api=api,
+        share_codes=share_codes,
+        duration=duration,
+        intensity=intensity,
+        pause=pause,
+        spam_settings=spam_settings,
+        max_runtime=max_runtime,
+        vibrate_duration=vibrate_duration,
+        vibrate_intensity=vibrate_intensity,
+        shock=shock,
+        vibrate=vibrate,
+    )
+    random_shocker.run()
 
 
 @app.command(rich_help_panel="API credentials")
