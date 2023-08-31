@@ -30,7 +30,6 @@ config = None
 #
 # - Accept multiple share codes for commands
 # - Random mode
-# - Warn when only username or only API key was given
 # - Handle basic invalid configs?
 # - selftest mode?
 
@@ -268,6 +267,11 @@ def main(
     config.load()
 
     if username is None or api_key is None:
+        if username is not None:
+            rich.print("[yellow]Warning:[/] Username given but no API key. Ignoring.\n")
+        if api_key is not None:
+            rich.print("[yellow]Warning:[/] API key given but no username. Ignoring.\n")
+
         if ctx.invoked_subcommand == "init":
             return
 

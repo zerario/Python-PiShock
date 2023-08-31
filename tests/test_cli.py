@@ -187,8 +187,31 @@ class TestInit:
             data = json.load(f)
         assert data == expected_data
 
-    @pytest.mark.golden_test("golden/no_config.yml")
-    def test_no_config(self, runner_noenv: Runner, golden: GoldenTestFixture) -> None:
+    @pytest.mark.parametrize(
+        "has_user, has_key, filename",
+        [
+            (True, False, "user-only"),
+            (False, True, "key-only"),
+            (False, False, "none"),
+        ],
+    )
+    def test_no_config(
+        self,
+        runner_noenv: Runner,
+        monkeypatch: pytest.MonkeyPatch,
+        credentials: FakeCredentials,
+        golden: GoldenTestFixture,
+        has_user: bool,
+        has_key: bool,
+        filename: str,
+    ) -> None:
+        if has_key:
+            monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
+        if has_user:
+            monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
+
+        golden = golden.open(f"golden/no-config/{filename}.yml")
+
         result = runner_noenv.run("verify")
         assert result.output == golden.out["output"]
         assert result.exit_code == 1
