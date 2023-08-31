@@ -1,3 +1,9 @@
-output: |
+output_ok: |
   1001: test shocker ▶
   1002: test shocker 2 ⏸
+output_not_authorized: |
+  Error: Not Authorized. (NotAuthorizedError)
+output_invalid_data: |
+  Error: Not JSON lol (UnknownError)
+output_http_error: |
+  Error: 418 Client Error: I'm a Teapot for url: https://do.pishock.com/api/GetShockers (HTTPError)

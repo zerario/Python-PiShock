@@ -326,25 +326,77 @@ def test_beep(
     assert result.output == golden.out["output"]
 
 
+@pytest.mark.parametrize(
+    "operation, duration, intensity",
+    [
+        # invalid durations
+        ("vibrate", "-1", "2"),
+        ("vibrate", "a", "2"),
+        ("vibrate", "16", "2"),
+        ("vibrate", "0.05", "2"),
+        # invalid intensities
+        ("vibrate", "1", "-1"),
+        ("vibrate", "1", "101"),
+        ("vibrate", "1", "10.5"),
+        # invalid duratinos
+        ("shock", "-1", "2"),
+        ("shock", "a", "2"),
+        ("shock", "16", "2"),
+        ("shock", "0.05", "2"),
+        # invalid intensities
+        ("shock", "1", "-1"),
+        ("shock", "1", "101"),
+        ("shock", "1", "10.5"),
+        # invalid durations
+        ("beep", "-1", None),
+        ("beep", "a", None),
+        ("beep", "16", None),
+        ("beep", "0.05", None),
+        # invalid intensites
+        ("beep", "1", "2"),
+    ],
+)
+@pytest.mark.golden_test("golden/invalid-inputs.yml")
+def test_invalid_inputs(
+    runner: Runner,
+    golden: GoldenTestFixture,
+    operation: str,
+    duration: str,
+    intensity: str | None,
+) -> None:
+    args = [operation, runner.sharecode, "-d", duration]
+    if intensity is not None:
+        args += ["-i", intensity]
+    result = runner.run(*args)
+    assert result.output == golden.out[f"output_{operation}_{duration}_{intensity}"]
+    assert result.exit_code in [1, 2]
+
+
 @pytest.mark.parametrize("op", list(zap._Operation))
+@pytest.mark.parametrize("name, text", [
+    ("not_authorized", zap.NotAuthorizedError.TEXT),
+    ("unknown_error", "Frobnicating the zap failed"),
+])
+@pytest.mark.golden_test("golden/errors.yml")
 def test_errors(
     runner: Runner,
     patcher: PiShockPatcher,
     golden: GoldenTestFixture,
     op: zap._Operation,
+    name: str,
+    text: str,
 ) -> None:
     cmd = op.name.lower()
-    golden = golden.open(f"golden/{cmd}/{cmd}-error.yml")
 
     intensity = None if op == zap._Operation.BEEP else 2
-    patcher.operate(body=zap.NotAuthorizedError.TEXT, op=op.value, intensity=intensity)
+    patcher.operate(body=text, op=op.value, intensity=intensity)
 
     args = [cmd, runner.sharecode, "-d", "1"]
     if op != zap._Operation.BEEP:
         args += ["-i", "2"]
     result = runner.run(*args)
 
-    assert result.output == golden.out["output"]
+    assert result.output == golden.out[f"output_{name}"]
     assert result.exit_code == 1
 
 
@@ -362,43 +414,68 @@ def test_pause_unpause(
 
 
 @pytest.mark.parametrize("cmd, paused", [("pause", True), ("unpause", False)])
-def test_pause_unauthorized(
+@pytest.mark.parametrize("name, text", [
+    ("not_authorized", zap.NotAuthorizedError.TEXT),
+    ("unknown_error", "Frobnicating the zap failed"),
+])
+@pytest.mark.golden_test("golden/errors.yml")
+def test_pause_error(
     cmd: str,
     paused: bool,
     runner: Runner,
     patcher: PiShockPatcher,
+    golden: GoldenTestFixture,
+    name: str,
+    text: str,
 ) -> None:
     patcher.info()
-    patcher.pause(paused, body=zap.NotAuthorizedError.TEXT)
+    patcher.pause(paused, body=text)
     result = runner.run(cmd, runner.sharecode)
+    assert result.output == golden.out[f"output_{name}"]
     assert result.exit_code == 1
 
 
 @pytest.mark.golden_test("golden/shockers.yml")
+@pytest.mark.parametrize(
+    "outcome", ["ok", "not_authorized", "http_error", "invalid_data"]
+)
 def test_shockers(
     runner: Runner,
     patcher: PiShockPatcher,
     golden: GoldenTestFixture,
+    outcome: str,
 ) -> None:
-    patcher.get_shockers()
+    if outcome == "ok":
+        patcher.get_shockers()
+    elif outcome == "not_authorized":
+        patcher.get_shockers_raw(status=http.HTTPStatus.FORBIDDEN)
+    elif outcome == "http_error":
+        patcher.get_shockers_raw(status=http.HTTPStatus.IM_A_TEAPOT)
+    elif outcome == "invalid_data":
+        patcher.get_shockers_raw(body="Not JSON lol")
+
     result = runner.run("shockers", "1000")
-    assert result.output == golden.out["output"]
+    assert result.output == golden.out[f"output_{outcome}"]
 
 
-@pytest.mark.parametrize("valid", [True, False])
+@pytest.mark.golden_test("golden/verify-credentials.yml")
+@pytest.mark.parametrize("outcome", ["ok", "not_authorized", "http_error"])
 def test_verify_credentials(
     runner: Runner,
     patcher: PiShockPatcher,
     golden: GoldenTestFixture,
-    valid: bool,
+    outcome: str,
 ) -> None:
-    patcher.verify_credentials(valid)
-    filename = "valid" if valid else "invalid"
-    golden = golden.open(f"golden/verify-credentials/{filename}.yml")
+    if outcome == "ok":
+        patcher.verify_credentials(True)
+    elif outcome == "not_authorized":
+        patcher.verify_credentials(False)
+    else:
+        patcher.verify_credentials_raw(status=http.HTTPStatus.IM_A_TEAPOT)
 
     result = runner.run("verify")
-    assert result.output == golden.out["output"]
-    assert result.exit_code == (0 if valid else 1)
+    assert result.output == golden.out[f"output_{outcome}"]
+    assert result.exit_code == (0 if outcome == "ok" else 1)
 
 
 class TestSharecodes:
@@ -608,14 +685,17 @@ class TestSharecodes:
         else:
             assert data["sharecodes"] == {}
 
-    @pytest.mark.parametrize("old_name, new_name, overwrite, suffix, successful", [
-        ("test1", "test4", None, "ok", True),
-        ("test1", "test3", True, "exists-overwrite", True),
-        ("test1", "test3", "--force", "exists-force", True),
-        ("test1", "test3", False, "exists-abort", False),
-        ("test1", "test1", None, "same", False),
-        ("test4", "test5", None, "not-found", False),
-    ])
+    @pytest.mark.parametrize(
+        "old_name, new_name, overwrite, suffix, successful",
+        [
+            ("test1", "test4", None, "ok", True),
+            ("test1", "test3", True, "exists-overwrite", True),
+            ("test1", "test3", "--force", "exists-force", True),
+            ("test1", "test3", False, "exists-abort", False),
+            ("test1", "test1", None, "same", False),
+            ("test4", "test5", None, "not-found", False),
+        ],
+    )
     def test_rename(
         self,
         runner: Runner,

@@ -1,0 +1,4 @@
+output_not_authorized: |
+  Error: Not Authorized. (NotAuthorizedError)
+output_unknown_error: |
+  Error: Frobnicating the zap failed (UnknownError)
