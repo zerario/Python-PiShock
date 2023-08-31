@@ -583,7 +583,9 @@ class TestSharecodes:
     ):
         force_arg = ["--force"] if force else []
         result = runner.run("code-add", "test4", "62142069AA4", *force_arg)
-        assert result.output == golden.out["output"]
+
+        suffix = "_force" if force else ""
+        assert result.output == golden.out[f"output{suffix}"]
         assert result.exit_code == 0
 
         with config_path.open("r") as f:
