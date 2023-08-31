@@ -4,6 +4,6 @@ output: |
   │ PiShock ID      │ 1000         │
   │ Shocker ID      │ 1001         │
   │ Online / Paused │ ✅ ▶         │
-  │ Max intensity   │ 100          │
-  │ Max duration    │ 15           │
+  │ Max intensity   │ 100%         │
+  │ Max duration    │ 15s          │
   └─────────────────┴──────────────┘

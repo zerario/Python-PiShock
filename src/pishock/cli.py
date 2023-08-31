@@ -134,6 +134,10 @@ def paused_emoji(is_paused: bool) -> str:
     return ":double_vertical_bar:" if is_paused else ":arrow_forward:"
 
 
+def online_emoji(is_online: bool) -> str:
+    return ":white_check_mark:" if is_online else ":x:"
+
+
 @app.command(rich_help_panel="Shockers")
 def info(share_code: ShareCodeArg) -> None:
     """Get information about the given shocker."""
@@ -150,11 +154,11 @@ def info(share_code: ShareCodeArg) -> None:
     table.add_row("Shocker ID", str(info.shocker_id))
 
     pause = paused_emoji(info.is_paused)
-    online = ":white_check_mark:" if info.is_online else ":x:"
+    online = online_emoji(info.is_online)
 
     table.add_row("Online / Paused", f"{online} {pause}")
-    table.add_row("Max intensity", str(info.max_intensity))
-    table.add_row("Max duration", str(info.max_duration))
+    table.add_row("Max intensity", f"{info.max_intensity}%")
+    table.add_row("Max duration", f"{info.max_duration}s")
 
     rich.print(table)
 
