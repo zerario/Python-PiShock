@@ -17,6 +17,8 @@ import typer
 from typing_extensions import Annotated, TypeAlias
 
 from pishock import zap, cli_random
+from pishock import cli_utils as utils
+
 
 """Command-line interface for PiShock."""
 
@@ -89,7 +91,7 @@ def handle_errors() -> Iterator[None]:
     try:
         yield
     except (zap.APIError, ValueError) as e:
-        rich.print(f"[red]Error:[/] {e} ([red bold]{type(e).__name__}[/])")
+        utils.print_error(e)
         raise typer.Exit(1)
 
 
