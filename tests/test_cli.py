@@ -31,6 +31,7 @@ class Runner:
 
 @pytest.fixture
 def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Runner:
+    monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
     monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
     # so they get reset after every test
@@ -359,12 +360,10 @@ def test_beep(
 def test_invalid_inputs(
     runner: Runner,
     golden: GoldenTestFixture,
-    monkeypatch: pytest.MonkeyPatch,
     operation: str,
     duration: str,
     intensity: str | None,
 ) -> None:
-    monkeypatch.setenv("COLUMNS", "80")
     args = [operation, runner.sharecode, "-d", duration]
     if intensity is not None:
         args += ["-i", intensity]
