@@ -359,10 +359,12 @@ def test_beep(
 def test_invalid_inputs(
     runner: Runner,
     golden: GoldenTestFixture,
+    monkeypatch: pytest.MonkeyPatch,
     operation: str,
     duration: str,
     intensity: str | None,
 ) -> None:
+    monkeypatch.setenv("COLUMNS", "80")
     args = [operation, runner.sharecode, "-d", duration]
     if intensity is not None:
         args += ["-i", intensity]
