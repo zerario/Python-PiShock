@@ -313,7 +313,7 @@ class Shocker:
             - Any of the `APIError` subclasses in this module, refer to their
               documenation for details.
         """
-        return self._call(_Operation.SHOCK, duration=duration, intensity=intensity)
+        return self._call(Operation.SHOCK, duration=duration, intensity=intensity)
 
     def vibrate(self, *, duration: int | float, intensity: int) -> None:
         """Send a vibration with the given duration (0-15) and intensity (0-100).
@@ -332,7 +332,7 @@ class Shocker:
             - Any of the `APIError` subclasses in this module, refer to their
               documenation for details.
         """
-        return self._call(_Operation.VIBRATE, duration=duration, intensity=intensity)
+        return self._call(Operation.VIBRATE, duration=duration, intensity=intensity)
 
     def beep(self, duration: int | float) -> None:
         """Send a beep with the given duration (0-15).
@@ -351,7 +351,7 @@ class Shocker:
             - Any of the `APIError` subclasses in this module, refer to their
               documenation for details.
         """
-        return self._call(_Operation.BEEP, duration=duration, intensity=None)
+        return self._call(Operation.BEEP, duration=duration, intensity=None)
 
     def _parse_duration(self, duration: int | float) -> int:
         if isinstance(duration, float) and not duration.is_integer():
@@ -367,15 +367,15 @@ class Shocker:
         return int(duration)
 
     def _call(
-        self, operation: _Operation, duration: int | float, intensity: int | None
+        self, operation: Operation, duration: int | float, intensity: int | None
     ) -> None:
         if intensity is not None and not 0 <= intensity <= 100:
             raise ValueError(
                 f"intensity needs to be between 0 and 100, not {intensity}"
             )
 
-        assert (intensity is None) == (operation == _Operation.BEEP)
-        assert operation in _Operation
+        assert (intensity is None) == (operation == Operation.BEEP)
+        assert operation in Operation
 
         params = {
             "Name": self.log_name,
