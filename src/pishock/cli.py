@@ -3,10 +3,9 @@ import difflib
 import json
 import pathlib
 import random
-import time
 import re
 import sys
-from typing import List, Tuple, Dict, Iterator, Optional
+from typing import List, Dict, Iterator, Optional
 
 import platformdirs
 import rich
@@ -390,9 +389,9 @@ def random_mode(
     intensity: cli_random.IntensityArg,
     pause: cli_random.PauseArg,
     spam_possibility: cli_random.SpamPossibilityArg = 0,
-    spam_operations: cli_random.SpamOperationsArg = (5, 25),
-    spam_pause: cli_random.SpamPauseArg = (0, 0),
-    spam_duration: cli_random.SpamDurationArg = (1, 1),
+    spam_operations: cli_random.SpamOperationsArg = utils.Range(5, 25),
+    spam_pause: cli_random.SpamPauseArg = utils.Range(0, 0),
+    spam_duration: cli_random.SpamDurationArg = utils.Range(1, 1),
     spam_intensity: cli_random.SpamIntensityArg = None,  # use -i
     max_runtime: cli_random.MaxRuntimeArg = None,
     vibrate_duration: cli_random.VibrateDurationArg = None,  # use -d

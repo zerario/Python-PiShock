@@ -1,16 +1,22 @@
 import re
 import time
+import random
 import dataclasses
-from typing import Optional, Tuple, List, TYPE_CHECKING
-from typing_extensions import Annotated, TypeAlias
+import contextlib
+from typing import Union, Optional, Tuple, List, Iterator, TYPE_CHECKING
+from typing_extensions import Annotated, TypeAlias, TypeVar
 
 import rich
 import typer
+import click
 
 from pishock import zap
+from pishock import cli_utils as utils
 
 
-class RangeParser:
+class RangeParser(click.ParamType):
+    name = "Range"
+
     def __init__(
         self, min: int, max: Optional[int] = None, float_ok: bool = False
     ) -> None:
@@ -25,31 +31,38 @@ class RangeParser:
             else:
                 n = int(s)
         except ValueError:
-            raise typer.BadParameter(f"Value must be an integer or float: {s}")
+            self.fail(f"Value must be an integer or float: {s}")
 
         if self.max is None and n < self.min:
-            raise typer.BadParameter(f"Value must be at least {self.min}: {n}")
+            self.fail(f"Value must be at least {self.min}: {n}")
         if self.max is not None and not (self.min <= n <= self.max):
-            raise typer.BadParameter(
-                f"Value must be between {self.min} and {self.max}: {n}"
-            )
+            self.fail(f"Value must be between {self.min} and {self.max}: {n}")
 
         return n
 
-    def __call__(self, value: str) -> Tuple[float, float]:
+    def convert(
+        self,
+        value: Union[str, utils.Range],
+        param: Optional[click.Parameter],
+        ctx: Optional[click.Context],
+    ) -> utils.Range:
+        if isinstance(value, utils.Range):  # default value
+            return value
+
         if "-" not in value:
             n = self._parse_single(value)
-            return n, n
+            return utils.Range(n, n)
 
         if value.count("-") > 1:
-            raise typer.BadParameter("Range must be in the form min-max.")
+            self.fail("Range must be in the form min-max.")
 
+        a_str, b_str = value.split("-")
         a = self._parse_single(a_str)
         b = self._parse_single(b_str)
 
-        if b > a:
-            raise typer.BadParameter("Min must be less than max.")
-        return a, b
+        if b < a:
+            self.fail("Min must be less than max.")
+        return utils.Range(a, b)
 
 
 def parse_duration(duration: str) -> int:
@@ -78,12 +91,11 @@ def parse_duration(duration: str) -> int:
 
 @dataclasses.dataclass
 class SpamSettings:
-
     possibility: int
-    operations: Tuple[int, int]
-    pause: Tuple[int, int]
-    duration: Tuple[float, float]
-    intensity: Optional[Tuple[int, int]]
+    operations: utils.Range
+    pause: utils.Range
+    duration: utils.Range
+    intensity: Optional[utils.Range]
 
 
 class RandomShocker:
@@ -91,16 +103,17 @@ class RandomShocker:
         self,
         api: zap.API,
         share_codes: List[str],
-        duration: Tuple[float, float],
-        intensity: Tuple[int, int],
-        pause: Tuple[int, int],
+        duration: utils.Range,
+        intensity: utils.Range,
+        pause: utils.Range,
         spam_settings: SpamSettings,
         max_runtime: Optional[int],
-        vibrate_duration: Optional[Tuple[float, float]],
-        vibrate_intensity: Optional[Tuple[int, int]],
+        vibrate_duration: Optional[utils.Range],
+        vibrate_intensity: Optional[utils.Range],
         shock: bool,
         vibrate: bool,
     ) -> None:
+        self.api = api
         self.share_codes = share_codes
         self.duration = duration
         self.intensity = intensity
@@ -117,40 +130,54 @@ class RandomShocker:
         if vibrate:
             self.operations.append(zap.Operation.VIBRATE)
 
+    def _log(self, message: str) -> None:
+        rich.print(message)  # TODO
+
+    @contextlib.contextmanager
+    def _handle_errors(self) -> Iterator[None]:
+        try:
+            yield
+        except (zap.APIError, ValueError) as e:
+            utils.print_error(e)
+
     def _spam(self) -> None:
         assert zap.Operation.SHOCK in self.operations
-        for _ in range(random.randint(*self.spam_settings.operations)):
-            duration = random.randint(*self.spam_settings.duration)
-            intensity_arg = self.spam_settings.intensity or self.intensity
-            intensity = random.randint(*intensity_arg)
-
-            rich.print(":zap:", end="", flush=True)
-            shocker.shock(duration, intensity)
         self._log("[red bold]Spamming.[/]")
+        for _ in range(self.spam_settings.operations.pick()):
+            shocker = self.api.shocker(random.choice(self.share_codes))
+            duration = self.spam_settings.duration.pick()
+            intensity = (self.spam_settings.intensity or self.intensity).pick()
+
+            try:
+                shocker.shock(duration=duration, intensity=intensity)
+            except (zap.APIError, ValueError) as e:
+                rich.print(":x:", end="", flush=True)
+            else:
+                rich.print(":zap:", end="", flush=True)
             time.sleep(duration + 0.3)
 
-            pause = random.randint(*self.spam_settings.pause)
+            pause = self.spam_settings.pause.pick()
             time.sleep(pause)
 
     def _shock(self, shocker: zap.Shocker) -> None:
-        duration = random.randint(*self.duration)
-        intensity = random.randint(*self.intensity)
-        shocker.shock(duration, intensity)
+        duration = self.duration.pick()
+        intensity = self.intensity.pick()
         self._log(
             f":zap: [yellow]Shocking[/] [green]{shocker}[/] for [green]{duration}s[/] at "
             f"[green]{intensity}%[/]."
         )
+        with self._handle_errors():
+            shocker.shock(duration=duration, intensity=intensity)
 
     def _vibrate(self, shocker: zap.Shocker) -> None:
-        duration_arg = self.vibrate_duration or self.duration
-        intensity_arg = self.vibrate_intensity or self.intensity
-        duration = random.randint(*duration_arg)
-        intensity = random.randint(*intensity_arg)
-        shocker.vibrate(duration, intensity)
+        duration = (self.vibrate_duration or self.duration).pick()
+        intensity = (self.vibrate_intensity or self.intensity).pick()
         self._log(
             f":vibration_mode: [cyan]Vibrating[/] [green]{shocker}[/] for "
             f"[green]{duration}s[/] at [green]{intensity}%[/]."
         )
+        with self._handle_errors():
+            shocker.vibrate(duration=duration, intensity=intensity)
 
     def run(self) -> None:
         while (
@@ -158,7 +185,7 @@ class RandomShocker:
             or (time.monotonic() - self.start_time) < self.max_runtime
         ):
             self._tick()
-            pause = random.randint(*self.pause)
+            pause = self.pause.pick()
             self._log(f":zzz: [blue]Sleeping[/] for [green]{pause}[/] seconds.")
             time.sleep(pause)
 
@@ -174,12 +201,12 @@ class RandomShocker:
             self._shock(shocker)
         elif operation == zap.Operation.VIBRATE:
             self._vibrate(shocker)
-        else:
-            raise ValueError(f"Invalid operation: {operation}")  # pragma: no cover
+        else:  # pragma: no cover
+            raise ValueError(f"Invalid operation: {operation}")
 
 
 DurationArg: TypeAlias = Annotated[
-    Tuple[float, float],
+    utils.Range,
     typer.Option(
         "-d",
         "--duration",
@@ -187,12 +214,12 @@ DurationArg: TypeAlias = Annotated[
             "Duration in seconds, as a single value or a min-max range (0-15 "
             "respectively)."
         ),
-        parser=RangeParser(min=0, max=15, float_ok=True),
+        click_type=RangeParser(min=0, max=15, float_ok=True),
     ),
 ]
 
 IntensityArg: TypeAlias = Annotated[
-    Tuple[int, int],
+    utils.Range,
     typer.Option(
         "-i",
         "--intensity",
@@ -200,19 +227,19 @@ IntensityArg: TypeAlias = Annotated[
             "Intensity in percent, as a single value or min-max range (0-100 "
             "respectively)."
         ),
-        parser=RangeParser(min=0, max=100, float_ok=False),
+        click_type=RangeParser(min=0, max=100, float_ok=False),
     ),
 ]
 
 PauseArg: TypeAlias = Annotated[
-    Tuple[int, int],
+    utils.Range,
     typer.Option(
         "-p",
         "--pause",
         help="Delay between operations in seconds, as a single value or min-max range.",
-        parser=RangeParser(min=0, float_ok=False),
+        click_type=RangeParser(min=0, float_ok=False),
     ),
-],
+]
 
 SpamPossibilityArg: TypeAlias = Annotated[
     int,
@@ -224,37 +251,37 @@ SpamPossibilityArg: TypeAlias = Annotated[
 ]
 
 SpamOperationsArg: TypeAlias = Annotated[
-    Tuple[int, int],
+    utils.Range,
     typer.Option(
         help="Number of operations to spam, as a single value or min-max range.",
-        parser=RangeParser(min=1, float_ok=False),
+        click_type=RangeParser(min=1, float_ok=False),
     ),
 ]
 
 SpamPauseArg: TypeAlias = Annotated[
-    Tuple[int, int],
+    utils.Range,
     typer.Option(
         help="Delay between spam operations in seconds, as a single value or min-max range.",
-        parser=RangeParser(min=0, float_ok=False),
+        click_type=RangeParser(min=0, float_ok=False),
     ),
 ]
 
 SpamDurationArg: TypeAlias = Annotated[
-    Tuple[float, float],
+    utils.Range,
     typer.Option(
         help="Duration of spam operations in seconds, as a single value or min-max range.",
-        parser=RangeParser(min=0, max=15, float_ok=True),
+        click_type=RangeParser(min=0, max=15, float_ok=True),
     ),
 ]
 
 SpamIntensityArg: TypeAlias = Annotated[
-    Optional[Tuple[int, int]],
+    Optional[utils.Range],
     typer.Option(
         help=(
             "Intensity of spam operations in percent, as a single value or min-max "
             "range. If not given, normal intensity is used."
         ),
-        parser=RangeParser(min=0, max=100, float_ok=False),
+        click_type=RangeParser(min=0, max=100, float_ok=False),
     ),
 ]
 
@@ -270,28 +297,30 @@ MaxRuntimeArg: TypeAlias = Annotated[
 ]
 
 VibrateDurationArg: TypeAlias = Annotated[
-    Optional[Tuple[float, float]],
+    Optional[utils.Range],
     typer.Option(
         help=(
             "Duration for vibration in seconds, as a single value or a min-max "
             "range (0-15 respectively). If not given, --duration is used."
         ),
-        parser=RangeParser(min=0, max=15, float_ok=True),
+        click_type=RangeParser(min=0, max=15, float_ok=True),
     ),
 ]
 
 VibrateIntensityArg: TypeAlias = Annotated[
-    Optional[Tuple[int, int]],
+    Optional[utils.Range],
     typer.Option(
         help=(
             "Intensity in percent, as a single value or min-max range (0-100 "
             "respectively). If not given, --intensity is used."
         ),
-        parser=RangeParser(min=0, max=100, float_ok=False),
+        click_type=RangeParser(min=0, max=100, float_ok=False),
     ),
 ]
 
-ShockArg: TypeAlias = Annotated[bool, typer.Option("-s", "--shock", help="Send shocks.")]
+ShockArg: TypeAlias = Annotated[
+    bool, typer.Option("-s", "--shock", help="Send shocks.")
+]
 
 VibrateArg: TypeAlias = Annotated[
     bool,
