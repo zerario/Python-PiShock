@@ -119,7 +119,6 @@ class RandomShocker:
 
     def _spam(self) -> None:
         assert zap.Operation.SHOCK in self.operations
-        self._log("Spamming.")
         for _ in range(random.randint(*self.spam_settings.operations)):
             duration = random.randint(*self.spam_settings.duration)
             intensity_arg = self.spam_settings.intensity or self.intensity
@@ -127,27 +126,31 @@ class RandomShocker:
 
             rich.print(":zap:", end="", flush=True)
             shocker.shock(duration, intensity)
+        self._log("[red bold]Spamming.[/]")
             time.sleep(duration + 0.3)
 
             pause = random.randint(*self.spam_settings.pause)
             time.sleep(pause)
 
-    def _log(self, message: str) -> None:
-        print(message)  # TODO
-
     def _shock(self, shocker: zap.Shocker) -> None:
         duration = random.randint(*self.duration)
         intensity = random.randint(*self.intensity)
-        self._log(f"Shocking for {duration}s at {intensity}%.")
         shocker.shock(duration, intensity)
+        self._log(
+            f":zap: [yellow]Shocking[/] [green]{shocker}[/] for [green]{duration}s[/] at "
+            f"[green]{intensity}%[/]."
+        )
 
     def _vibrate(self, shocker: zap.Shocker) -> None:
         duration_arg = self.vibrate_duration or self.duration
         intensity_arg = self.vibrate_intensity or self.intensity
         duration = random.randint(*duration_arg)
         intensity = random.randint(*intensity_arg)
-        self._log(f"Vibrating for {duration}s at {intensity}%.")
         shocker.vibrate(duration, intensity)
+        self._log(
+            f":vibration_mode: [cyan]Vibrating[/] [green]{shocker}[/] for "
+            f"[green]{duration}s[/] at [green]{intensity}%[/]."
+        )
 
     def run(self) -> None:
         while (
@@ -156,7 +159,7 @@ class RandomShocker:
         ):
             self._tick()
             pause = random.randint(*self.pause)
-            self._log(f"Sleeping for {pause} seconds.")
+            self._log(f":zzz: [blue]Sleeping[/] for [green]{pause}[/] seconds.")
             time.sleep(pause)
 
     def _tick(self) -> None:
