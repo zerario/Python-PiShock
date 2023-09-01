@@ -1,6 +1,12 @@
 output: |
+  🔗  test1  62142069AA1
+  🔗  test2  62142069AA2
+  🔗  test3  62142069AA3
   ✅  test4  62142069AA4
 output_force: |
+  🔗  test1  62142069AA1
+  🔗  test2  62142069AA2
+  🔗  test3  62142069AA3
   ✅  test4  62142069AA4
 output_invalid: |
   Error: Share code 62142069ABX is not valid.
@@ -14,3 +20,7 @@ output_overwrite_force: |
   ✅  test1  62142069AB1
   🔗  test2  62142069AA2
   🔗  test3  62142069AA3
+output_force_empty: |
+  ✅  test4  62142069AA4
+output_empty: |
+  ✅  test4  62142069AA4

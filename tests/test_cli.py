@@ -585,6 +585,9 @@ class TestSharecodes:
         result = runner.run("code-add", "test4", "62142069AA4", *force_arg)
 
         suffix = "_force" if force else ""
+        if not has_codes:
+            suffix += "_empty"
+
         assert result.output == golden.out[f"output{suffix}"]
         assert result.exit_code == 0
 
