@@ -60,14 +60,29 @@ def test_beep(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) -
     shocker.beep(duration=1)
 
 
-def test_name_override(
+def test_log_name_override(
     api: zap.API,
     patcher: PiShockPatcher,
     credentials: FakeCredentials,
 ) -> None:
     patcher.operate(name="test")
-    shocker = api.shocker(credentials.SHARECODE, name="test")
+    shocker = api.shocker(credentials.SHARECODE, log_name="test")
     shocker.vibrate(duration=1, intensity=2)
+
+
+@pytest.mark.parametrize("name, expected", [
+    ("left-leg", "left-leg"),
+    (None, FakeCredentials.SHARECODE),
+])
+def test_shocker_str(
+    api: zap.API,
+    patcher: PiShockPatcher,
+    credentials: FakeCredentials,
+    name: str | None,
+    expected: str,
+) -> None:
+    shocker = api.shocker(credentials.SHARECODE, name=name)
+    assert str(shocker) == expected
 
 
 @pytest.mark.parametrize(
