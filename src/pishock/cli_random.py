@@ -16,21 +16,15 @@ from pishock import cli_utils as utils, zap
 class RangeParser(click.ParamType):
     name = "Range"
 
-    def __init__(
-        self, min: int, max: Optional[int] = None, float_ok: bool = False
-    ) -> None:
+    def __init__(self, min: int, max: Optional[int] = None) -> None:
         self.min = min
         self.max = max
-        self.float_ok = float_ok
 
-    def _parse_single(self, s: str) -> float:
+    def _parse_single(self, s: str) -> int:
         try:
-            if self.float_ok and "." in s:
-                n = float(s)
-            else:
-                n = int(s)
+            n = int(s)
         except ValueError:
-            self.fail(f"Value must be an integer or float: {s}")
+            self.fail(f"Value must be an integer: {s}")
 
         if self.max is None and n < self.min:
             self.fail(f"Value must be at least {self.min}: {n}")
@@ -213,7 +207,7 @@ DurationArg: TypeAlias = Annotated[
             "Duration in seconds, as a single value or a min-max range (0-15 "
             "respectively)."
         ),
-        click_type=RangeParser(min=0, max=15, float_ok=True),
+        click_type=RangeParser(min=0, max=15),
     ),
 ]
 
@@ -226,7 +220,7 @@ IntensityArg: TypeAlias = Annotated[
             "Intensity in percent, as a single value or min-max range (0-100 "
             "respectively)."
         ),
-        click_type=RangeParser(min=0, max=100, float_ok=False),
+        click_type=RangeParser(min=0, max=100),
     ),
 ]
 
@@ -236,7 +230,7 @@ PauseArg: TypeAlias = Annotated[
         "-p",
         "--pause",
         help="Delay between operations in seconds, as a single value or min-max range.",
-        click_type=RangeParser(min=0, float_ok=False),
+        click_type=RangeParser(min=0),
     ),
 ]
 
@@ -253,7 +247,7 @@ SpamOperationsArg: TypeAlias = Annotated[
     utils.Range,
     typer.Option(
         help="Number of operations to spam, as a single value or min-max range.",
-        click_type=RangeParser(min=1, float_ok=False),
+        click_type=RangeParser(min=1),
     ),
 ]
 
@@ -264,7 +258,7 @@ SpamPauseArg: TypeAlias = Annotated[
             "Delay between spam operations in seconds, as a single value or min-max "
             "range."
         ),
-        click_type=RangeParser(min=0, float_ok=False),
+        click_type=RangeParser(min=0),
     ),
 ]
 
@@ -275,7 +269,7 @@ SpamDurationArg: TypeAlias = Annotated[
             "Duration of spam operations in seconds, as a single value or min-max "
             "range."
         ),
-        click_type=RangeParser(min=0, max=15, float_ok=True),
+        click_type=RangeParser(min=0, max=15),
     ),
 ]
 
@@ -286,7 +280,7 @@ SpamIntensityArg: TypeAlias = Annotated[
             "Intensity of spam operations in percent, as a single value or min-max "
             "range. If not given, normal intensity is used."
         ),
-        click_type=RangeParser(min=0, max=100, float_ok=False),
+        click_type=RangeParser(min=0, max=100),
     ),
 ]
 
@@ -308,7 +302,7 @@ VibrateDurationArg: TypeAlias = Annotated[
             "Duration for vibration in seconds, as a single value or a min-max "
             "range (0-15 respectively). If not given, --duration is used."
         ),
-        click_type=RangeParser(min=0, max=15, float_ok=True),
+        click_type=RangeParser(min=0, max=15),
     ),
 ]
 
@@ -319,7 +313,7 @@ VibrateIntensityArg: TypeAlias = Annotated[
             "Intensity in percent, as a single value or min-max range (0-100 "
             "respectively). If not given, --intensity is used."
         ),
-        click_type=RangeParser(min=0, max=100, float_ok=False),
+        click_type=RangeParser(min=0, max=100),
     ),
 ]
 
