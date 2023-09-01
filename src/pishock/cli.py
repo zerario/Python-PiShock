@@ -5,7 +5,7 @@ import pathlib
 import random
 import re
 import sys
-from typing import List, Dict, Iterator, Optional
+from typing import Dict, Iterator, List, Optional
 
 import platformdirs
 import rich
@@ -15,9 +15,7 @@ import rich.table
 import typer
 from typing_extensions import Annotated, TypeAlias
 
-from pishock import zap, cli_random
-from pishock import cli_utils as utils
-
+from pishock import cli_random, cli_utils as utils, zap
 
 """Command-line interface for PiShock."""
 
@@ -351,7 +349,7 @@ def code_rename(
         rich.print(f"[red]Error:[/] Name [green]{name}[/] not found.")
         raise typer.Exit(1)
     if name == new_name:
-        rich.print(f"[red]Error:[/] New name is the same as the old name.")
+        rich.print("[red]Error:[/] New name is the same as the old name.")
         raise typer.Exit(1)
 
     if new_name in config.sharecodes and not force:

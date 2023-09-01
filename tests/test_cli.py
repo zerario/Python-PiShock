@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import http
 import copy
+import http
 import json
 import pathlib
 import random
@@ -58,7 +58,7 @@ def config_path(
     return tmp_path / "config.json"
 
 
-CONFIG_DATA = {
+CONFIG_DATA: dict[str, dict[str, str]] = {
     "api": {
         "username": FakeCredentials.USERNAME,
         "key": FakeCredentials.API_KEY,
@@ -374,10 +374,13 @@ def test_invalid_inputs(
 
 
 @pytest.mark.parametrize("op", list(zap.Operation))
-@pytest.mark.parametrize("name, text", [
-    ("not_authorized", zap.NotAuthorizedError.TEXT),
-    ("unknown_error", "Frobnicating the zap failed"),
-])
+@pytest.mark.parametrize(
+    "name, text",
+    [
+        ("not_authorized", zap.NotAuthorizedError.TEXT),
+        ("unknown_error", "Frobnicating the zap failed"),
+    ],
+)
 @pytest.mark.golden_test("golden/errors.yml")
 def test_errors(
     runner: Runner,
@@ -415,10 +418,13 @@ def test_pause_unpause(
 
 
 @pytest.mark.parametrize("cmd, paused", [("pause", True), ("unpause", False)])
-@pytest.mark.parametrize("name, text", [
-    ("not_authorized", zap.NotAuthorizedError.TEXT),
-    ("unknown_error", "Frobnicating the zap failed"),
-])
+@pytest.mark.parametrize(
+    "name, text",
+    [
+        ("not_authorized", zap.NotAuthorizedError.TEXT),
+        ("unknown_error", "Frobnicating the zap failed"),
+    ],
+)
 @pytest.mark.golden_test("golden/errors.yml")
 def test_pause_error(
     cmd: str,
@@ -580,7 +586,7 @@ class TestSharecodes:
         config_path: pathlib.Path,
         has_codes: bool,
         force: bool,
-    ):
+    ) -> None:
         force_arg = ["--force"] if force else []
         result = runner.run("code-add", "test4", "62142069AA4", *force_arg)
 

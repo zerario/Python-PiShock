@@ -70,10 +70,13 @@ def test_log_name_override(
     shocker.vibrate(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("name, expected", [
-    ("left-leg", "left-leg"),
-    (None, FakeCredentials.SHARECODE),
-])
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("left-leg", "left-leg"),
+        (None, FakeCredentials.SHARECODE),
+    ],
+)
 def test_shocker_str(
     api: zap.API,
     patcher: PiShockPatcher,
@@ -265,7 +268,6 @@ class TestInfo:
 
 
 class TestGetShockers:
-
     def test_get_shockers(self, api: zap.API, patcher: PiShockPatcher) -> None:
         patcher.get_shockers()
         shockers = api.get_shockers(client_id=1000)
@@ -297,7 +299,13 @@ class TestGetShockers:
             (http.HTTPStatus.IM_A_TEAPOT, zap.HTTPError),
         ],
     )
-    def test_http_errors(self, api: zap.API, patcher: PiShockPatcher, status: http.HTTPStatus, exception: type[zap.APIError]) -> None:
+    def test_http_errors(
+        self,
+        api: zap.API,
+        patcher: PiShockPatcher,
+        status: http.HTTPStatus,
+        exception: type[zap.APIError],
+    ) -> None:
         patcher.get_shockers_raw(status=status)
         with pytest.raises(exception):
             api.get_shockers(client_id=1000)

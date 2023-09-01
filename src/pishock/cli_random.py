@@ -1,17 +1,16 @@
+import contextlib
+import dataclasses
+import random
 import re
 import time
-import random
-import dataclasses
-import contextlib
-from typing import Union, Optional, Tuple, List, Iterator, TYPE_CHECKING
-from typing_extensions import Annotated, TypeAlias, TypeVar
+from typing import Iterator, List, Optional, Union
 
+import click
 import rich
 import typer
-import click
+from typing_extensions import Annotated, TypeAlias
 
-from pishock import zap
-from pishock import cli_utils as utils
+from pishock import cli_utils as utils, zap
 
 
 class RangeParser(click.ParamType):
@@ -86,7 +85,7 @@ def parse_duration(duration: str) -> int:
     minutes = float(minutes_string.rstrip("m"))
     hours_string = match.group("hours") if match.group("hours") else "0"
     hours = float(hours_string.rstrip("h"))
-    return int((seconds + minutes * 60 + hours * 3600))
+    return int(seconds + minutes * 60 + hours * 3600)
 
 
 @dataclasses.dataclass
@@ -150,7 +149,7 @@ class RandomShocker:
 
             try:
                 shocker.shock(duration=duration, intensity=intensity)
-            except (zap.APIError, ValueError) as e:
+            except (zap.APIError, ValueError):
                 rich.print(":x:", end="", flush=True)
             else:
                 rich.print(":zap:", end="", flush=True)
@@ -163,8 +162,8 @@ class RandomShocker:
         duration = self.duration.pick()
         intensity = self.intensity.pick()
         self._log(
-            f":zap: [yellow]Shocking[/] [green]{shocker}[/] for [green]{duration}s[/] at "
-            f"[green]{intensity}%[/]."
+            f":zap: [yellow]Shocking[/] [green]{shocker}[/] for [green]{duration}s[/] "
+            f"at [green]{intensity}%[/]."
         )
         with self._handle_errors():
             shocker.shock(duration=duration, intensity=intensity)
@@ -261,7 +260,10 @@ SpamOperationsArg: TypeAlias = Annotated[
 SpamPauseArg: TypeAlias = Annotated[
     utils.Range,
     typer.Option(
-        help="Delay between spam operations in seconds, as a single value or min-max range.",
+        help=(
+            "Delay between spam operations in seconds, as a single value or min-max "
+            "range."
+        ),
         click_type=RangeParser(min=0, float_ok=False),
     ),
 ]
@@ -269,7 +271,10 @@ SpamPauseArg: TypeAlias = Annotated[
 SpamDurationArg: TypeAlias = Annotated[
     utils.Range,
     typer.Option(
-        help="Duration of spam operations in seconds, as a single value or min-max range.",
+        help=(
+            "Duration of spam operations in seconds, as a single value or min-max "
+            "range."
+        ),
         click_type=RangeParser(min=0, max=15, float_ok=True),
     ),
 ]

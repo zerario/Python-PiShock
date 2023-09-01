@@ -2,22 +2,20 @@ from __future__ import annotations
 
 import dataclasses
 import random
-from typing import TypeVar
 
 import rich
 
-T = TypeVar("T", bound=float)
 
 @dataclasses.dataclass
 class Range:
     """A range with a minimum and maximum value."""
 
-    a: T
-    b: T
+    a: int
+    b: int
 
-    def pick(self) -> T:
+    def pick(self) -> int:
         return random.randint(self.a, self.b)
 
 
-def print_error(e: type[zap.ApiError]) -> None:
+def print_error(e: Exception) -> None:
     rich.print(f"[red]Error:[/] {e} ([red bold]{type(e).__name__}[/])")

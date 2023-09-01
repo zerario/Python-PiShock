@@ -169,7 +169,9 @@ class API:
                 raise NotAuthorizedError(NotAuthorizedError.TEXT)
             raise
 
-    def shocker(self, sharecode: str, log_name: str = NAME, name: str | None = None) -> Shocker:
+    def shocker(
+        self, sharecode: str, log_name: str = NAME, name: str | None = None
+    ) -> Shocker:
         """Get a Shocker instance for the given share code.
 
         This is the main entry point for almost all remaining API usages.
@@ -284,7 +286,9 @@ class Shocker:
         ]
     }
 
-    def __init__(self, api: API, sharecode: str, name: str | None, log_name: str) -> None:
+    def __init__(
+        self, api: API, sharecode: str, name: str | None, log_name: str
+    ) -> None:
         self.api = api
         self.sharecode = sharecode
         self.name = name
