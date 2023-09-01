@@ -97,7 +97,9 @@ def get_shocker(share_code: str) -> zap.Shocker:
     assert api is not None
     assert config is not None
 
+    name = None
     if share_code in config.sharecodes:
+        name = share_code
         share_code = config.sharecodes[share_code]
     elif not SHARE_CODE_REGEX.match(share_code):
         rich.print(
@@ -109,7 +111,7 @@ def get_shocker(share_code: str) -> zap.Shocker:
             rich.print(f"Did you mean [green]{matches[0]}[/]?")
         raise typer.Exit(1)
 
-    return api.shocker(share_code, name=f"{zap.NAME} CLI")
+    return api.shocker(share_code, name=name, log_name=f"{zap.NAME} CLI")
 
 
 def print_emoji(name: str, duration: float) -> None:

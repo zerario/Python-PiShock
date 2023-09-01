@@ -169,15 +169,16 @@ class API:
                 raise NotAuthorizedError(NotAuthorizedError.TEXT)
             raise
 
-    def shocker(self, sharecode: str, name: str = NAME) -> Shocker:
+    def shocker(self, sharecode: str, log_name: str = NAME, name: str | None = None) -> Shocker:
         """Get a Shocker instance for the given share code.
 
         This is the main entry point for almost all remaining API usages.
 
-        Via the optional `name` argument, how the shocker is named in the
-        logs can be specified.
+        Via the optional `log_name` argument, how the shocker is named in the
+        logs can be specified. The `name` argument is saved in the shocker for
+        later retrieval.
         """
-        return Shocker(api=self, sharecode=sharecode, name=name)
+        return Shocker(api=self, sharecode=sharecode, log_name=log_name, name=name)
 
     def get_shockers(self, client_id: int) -> list[BasicShockerInfo]:
         """Get a list of all shockers for the given client (PiShock) ID.
@@ -283,11 +284,17 @@ class Shocker:
         ]
     }
 
-    def __init__(self, api: API, sharecode: str, name: str) -> None:
+    def __init__(self, api: API, sharecode: str, name: str | None, log_name: str) -> None:
         self.api = api
         self.sharecode = sharecode
         self.name = name
+        self.log_name = log_name
         self._cached_info: ShockerInfo | None = None
+
+    def __str__(self) -> str:
+        if self.name is not None:
+            return self.name
+        return self.sharecode
 
     def shock(self, *, duration: int | float, intensity: int) -> None:
         """Send a shock with the given duration (0-15) and intensity (0-100).
@@ -371,7 +378,7 @@ class Shocker:
         assert operation in _Operation
 
         params = {
-            "Name": self.name,
+            "Name": self.log_name,
             "Code": self.sharecode,
             "Duration": self._parse_duration(duration),
             "Op": operation.value,
