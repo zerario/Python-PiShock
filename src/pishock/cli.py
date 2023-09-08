@@ -406,9 +406,9 @@ def random_mode(
         duration=spam_duration,
         intensity=spam_intensity,
     )
+    shockers = [get_shocker(share_code) for share_code in share_codes]
     random_shocker = cli_random.RandomShocker(
-        api=api,
-        share_codes=share_codes,
+        shockers=shockers,
         duration=duration,
         intensity=intensity,
         pause=pause,

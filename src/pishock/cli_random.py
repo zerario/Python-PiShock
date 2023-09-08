@@ -94,8 +94,7 @@ class SpamSettings:
 class RandomShocker:
     def __init__(
         self,
-        api: zap.API,
-        share_codes: List[str],
+        shockers: List[zap.Shocker],
         duration: utils.Range,
         intensity: utils.Range,
         pause: utils.Range,
@@ -106,8 +105,7 @@ class RandomShocker:
         shock: bool,
         vibrate: bool,
     ) -> None:
-        self.api = api
-        self.share_codes = share_codes
+        self.shockers = shockers
         self.duration = duration
         self.intensity = intensity
         self.pause = pause
@@ -137,7 +135,7 @@ class RandomShocker:
         assert zap.Operation.SHOCK in self.operations
         self._log("[red bold]Spamming.[/]")
         for _ in range(self.spam_settings.operations.pick()):
-            shocker = self.api.shocker(random.choice(self.share_codes))
+            shocker = random.choice(self.shockers)
             duration = self.spam_settings.duration.pick()
             intensity = (self.spam_settings.intensity or self.intensity).pick()
 
@@ -188,7 +186,7 @@ class RandomShocker:
             return
 
         operation = random.choice(self.operations)
-        shocker = self.api.shocker(random.choice(self.share_codes))
+        shocker = random.choice(self.shockers)
 
         if operation == zap.Operation.SHOCK:
             self._shock(shocker)
