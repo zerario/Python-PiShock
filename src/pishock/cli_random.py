@@ -144,11 +144,13 @@ class RandomShocker:
             except (zap.APIError, ValueError):
                 rich.print(":x:", end="", flush=True)
             else:
-                rich.print(":zap:", end="", flush=True)
+                rich.print(f":zap: [green]{intensity}[/green] ", end="", flush=True)
             time.sleep(duration + 0.3)
 
             pause = self.spam_settings.pause.pick()
             time.sleep(pause)
+
+        rich.print()
 
     def _shock(self, shocker: zap.Shocker) -> None:
         duration = self.duration.pick()
