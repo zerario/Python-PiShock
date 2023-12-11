@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import io
 import http
+import io
 from typing import cast
 
 import pytest
 import serial  # type: ignore[import-not-found]
 
-from pishock import zap, serialapi
+from pishock import serialapi, zap
 
 from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
@@ -176,7 +176,9 @@ class TestInvalidIntensity:
 
 
 class TestOperationsNotAllowed:
-    def test_vibrate(self, api_shocker: zap.APIShocker, patcher: PiShockPatcher) -> None:
+    def test_vibrate(
+        self, api_shocker: zap.APIShocker, patcher: PiShockPatcher
+    ) -> None:
         patcher.operate(
             body=zap.VibrateNotAllowedError.TEXT,
             operation=zap.Operation.VIBRATE,

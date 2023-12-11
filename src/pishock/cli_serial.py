@@ -1,13 +1,13 @@
 import json
-from typing import Optional, Any, Dict, List
+from typing import Any, Dict, Optional
 
-from typing_extensions import Annotated
 import rich
+import rich.box
 import rich.console
 import rich.pretty
 import rich.text
-import rich.box
 import typer
+from typing_extensions import Annotated
 
 from pishock import cli_utils, serialapi
 

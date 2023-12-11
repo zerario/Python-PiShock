@@ -9,8 +9,7 @@ from typing import Any, Iterator
 
 import requests
 
-from . import __version__ as __version__
-from . import serialapi
+from . import __version__ as __version__, serialapi
 
 # TODO:
 # - PiVault
@@ -266,7 +265,6 @@ class ShockerInfo(BasicShockerInfo):
 
 
 class Shocker:
-
     IS_SERIAL: bool
 
     def shock(self, *, duration: int | float, intensity: int) -> None:

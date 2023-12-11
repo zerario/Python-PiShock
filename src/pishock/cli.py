@@ -15,7 +15,7 @@ import rich.table
 import typer
 from typing_extensions import Annotated, TypeAlias
 
-from pishock import cli_random, cli_utils as utils, zap, cli_serial, serialapi
+from pishock import cli_random, cli_serial, cli_utils as utils, serialapi, zap
 
 """Command-line interface for PiShock."""
 

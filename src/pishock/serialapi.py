@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import enum
 import json
-from typing import Iterator, Any
+from typing import Any, Iterator
 
+import serial  # type: ignore[import-not-found]
+import serial.tools.list_ports  # type: ignore[import-not-found]
 
 USB_IDS = [
     (0x1A86, 0x7523),  # CH340, PiShock Next
     (0x1A86, 0x55D4),  # CH9102, PiShock Lite
 ]
-
-import serial  # type: ignore[import-not-found]
-import serial.tools.list_ports  # type: ignore[import-not-found]
 
 
 class AutodetectError(Exception):
@@ -100,14 +99,18 @@ class SerialAPI:
         self._send_cmd("restart")
 
     def operate(
-        self, shocker_id: int, operation: SerialOperation, duration: int | float, intensity: int | None = None,
+        self,
+        shocker_id: int,
+        operation: SerialOperation,
+        duration: int | float,
+        intensity: int | None = None,
     ) -> None:
         """Operate a shocker."""
         if intensity is not None and not 0 <= intensity <= 100:
             raise ValueError(
                 f"intensity needs to be between 0 and 100, not {intensity}"
             )
-        if not 0 <= duration <= 2 ** 32:
+        if not 0 <= duration <= 2**32:
             # FIXME do we have an upper bound on duration (other than uint32)?
             raise ValueError(
                 f"duration needs to be between 0 and 2**32, not {duration}"
