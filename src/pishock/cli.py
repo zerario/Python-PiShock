@@ -15,11 +15,12 @@ import rich.table
 import typer
 from typing_extensions import Annotated, TypeAlias
 
-from pishock import cli_random, cli_utils as utils, zap
+from pishock import cli_random, cli_utils as utils, zap, cli_serial
 
 """Command-line interface for PiShock."""
 
 app = typer.Typer()
+app.add_typer(cli_serial.app, name="serial", help="Serial interface commands")
 api = None
 config = None
 
@@ -155,10 +156,6 @@ def paused_emoji(is_paused: bool) -> str:
     return ":double_vertical_bar:" if is_paused else ":arrow_forward:"
 
 
-def online_emoji(is_online: bool) -> str:
-    return ":white_check_mark:" if is_online else ":x:"
-
-
 @app.command(rich_help_panel="Shockers")
 def info(share_code: ShareCodeArg) -> None:
     """Get information about the given shocker."""
@@ -175,7 +172,7 @@ def info(share_code: ShareCodeArg) -> None:
     table.add_row("Shocker ID", str(info.shocker_id))
 
     pause = paused_emoji(info.is_paused)
-    online = online_emoji(info.is_online)
+    online = utils.bool_emoji(info.is_online)
 
     table.add_row("Online / Paused", f"{online} {pause}")
     table.add_row("Max intensity", f"{info.max_intensity}%")
@@ -250,7 +247,7 @@ def list_sharecodes_info() -> None:
             continue
 
         pause = paused_emoji(info.is_paused)
-        online = online_emoji(info.is_online)
+        online = utils.bool_emoji(info.is_online)
         table.add_row(
             name,
             share_code,

@@ -19,3 +19,7 @@ class Range:
 
 def print_error(e: Exception) -> None:
     rich.print(f"[red]Error:[/] {e} ([red bold]{type(e).__name__}[/])")
+
+
+def bool_emoji(value: bool) -> str:
+    return ":white_check_mark:" if value else ":x:"
