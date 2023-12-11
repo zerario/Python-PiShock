@@ -9,6 +9,7 @@ import rich.text
 import rich.box
 import typer
 import serial  # type: ignore[import-not-found]
+import serial.tools.list_ports  # type: ignore[import-not-found]
 
 from pishock import cli_utils
 
@@ -20,6 +21,10 @@ serial_port = None
 DEVICE_TYPES = {3: "Lite", 4: "Next"}
 SHOCKER_TYPES = {0: "SmallOne", 1: "Petrainer"}
 INFO_PREFIX = b"TERMINALINFO: "
+USB_IDS = [
+    (0x1A86, 0x7523),  # CH340, PiShock Next
+    (0x1A86, 0x55D4),  # CH9102, PiShock Lite
+]
 
 
 def _build_cmd(cmd: str, value: Any = None) -> bytes:
@@ -146,6 +151,7 @@ def try_connect(ssid: str, password: str) -> None:
     assert serial_port is not None
     serial_port.write(_build_cmd("connect", ssid))
 
+
 @app.command()
 def restart() -> None:
     """Restart the PiShock."""
@@ -169,6 +175,22 @@ def monitor() -> None:
                 rich.print(_json_to_rich(info))
 
 
+def _autodetect_port() -> str:
+    candidates = []
+    for info in serial.tools.list_ports.comports():
+        if (info.vid, info.pid) in USB_IDS:
+            candidates.append(info.device)
+
+    if len(candidates) == 1:
+        return candidates[0]
+    elif not candidates:
+        raise typer.Exit("No PiShock found via port autodetection.")
+    else:
+        raise typer.Exit(
+            "Multiple (possibly) PiShocks found via port autodetection: "
+            f"{', '.join(candidates)}. Use --port to select one."
+        )
+
 
 @app.callback()
 def callback(
@@ -177,8 +199,8 @@ def callback(
     """PiShock serial interface commands."""
     global serial_port
     if port is None:
-        rich.print("TODO")
-        return
+        port = _autodetect_port()
 
     serial_port = serial.Serial(port, 115200, timeout=1)
+
     # FIXME close?
