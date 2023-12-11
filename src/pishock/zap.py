@@ -10,6 +10,7 @@ from typing import Any, Iterator
 import requests
 
 from . import __version__ as __version__
+from . import serialapi
 
 # TODO:
 # - PiVault
@@ -172,7 +173,7 @@ class API:
 
     def shocker(
         self, sharecode: str, log_name: str = NAME, name: str | None = None
-    ) -> Shocker:
+    ) -> APIShocker:
         """Get a Shocker instance for the given share code.
 
         This is the main entry point for almost all remaining API usages.
@@ -181,7 +182,7 @@ class API:
         logs can be specified. The `name` argument is saved in the shocker for
         later retrieval.
         """
-        return Shocker(api=self, sharecode=sharecode, log_name=log_name, name=name)
+        return APIShocker(api=self, sharecode=sharecode, log_name=log_name, name=name)
 
     def get_shockers(self, client_id: int) -> list[BasicShockerInfo]:
         """Get a list of all shockers for the given client (PiShock) ID.
@@ -265,7 +266,62 @@ class ShockerInfo(BasicShockerInfo):
 
 
 class Shocker:
-    """Represents a single shocker / share code."""
+    def shock(self, *, duration: int | float, intensity: int) -> None:
+        raise NotImplementedError
+
+    def vibrate(self, *, duration: int | float, intensity: int) -> None:
+        raise NotImplementedError
+
+    def beep(self, duration: int | float) -> None:
+        raise NotImplementedError
+
+    def info(self) -> BasicShockerInfo:
+        raise NotImplementedError
+
+
+class SerialShocker(Shocker):
+    """Represents a single shocker accessed via serial port."""
+
+    def __init__(self, api: serialapi.SerialAPI, shocker_id: int) -> None:
+        self.shocker_id = shocker_id
+        self.api = api
+
+    def shock(self, *, duration: int | float, intensity: int) -> None:
+        self.api.operate(
+            shocker_id=self.shocker_id,
+            operation=serialapi.SerialOperation.SHOCK,
+            duration=duration,
+            intensity=intensity,
+        )
+
+    def vibrate(self, *, duration: int | float, intensity: int) -> None:
+        self.api.operate(
+            shocker_id=self.shocker_id,
+            operation=serialapi.SerialOperation.VIBRATE,
+            duration=duration,
+            intensity=intensity,
+        )
+
+    def beep(self, duration: int | float) -> None:
+        self.api.operate(
+            shocker_id=self.shocker_id,
+            operation=serialapi.SerialOperation.BEEP,
+            duration=duration,
+        )
+
+    def info(self) -> BasicShockerInfo:
+        data = self.api.info()
+        shockers = {s["id"]: s for s in data["shockers"]}
+        return BasicShockerInfo(
+            name=f"Serial shocker ({self.api.dev.port})",
+            client_id=data["clientId"],
+            shocker_id=self.shocker_id,
+            is_paused=shockers[self.shocker_id]["paused"],
+        )
+
+
+class APIShocker(Shocker):
+    """Represents a single shocker / share code using the HTTP API."""
 
     SUCCESS_MESSAGES = [
         "Operation Succeeded.",

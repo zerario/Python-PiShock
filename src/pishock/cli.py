@@ -15,13 +15,14 @@ import rich.table
 import typer
 from typing_extensions import Annotated, TypeAlias
 
-from pishock import cli_random, cli_utils as utils, zap, cli_serial
+from pishock import cli_random, cli_utils as utils, zap, cli_serial, serialapi
 
 """Command-line interface for PiShock."""
 
 app = typer.Typer()
 app.add_typer(cli_serial.app, name="serial", help="Serial interface commands")
 api = None
+serial_api = None
 config = None
 
 
@@ -93,10 +94,23 @@ def handle_errors() -> Iterator[None]:
         raise typer.Exit(1)
 
 
-def get_shocker(share_code: str) -> zap.Shocker:
-    assert api is not None
+def get_shocker(share_code: str, *, http_only: bool = False) -> zap.Shocker:
     assert config is not None
 
+    if serial_api is not None:
+        if http_only:
+            utils.print_error("Serial interface does not support this operation.")
+            raise typer.Exit(1)
+
+        try:
+            shocker_id = int(share_code)
+        except ValueError as e:
+            utils.print_exception(e)
+            raise typer.Exit(1)
+
+        return zap.SerialShocker(serial_api, shocker_id)
+
+    assert api is not None
     name = None
     if share_code in config.sharecodes:
         name = share_code
@@ -172,11 +186,13 @@ def info(share_code: ShareCodeArg) -> None:
     table.add_row("Shocker ID", str(info.shocker_id))
 
     pause = paused_emoji(info.is_paused)
-    online = utils.bool_emoji(info.is_online)
-
-    table.add_row("Online / Paused", f"{online} {pause}")
-    table.add_row("Max intensity", f"{info.max_intensity}%")
-    table.add_row("Max duration", f"{info.max_duration}s")
+    if isinstance(info, zap.BasicShockerInfo):  # serial
+        table.add_row("Paused", pause)
+    else:
+        online = utils.bool_emoji(info.is_online)
+        table.add_row("Online / Paused", f"{online} {pause}")
+        table.add_row("Max intensity", f"{info.max_intensity}%")
+        table.add_row("Max duration", f"{info.max_duration}s")
 
     rich.print(table)
 
@@ -184,7 +200,8 @@ def info(share_code: ShareCodeArg) -> None:
 @app.command(rich_help_panel="Shockers")
 def pause(share_code: ShareCodeArg) -> None:
     """Pause the given shocker."""
-    shocker = get_shocker(share_code)
+    shocker = get_shocker(share_code, http_only=True)
+    assert isinstance(shocker, zap.APIShocker)
     with handle_errors():
         shocker.pause(True)
 
@@ -192,7 +209,8 @@ def pause(share_code: ShareCodeArg) -> None:
 @app.command(rich_help_panel="Shockers")
 def unpause(share_code: ShareCodeArg) -> None:
     """Unpause the given shocker."""
-    shocker = get_shocker(share_code)
+    shocker = get_shocker(share_code, http_only=True)
+    assert isinstance(shocker, zap.APIShocker)
     with handle_errors():
         shocker.pause(False)
 
@@ -491,10 +509,31 @@ def main(
             envvar="PISHOCK_API_KEY",
         ),
     ] = None,
+    serial: Annotated[
+        bool, typer.Option("--serial", help="Use serial interface instead of HTTP API.")
+    ] = False,
+    port: Annotated[
+        Optional[str],
+        typer.Option(
+            help="Serial port to use with --serial. Auto-detection is attempted if not given."
+        ),
+    ] = None,
 ) -> None:
-    global api, config
+    global api, config, serial_api
     config = Config()
     config.load()
+
+    if port is not None and not serial:
+        utils.print_error("--port option only valid with --serial.")
+        raise typer.Exit(1)
+
+    if serial:
+        try:
+            serial_api = serialapi.SerialAPI(port)
+        except serialapi.AutodetectError as e:
+            utils.print_exception(e)
+            raise typer.Exit(1)
+        return
 
     if username is None or api_key is None:
         if username is not None:

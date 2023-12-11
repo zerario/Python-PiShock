@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import io
 import http
+from typing import cast
 
 import pytest
+import serial  # type: ignore[import-not-found]
 
-from pishock import zap
+from pishock import zap, serialapi
 
 from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
@@ -14,8 +17,31 @@ def api(credentials: FakeCredentials) -> zap.API:
     return zap.API(username=credentials.USERNAME, api_key=credentials.API_KEY)
 
 
+@pytest.fixture(params=["api_shocker", "serial_shocker"])
+def shocker(request: pytest.FixtureRequest) -> zap.Shocker:
+    return cast(zap.Shocker, request.getfixturevalue(request.param))
+
+
 @pytest.fixture
-def shocker(api: zap.API, credentials: FakeCredentials) -> zap.Shocker:
+def fake_serial_dev() -> io.BytesIO:
+    return io.BytesIO()
+
+
+@pytest.fixture
+def serial_shocker(
+    monkeypatch: pytest.MonkeyPatch,
+    credentials: FakeCredentials,
+    fake_serial_dev: io.BytesIO,
+) -> zap.SerialShocker:
+    monkeypatch.setattr(
+        serial, "Serial", lambda port, baudrate, timeout: fake_serial_dev
+    )
+    api = serialapi.SerialAPI(credentials.SERIAL_PORT)
+    return zap.SerialShocker(api=api, shocker_id=credentials.SHOCKER_ID)
+
+
+@pytest.fixture
+def api_shocker(api: zap.API, credentials: FakeCredentials) -> zap.APIShocker:
     return api.shocker(credentials.SHARECODE)
 
 
@@ -33,7 +59,7 @@ def test_api_not_found(api: zap.API, patcher: PiShockPatcher) -> None:
     assert excinfo.value.status_code == status
 
 
-@pytest.mark.parametrize("success_msg", zap.Shocker.SUCCESS_MESSAGES)
+@pytest.mark.parametrize("success_msg", zap.APIShocker.SUCCESS_MESSAGES)
 def test_vibrate(
     shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str
 ) -> None:
@@ -41,7 +67,7 @@ def test_vibrate(
     shocker.vibrate(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("success_msg", zap.Shocker.SUCCESS_MESSAGES)
+@pytest.mark.parametrize("success_msg", zap.APIShocker.SUCCESS_MESSAGES)
 def test_shock(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) -> None:
     patcher.operate(
         body=success_msg,
@@ -50,7 +76,7 @@ def test_shock(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) 
     shocker.shock(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("success_msg", zap.Shocker.SUCCESS_MESSAGES)
+@pytest.mark.parametrize("success_msg", zap.APIShocker.SUCCESS_MESSAGES)
 def test_beep(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) -> None:
     patcher.operate(
         body=success_msg,
@@ -208,25 +234,31 @@ def test_unknown_error(
 
 
 @pytest.mark.parametrize("pause", [True, False])
-def test_pause(shocker: zap.Shocker, patcher: PiShockPatcher, pause: bool) -> None:
+def test_pause(
+    api_shocker: zap.APIShocker, patcher: PiShockPatcher, pause: bool
+) -> None:
     patcher.info()
     patcher.pause(pause)
-    shocker.pause(pause)
+    api_shocker.pause(pause)
 
 
-def test_pause_unauthorized(shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+def test_pause_unauthorized(
+    api_shocker: zap.APIShocker, patcher: PiShockPatcher
+) -> None:
     patcher.info()
     patcher.pause(True, body=zap.NotAuthorizedError.TEXT)
     with pytest.raises(zap.NotAuthorizedError):
-        shocker.pause(True)
+        api_shocker.pause(True)
 
 
-def test_pause_unknown_error(shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+def test_pause_unknown_error(
+    api_shocker: zap.APIShocker, patcher: PiShockPatcher
+) -> None:
     message = "Shocker wanna go brrrrr."
     patcher.info()
     patcher.pause(True, body=message)
     with pytest.raises(zap.UnknownError, match=message):
-        shocker.pause(True)
+        api_shocker.pause(True)
 
 
 class TestInfo:
@@ -237,9 +269,10 @@ class TestInfo:
         assert info.client_id == 1000
         assert info.shocker_id == 1001
         assert not info.is_paused
-        assert info.is_online
-        assert info.max_intensity == 100
-        assert info.max_duration == 15
+        if isinstance(info, zap.ShockerInfo):  # not serial
+            assert info.is_online
+            assert info.max_intensity == 100
+            assert info.max_duration == 15
 
     def test_invalid_body(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
         message = "Not JSON lol"

@@ -17,6 +17,8 @@ class FakeCredentials:
     USERNAME = "PISHOCK-USERNAME"
     API_KEY = "PISHOCK-APIKEY"
     SHARECODE = "62169420AAA"
+    SERIAL_PORT = "/dev/ttyFAKE"
+    SHOCKER_ID = 1234
 
 
 class APIURLs:
@@ -84,7 +86,7 @@ class PiShockPatcher:
         self.responses.post(APIURLs.OPERATE, **kwargs)
 
     def operate(
-        self, body: str = zap.Shocker.SUCCESS_MESSAGES[0], **kwargs: Any
+        self, body: str = zap.APIShocker.SUCCESS_MESSAGES[0], **kwargs: Any
     ) -> None:
         self.operate_raw(
             body=body,
@@ -147,7 +149,7 @@ class PiShockPatcher:
     def pause_raw(self, **kwargs: Any) -> None:
         self.responses.post(APIURLs.PAUSE, **kwargs)
 
-    def pause(self, pause: bool, body: str = zap.Shocker.SUCCESS_MESSAGE_PAUSE) -> None:
+    def pause(self, pause: bool, body: str = zap.APIShocker.SUCCESS_MESSAGE_PAUSE) -> None:
         self.pause_raw(body=body, match=self.pause_matchers(pause))
 
     # GetShockers

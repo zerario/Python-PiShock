@@ -8,31 +8,16 @@ import rich.pretty
 import rich.text
 import rich.box
 import typer
-import serial  # type: ignore[import-not-found]
-import serial.tools.list_ports  # type: ignore[import-not-found]
 
-from pishock import cli_utils
+from pishock import cli_utils, serialapi
 
 """Serial interface commands for PiShock."""
 
 app = typer.Typer(no_args_is_help=True)
-serial_port = None
+serial_api = None
 
 DEVICE_TYPES = {3: "Lite", 4: "Next"}
 SHOCKER_TYPES = {0: "SmallOne", 1: "Petrainer"}
-INFO_PREFIX = b"TERMINALINFO: "
-USB_IDS = [
-    (0x1A86, 0x7523),  # CH340, PiShock Next
-    (0x1A86, 0x55D4),  # CH9102, PiShock Lite
-]
-
-
-def _build_cmd(cmd: str, value: Any = None) -> bytes:
-    data = {"cmd": cmd}
-    if value:
-        data["value"] = value
-    doc = json.dumps(data) + "\n"
-    return doc.encode("utf-8")  # FIXME encoding?
 
 
 def _enrich_toplevel_data(data: Dict[str, Any], show_passwords: bool) -> None:
@@ -108,29 +93,18 @@ def info(
     ] = False
 ) -> None:
     """Show information about this PiShock."""
-    assert serial_port is not None
-    serial_port.write(_build_cmd("info"))
-    data = _wait_device_info()
+    assert serial_api is not None
+    data = serial_api.info()
     _enrich_toplevel_data(data, show_passwords=show_passwords)
     rich.print(_json_to_rich(data))
-
-
-def _wait_device_info() -> Dict[str, Any]:
-    assert serial_port is not None
-    while True:
-        line = serial_port.readline()
-        if line.startswith(INFO_PREFIX):
-            break
-
-    return json.loads(line[len(INFO_PREFIX) :])
 
 
 @app.command()
 def add_network(ssid: str, password: str) -> None:
     """Add a new network to the PiShock config and reboot."""
-    assert serial_port is not None
-    serial_port.write(_build_cmd("addnetwork", {"ssid": ssid, "password": password}))
-    data = _wait_device_info()
+    assert serial_api is not None
+    serial_api.add_network(ssid, password)
+    data = serial_api.wait_info()
     _enrich_toplevel_data(data, show_passwords=False)
     rich.print(_json_to_rich(data["networks"]))
 
@@ -138,9 +112,9 @@ def add_network(ssid: str, password: str) -> None:
 @app.command()
 def remove_network(ssid: str) -> None:
     """Remove a network from the PiShock config."""
-    assert serial_port is not None
-    serial_port.write(_build_cmd("removenetwork", ssid))
-    data = _wait_device_info()
+    assert serial_api is not None
+    serial_api.remove_network(ssid)
+    data = serial_api.wait_info()
     _enrich_toplevel_data(data, show_passwords=False)
     rich.print(_json_to_rich(data["networks"]))
 
@@ -148,50 +122,30 @@ def remove_network(ssid: str) -> None:
 @app.command()
 def try_connect(ssid: str, password: str) -> None:
     """Temporarily try connecting to the given network."""
-    assert serial_port is not None
-    serial_port.write(_build_cmd("connect", ssid))
+    assert serial_api is not None
+    serial_api.try_connect(ssid, password)
 
 
 @app.command()
 def restart() -> None:
     """Restart the PiShock."""
-    assert serial_port is not None
-    serial_port.write(_build_cmd("restart"))
+    assert serial_api is not None
+    serial_api.restart()
 
 
 @app.command()
 def monitor() -> None:
     """Monitor serial output."""
-    assert serial_port is not None
-    while True:
-        line = serial_port.readline()
+    assert serial_api is not None
+    for line in serial_api.monitor():
         rich.print(line.decode("utf-8", errors="replace"), end="")
-        if line.startswith(INFO_PREFIX):
+        if line.startswith(serialapi.SerialAPI.INFO_PREFIX):
             try:
-                info = json.loads(line[len(INFO_PREFIX) :])
+                info = serial_api.decode_info(line)
             except json.JSONDecodeError:
                 pass
             else:
                 rich.print(_json_to_rich(info))
-
-
-def _autodetect_port() -> str:
-    candidates: List[str] = []
-    for info in serial.tools.list_ports.comports():
-        if (info.vid, info.pid) in USB_IDS:
-            candidates.append(info.device)
-
-    if len(candidates) == 1:
-        return candidates[0]
-    elif not candidates:
-        cli_utils.print_error("No PiShock found via port autodetection.")
-        raise typer.Exit(1)
-    else:
-        cli_utils.print_error(
-            "Multiple (possibly) PiShocks found via port autodetection: "
-            f"{', '.join(candidates)}. Use --port to select one."
-        )
-        raise typer.Exit(1)
 
 
 @app.callback()
@@ -199,10 +153,6 @@ def callback(
     port: Annotated[Optional[str], typer.Option(help="Serial port")] = None
 ) -> None:
     """PiShock serial interface commands."""
-    global serial_port
-    if port is None:
-        port = _autodetect_port()
-
-    serial_port = serial.Serial(port, 115200, timeout=1)
-
+    global serial_api
+    serial_api = serialapi.SerialAPI(port)
     # FIXME close?
