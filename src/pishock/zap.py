@@ -111,6 +111,7 @@ class HTTPError(APIError):
     """Invalid HTTP status from the API."""
 
     def __init__(self, requests_error: requests.HTTPError) -> None:
+        assert requests_error.response is not None
         self.body = requests_error.response.text
         self.status_code = requests_error.response.status_code
 

@@ -11,7 +11,7 @@ import platformdirs
 import pytest
 import rich.prompt
 import typer.testing
-from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import]
+from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
 from pishock import cli, zap
 

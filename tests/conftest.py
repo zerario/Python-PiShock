@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import http
 from typing import Any, Callable
 
@@ -47,7 +48,7 @@ class PiShockPatcher:
       defaults for how a request will usually look.
     """
 
-    HEADERS = {
+    HEADERS: dict[str, str | re.Pattern[str]] = {
         "User-Agent": f"{zap.NAME}/{zap.__version__}",
         "Content-Type": "application/json",
     }

@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 
 from typing_extensions import Annotated
 import rich
@@ -176,7 +176,7 @@ def monitor() -> None:
 
 
 def _autodetect_port() -> str:
-    candidates = []
+    candidates: List[str] = []
     for info in serial.tools.list_ports.comports():
         if (info.vid, info.pid) in USB_IDS:
             candidates.append(info.device)
@@ -184,12 +184,14 @@ def _autodetect_port() -> str:
     if len(candidates) == 1:
         return candidates[0]
     elif not candidates:
-        raise typer.Exit("No PiShock found via port autodetection.")
+        cli_utils.print_error("No PiShock found via port autodetection.")
+        raise typer.Exit(1)
     else:
-        raise typer.Exit(
+        cli_utils.print_error(
             "Multiple (possibly) PiShocks found via port autodetection: "
             f"{', '.join(candidates)}. Use --port to select one."
         )
+        raise typer.Exit(1)
 
 
 @app.callback()

@@ -17,8 +17,12 @@ class Range:
         return random.randint(self.a, self.b)
 
 
-def print_error(e: Exception) -> None:
+def print_exception(e: Exception) -> None:
     rich.print(f"[red]Error:[/] {e} ([red bold]{type(e).__name__}[/])")
+
+
+def print_error(s: str) -> None:
+    rich.print(f"[red]Error:[/] {s}")
 
 
 def bool_emoji(value: bool) -> str:

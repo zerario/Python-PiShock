@@ -89,7 +89,7 @@ def handle_errors() -> Iterator[None]:
     try:
         yield
     except (zap.APIError, ValueError) as e:
-        utils.print_error(e)
+        utils.print_exception(e)
         raise typer.Exit(1)
 
 

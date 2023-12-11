@@ -129,7 +129,7 @@ class RandomShocker:
         try:
             yield
         except (zap.APIError, ValueError) as e:
-            utils.print_error(e)
+            utils.print_exception(e)
 
     def _spam(self) -> None:
         assert zap.Operation.SHOCK in self.operations
