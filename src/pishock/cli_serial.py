@@ -19,11 +19,15 @@ serial_port = None
 
 DEVICE_TYPES = {3: "Lite", 4: "Next"}
 SHOCKER_TYPES = {0: "SmallOne", 1: "Petrainer"}
+INFO_PREFIX = b"TERMINALINFO: "
 
 
-def _build_cmd(cmd: str) -> bytes:
-    data = json.dumps({"cmd": cmd}) + "\n"
-    return data.encode("utf-8")  # FIXME encoding?
+def _build_cmd(cmd: str, value: Any = None) -> bytes:
+    data = {"cmd": cmd}
+    if value:
+        data["value"] = value
+    doc = json.dumps(data) + "\n"
+    return doc.encode("utf-8")  # FIXME encoding?
 
 
 def _enrich_toplevel_data(data: Dict[str, Any], show_passwords: bool) -> None:
@@ -70,12 +74,7 @@ def _enrich_toplevel_data(data: Dict[str, Any], show_passwords: bool) -> None:
         data["type"] = text
 
 
-def _json_to_rich(
-    data: Dict[str, Any], toplevel: bool = False, show_passwords: bool = False
-) -> rich.console.RenderableType:
-    if toplevel:
-        _enrich_toplevel_data(data, show_passwords=show_passwords)
-
+def _json_to_rich(data: Dict[str, Any]) -> rich.console.RenderableType:
     if isinstance(data, bool):
         return cli_utils.bool_emoji(data)
     elif isinstance(data, list):
@@ -105,15 +104,70 @@ def info(
 ) -> None:
     """Show information about this PiShock."""
     assert serial_port is not None
-    prefix = b"TERMINALINFO: "
     serial_port.write(_build_cmd("info"))
+    data = _wait_device_info()
+    _enrich_toplevel_data(data, show_passwords=show_passwords)
+    rich.print(_json_to_rich(data))
+
+
+def _wait_device_info() -> Dict[str, Any]:
+    assert serial_port is not None
     while True:
         line = serial_port.readline()
-        if line.startswith(prefix):
+        if line.startswith(INFO_PREFIX):
             break
 
-    data = json.loads(line[len(prefix) :])
-    rich.print(_json_to_rich(data, toplevel=True, show_passwords=show_passwords))
+    return json.loads(line[len(INFO_PREFIX) :])
+
+
+@app.command()
+def add_network(ssid: str, password: str) -> None:
+    """Add a new network to the PiShock config and reboot."""
+    assert serial_port is not None
+    serial_port.write(_build_cmd("addnetwork", {"ssid": ssid, "password": password}))
+    data = _wait_device_info()
+    _enrich_toplevel_data(data, show_passwords=False)
+    rich.print(_json_to_rich(data["networks"]))
+
+
+@app.command()
+def remove_network(ssid: str) -> None:
+    """Remove a network from the PiShock config."""
+    assert serial_port is not None
+    serial_port.write(_build_cmd("removenetwork", ssid))
+    data = _wait_device_info()
+    _enrich_toplevel_data(data, show_passwords=False)
+    rich.print(_json_to_rich(data["networks"]))
+
+
+@app.command()
+def try_connect(ssid: str, password: str) -> None:
+    """Temporarily try connecting to the given network."""
+    assert serial_port is not None
+    serial_port.write(_build_cmd("connect", ssid))
+
+@app.command()
+def restart() -> None:
+    """Restart the PiShock."""
+    assert serial_port is not None
+    serial_port.write(_build_cmd("restart"))
+
+
+@app.command()
+def monitor() -> None:
+    """Monitor serial output."""
+    assert serial_port is not None
+    while True:
+        line = serial_port.readline()
+        rich.print(line.decode("utf-8", errors="replace"), end="")
+        if line.startswith(INFO_PREFIX):
+            try:
+                info = json.loads(line[len(INFO_PREFIX) :])
+            except json.JSONDecodeError:
+                pass
+            else:
+                rich.print(_json_to_rich(info))
+
 
 
 @app.callback()
@@ -124,7 +178,7 @@ def callback(
     global serial_port
     if port is None:
         rich.print("TODO")
-        raise typer.Exit(1)
+        return
 
     serial_port = serial.Serial(port, 115200, timeout=1)
     # FIXME close?
