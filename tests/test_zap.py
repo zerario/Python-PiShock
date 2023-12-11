@@ -5,7 +5,7 @@ import io
 from typing import cast
 
 import pytest
-import serial  # type: ignore[import-not-found]
+import serial  # type: ignore[import-untyped]
 
 from pishock import serialapi, zap
 

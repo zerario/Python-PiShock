@@ -4,8 +4,8 @@ import enum
 import json
 from typing import Any, Iterator
 
-import serial  # type: ignore[import-not-found]
-import serial.tools.list_ports  # type: ignore[import-not-found]
+import serial  # type: ignore[import-untyped]
+import serial.tools.list_ports  # type: ignore[import-untyped]
 
 USB_IDS = [
     (0x1A86, 0x7523),  # CH340, PiShock Next

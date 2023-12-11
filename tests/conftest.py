@@ -4,7 +4,7 @@ import http
 import io
 import json
 import re
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import pytest
 from responses import RequestsMock, matchers
@@ -253,7 +253,9 @@ def fake_serial_dev() -> io.BytesIO:
 
 
 @pytest.fixture
-def patcher(responses: RequestsMock, fake_serial_dev: io.BytesIO) -> PiShockPatcher:
+def patcher(
+    responses: RequestsMock, fake_serial_dev: io.BytesIO
+) -> Iterator[PiShockPatcher]:
     """Helper to patch the PiShock API using responses."""
     patcher = PiShockPatcher(responses)
     yield patcher
