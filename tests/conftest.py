@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import io
 import re
 import http
+import json
 from typing import Any, Callable
 
 import pytest
@@ -58,27 +60,28 @@ class PiShockPatcher:
 
     def __init__(self, responses: RequestsMock) -> None:
         self.responses = responses
+        self.expected_serial_data: Any = None
+
+    def check_serial(self, dev: io.BytesIO) -> None:
+        """Check that the serial data matches what we expect."""
+        if self.expected_serial_data is None:
+            assert not dev.getvalue()
+        else:
+            data = json.loads(dev.getvalue().decode("utf-8"))
+            assert data == self.expected_serial_data
 
     # ApiOperate
 
     def operate_matchers(self, **kwargs: Any) -> list[_MatcherType]:
-        template = {
+        data = {
             "Username": FakeCredentials.USERNAME,
-            "Apikey": FakeCredentials.API_KEY,
-            "Code": FakeCredentials.SHARECODE,
-            "Name": self.NAME,
-            "Op": zap.Operation.VIBRATE.value,
-            "Duration": 1,
-            "Intensity": 2,
         }
         for k, v in kwargs.items():
             k = k.capitalize()
-            if v is None:
-                del template[k]
-            else:
-                template[k] = v
+            if v is not None:
+                data[k] = v
         return [
-            matchers.json_params_matcher(template),
+            matchers.json_params_matcher(data),
             matchers.header_matcher(self.HEADERS),
         ]
 
@@ -86,12 +89,40 @@ class PiShockPatcher:
         self.responses.post(APIURLs.OPERATE, **kwargs)
 
     def operate(
-        self, body: str = zap.APIShocker.SUCCESS_MESSAGES[0], **kwargs: Any
+        self,
+        body: str = zap.APIShocker.SUCCESS_MESSAGES[0],
+        operation: zap.Operation = zap.Operation.VIBRATE,
+        duration: int | float = 1,
+        intensity: int | None = 2,
+        name: str | None = None,
+        apikey: str | None = None,
+        code: str | None = None,
+        is_serial: bool = False,
     ) -> None:
-        self.operate_raw(
-            body=body,
-            match=self.operate_matchers(**kwargs),
-        )
+        if is_serial:
+            assert name is None
+            assert apikey is None
+            assert code is None
+            value = {
+                "id": FakeCredentials.SHOCKER_ID,
+                "op": operation.name.lower(),
+                "duration": duration * 1000,
+            }
+            if intensity is not None:
+                value["intensity"] = intensity
+            self.expected_serial_data = {"cmd": "operate", "value": value}
+        else:
+            self.operate_raw(
+                body=body,
+                match=self.operate_matchers(
+                    op=operation.value,
+                    duration=duration,
+                    intensity=intensity,
+                    name=name or self.NAME,
+                    apikey=apikey or FakeCredentials.API_KEY,
+                    code=code or FakeCredentials.SHARECODE,
+                ),
+            )
 
     # GetShockerInfo
 
@@ -149,7 +180,9 @@ class PiShockPatcher:
     def pause_raw(self, **kwargs: Any) -> None:
         self.responses.post(APIURLs.PAUSE, **kwargs)
 
-    def pause(self, pause: bool, body: str = zap.APIShocker.SUCCESS_MESSAGE_PAUSE) -> None:
+    def pause(
+        self, pause: bool, body: str = zap.APIShocker.SUCCESS_MESSAGE_PAUSE
+    ) -> None:
         self.pause_raw(body=body, match=self.pause_matchers(pause))
 
     # GetShockers
@@ -215,6 +248,13 @@ class PiShockPatcher:
 
 
 @pytest.fixture
-def patcher(responses: RequestsMock) -> PiShockPatcher:
+def fake_serial_dev() -> io.BytesIO:
+    return io.BytesIO()
+
+
+@pytest.fixture
+def patcher(responses: RequestsMock, fake_serial_dev: io.BytesIO) -> PiShockPatcher:
     """Helper to patch the PiShock API using responses."""
-    return PiShockPatcher(responses)
+    patcher = PiShockPatcher(responses)
+    yield patcher
+    patcher.check_serial(fake_serial_dev)

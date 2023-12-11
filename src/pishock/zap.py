@@ -266,6 +266,9 @@ class ShockerInfo(BasicShockerInfo):
 
 
 class Shocker:
+
+    IS_SERIAL: bool
+
     def shock(self, *, duration: int | float, intensity: int) -> None:
         raise NotImplementedError
 
@@ -281,6 +284,8 @@ class Shocker:
 
 class SerialShocker(Shocker):
     """Represents a single shocker accessed via serial port."""
+
+    IS_SERIAL = True
 
     def __init__(self, api: serialapi.SerialAPI, shocker_id: int) -> None:
         self.shocker_id = shocker_id
@@ -323,6 +328,7 @@ class SerialShocker(Shocker):
 class APIShocker(Shocker):
     """Represents a single shocker / share code using the HTTP API."""
 
+    IS_SERIAL = False
     SUCCESS_MESSAGES = [
         "Operation Succeeded.",
         "Operation Attempted.",

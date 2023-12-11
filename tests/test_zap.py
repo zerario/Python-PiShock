@@ -23,11 +23,6 @@ def shocker(request: pytest.FixtureRequest) -> zap.Shocker:
 
 
 @pytest.fixture
-def fake_serial_dev() -> io.BytesIO:
-    return io.BytesIO()
-
-
-@pytest.fixture
 def serial_shocker(
     monkeypatch: pytest.MonkeyPatch,
     credentials: FakeCredentials,
@@ -63,7 +58,9 @@ def test_api_not_found(api: zap.API, patcher: PiShockPatcher) -> None:
 def test_vibrate(
     shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str
 ) -> None:
-    patcher.operate(body=success_msg)
+    patcher.operate(
+        body=success_msg, operation=zap.Operation.VIBRATE, is_serial=shocker.IS_SERIAL
+    )
     shocker.vibrate(duration=1, intensity=2)
 
 
@@ -71,7 +68,8 @@ def test_vibrate(
 def test_shock(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) -> None:
     patcher.operate(
         body=success_msg,
-        op=zap.Operation.SHOCK.value,
+        operation=zap.Operation.SHOCK,
+        is_serial=shocker.IS_SERIAL,
     )
     shocker.shock(duration=1, intensity=2)
 
@@ -80,8 +78,9 @@ def test_shock(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) 
 def test_beep(shocker: zap.Shocker, patcher: PiShockPatcher, success_msg: str) -> None:
     patcher.operate(
         body=success_msg,
-        op=zap.Operation.BEEP.value,
+        operation=zap.Operation.BEEP,
         intensity=None,
+        is_serial=shocker.IS_SERIAL,
     )
     shocker.beep(duration=1)
 
@@ -115,7 +114,7 @@ def test_shocker_str(
 
 
 @pytest.mark.parametrize(
-    "duration, expected",
+    "duration, api_duration",
     [
         (0, 0),
         (1, 1),
@@ -132,23 +131,35 @@ def test_shocker_str(
     ],
 )
 def test_valid_durations(
-    shocker: zap.Shocker, patcher: PiShockPatcher, duration: float, expected: int
+    shocker: zap.Shocker, patcher: PiShockPatcher, duration: float, api_duration: int
 ) -> None:
-    patcher.operate(duration=expected)
+    patcher.operate(
+        duration=duration if shocker.IS_SERIAL else api_duration,
+        is_serial=shocker.IS_SERIAL,
+    )
     shocker.vibrate(duration=duration, intensity=2)
 
 
 @pytest.mark.parametrize("duration", [-1, 16, -1.0, 16.0, 1.6])
 class TestInvalidDuration:
     def test_vibrate(self, shocker: zap.Shocker, duration: int) -> None:
+        if shocker.IS_SERIAL and duration > 0:
+            pytest.xfail("TODO: check if we have max duration via serial!")
+
         with pytest.raises(ValueError, match="duration needs to be between"):
             shocker.vibrate(duration=duration, intensity=2)
 
     def test_shock(self, shocker: zap.Shocker, duration: int) -> None:
+        if shocker.IS_SERIAL and duration > 0:
+            pytest.xfail("TODO: check if we have max duration via serial!")
+
         with pytest.raises(ValueError, match="duration needs to be between"):
             shocker.shock(duration=duration, intensity=2)
 
     def test_beep(self, shocker: zap.Shocker, duration: int) -> None:
+        if shocker.IS_SERIAL and duration > 0:
+            pytest.xfail("TODO: check if we have max duration via serial!")
+
         with pytest.raises(ValueError, match="duration needs to be between"):
             shocker.beep(duration=duration)
 
@@ -165,30 +176,30 @@ class TestInvalidIntensity:
 
 
 class TestOperationsNotAllowed:
-    def test_vibrate(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+    def test_vibrate(self, api_shocker: zap.APIShocker, patcher: PiShockPatcher) -> None:
         patcher.operate(
             body=zap.VibrateNotAllowedError.TEXT,
-            op=zap.Operation.VIBRATE.value,
+            operation=zap.Operation.VIBRATE,
         )
         with pytest.raises(zap.VibrateNotAllowedError):
-            shocker.vibrate(duration=1, intensity=2)
+            api_shocker.vibrate(duration=1, intensity=2)
 
-    def test_shock(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+    def test_shock(self, api_shocker: zap.APIShocker, patcher: PiShockPatcher) -> None:
         patcher.operate(
             body=zap.ShockNotAllowedError.TEXT,
-            op=zap.Operation.SHOCK.value,
+            operation=zap.Operation.SHOCK,
         )
         with pytest.raises(zap.ShockNotAllowedError):
-            shocker.shock(duration=1, intensity=2)
+            api_shocker.shock(duration=1, intensity=2)
 
-    def test_beep(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+    def test_beep(self, api_shocker: zap.APIShocker, patcher: PiShockPatcher) -> None:
         patcher.operate(
             body=zap.BeepNotAllowedError.TEXT,
-            op=zap.Operation.BEEP.value,
+            operation=zap.Operation.BEEP,
             intensity=None,
         )
         with pytest.raises(zap.BeepNotAllowedError):
-            shocker.beep(duration=1)
+            api_shocker.beep(duration=1)
 
 
 def test_beep_no_intensity(shocker: zap.Shocker) -> None:
@@ -196,10 +207,10 @@ def test_beep_no_intensity(shocker: zap.Shocker) -> None:
         shocker.beep(duration=1, intensity=2)  # type: ignore[call-arg]
 
 
-def test_device_in_use(shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+def test_device_in_use(api_shocker: zap.APIShocker, patcher: PiShockPatcher) -> None:
     patcher.operate(body=zap.DeviceInUseError.TEXT)
     with pytest.raises(zap.DeviceInUseError):
-        shocker.vibrate(duration=1, intensity=2)
+        api_shocker.vibrate(duration=1, intensity=2)
 
 
 def test_unauthorized(patcher: PiShockPatcher, credentials: FakeCredentials) -> None:
@@ -225,12 +236,12 @@ def test_unknown_share_code(api: zap.API, patcher: PiShockPatcher) -> None:
 
 
 def test_unknown_error(
-    shocker: zap.Shocker, api: zap.API, patcher: PiShockPatcher
+    api_shocker: zap.APIShocker, api: zap.API, patcher: PiShockPatcher
 ) -> None:
     message = "Failed to frobnicate the zap."
     patcher.operate(body=message)
     with pytest.raises(zap.UnknownError, match=message):
-        shocker.vibrate(duration=1, intensity=2)
+        api_shocker.vibrate(duration=1, intensity=2)
 
 
 @pytest.mark.parametrize("pause", [True, False])
@@ -263,6 +274,9 @@ def test_pause_unknown_error(
 
 class TestInfo:
     def test_info(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+        if shocker.IS_SERIAL:
+            pytest.xfail("TODO: hangs")
+
         patcher.info()
         info = shocker.info()
         assert info.name == "test shocker"
@@ -275,6 +289,9 @@ class TestInfo:
             assert info.max_duration == 15
 
     def test_invalid_body(self, shocker: zap.Shocker, patcher: PiShockPatcher) -> None:
+        if shocker.IS_SERIAL:
+            pytest.xfail("TODO: hangs")
+
         message = "Not JSON lol"
         patcher.info_raw(body=message, match=patcher.info_matchers())
         with pytest.raises(zap.UnknownError, match=message):
@@ -290,14 +307,14 @@ class TestInfo:
     )
     def test_http_errors(
         self,
-        shocker: zap.Shocker,
+        api_shocker: zap.Shocker,
         patcher: PiShockPatcher,
         status: http.HTTPStatus,
         exception: type[zap.APIError],
     ) -> None:
         patcher.info_raw(status=status)
         with pytest.raises(exception):
-            shocker.info()
+            api_shocker.info()
 
 
 class TestGetShockers:

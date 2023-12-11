@@ -284,7 +284,7 @@ def test_shock(
     if keysmash:
         key += "_keysmash"
 
-    patcher.operate(duration=api_duration, op=zap.Operation.SHOCK.value)
+    patcher.operate(duration=api_duration, operation=zap.Operation.SHOCK)
     monkeypatch.setattr(random, "random", lambda: 0.01 if keysmash else 0.2)
     monkeypatch.setattr(random, "choices", lambda values, k: "asdfg")
 
@@ -304,7 +304,7 @@ def test_vibrate(
     duration: float,
     api_duration: int,
 ) -> None:
-    patcher.operate(duration=api_duration, op=zap.Operation.VIBRATE.value)
+    patcher.operate(duration=api_duration, operation=zap.Operation.VIBRATE)
     result = runner.run("vibrate", runner.sharecode, "-d", str(duration), "-i", "2")
     assert result.output == golden.out["output_vibrate"]
 
@@ -321,7 +321,7 @@ def test_beep(
     duration: float,
     api_duration: int,
 ) -> None:
-    patcher.operate(op=zap.Operation.BEEP.value, intensity=None, duration=api_duration)
+    patcher.operate(operation=zap.Operation.BEEP, intensity=None, duration=api_duration)
     result = runner.run("beep", runner.sharecode, "-d", str(duration))
     assert result.output == golden.out["output_beep"]
 
@@ -392,7 +392,7 @@ def test_errors(
     cmd = op.name.lower()
 
     intensity = None if op == zap.Operation.BEEP else 2
-    patcher.operate(body=text, op=op.value, intensity=intensity)
+    patcher.operate(body=text, operation=op, intensity=intensity)
 
     args = [cmd, runner.sharecode, "-d", "1"]
     if op != zap.Operation.BEEP:
