@@ -110,16 +110,18 @@ class SerialAPI:
             raise ValueError(
                 f"intensity needs to be between 0 and 100, not {intensity}"
             )
-        if not 0 <= duration <= 2**32:
-            # FIXME do we have an upper bound on duration (other than uint32)?
+
+        duration_ms = int(duration * 1000)
+        if not 0 <= duration_ms < 2**32:
+            # FIXME do we have an upper bound on duration (other than uint32 ms)?
             raise ValueError(
-                f"duration needs to be between 0 and 2**32, not {duration}"
+                f"duration needs to be between 0 and 2**32 / 1000, not {duration}"
             )
 
         value = {
             "id": shocker_id,
             "op": operation.value,
-            "duration": int(duration * 1000),
+            "duration": duration_ms,
         }
         if intensity is not None:
             value["intensity"] = intensity

@@ -75,7 +75,7 @@ ShareCodeArg: TypeAlias = Annotated[
 ]
 DurationOpt: TypeAlias = Annotated[
     float,
-    typer.Option("-d", "--duration", min=0, max=15, help="Duration in seconds (0-15)."),
+    typer.Option("-d", "--duration", min=0, help="Duration in seconds."),
 ]
 IntensityOpt: TypeAlias = Annotated[
     int,
