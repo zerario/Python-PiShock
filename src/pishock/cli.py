@@ -453,32 +453,6 @@ def verify() -> None:
         raise typer.Exit(1)
 
 
-def _print_serial_ports() -> None:
-    """Print available serial ports."""
-    table = rich.table.Table(title="Available serial ports")
-    table.add_column("Device")
-    table.add_column("Description")
-    table.add_column("USB VID")
-    table.add_column("USB PID")
-    table.add_column("USB Serial Number")
-    table.add_column("USB Manufacturer")
-    table.add_column("USB Product")
-    for info in serial.tools.list_ports.comports():
-        table.add_row(
-            info.device,
-            info.description if info.description != "n/a" else "",
-            hex(info.vid) if info.vid is not None else "",
-            hex(info.pid) if info.pid is not None else "",
-            info.serial_number,
-            info.manufacturer,
-            info.product,
-        )
-
-    rich.print()
-    rich.print(table)
-    rich.print("\nUse [green]--port[/] option to specify a serial port.")
-
-
 @app.command(rich_help_panel="API credentials")
 def init(
     force: Annotated[
@@ -561,7 +535,7 @@ def main(
             serial_api = serialapi.SerialAPI(port)
         except serialapi.AutodetectError as e:
             utils.print_exception(e)
-            _print_serial_ports()
+            cli_serial.print_serial_ports()
             raise typer.Exit(1)
         return
 

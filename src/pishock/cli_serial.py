@@ -6,6 +6,7 @@ import rich.box
 import rich.console
 import rich.pretty
 import rich.text
+import serial.tools
 import typer
 from typing_extensions import Annotated
 
@@ -18,6 +19,32 @@ serial_api = None
 
 DEVICE_TYPES = {3: "Lite", 4: "Next"}
 SHOCKER_TYPES = {0: "SmallOne", 1: "Petrainer"}
+
+
+def print_serial_ports() -> None:
+    """Print available serial ports."""
+    table = rich.table.Table(title="Available serial ports")
+    table.add_column("Device")
+    table.add_column("Description")
+    table.add_column("USB VID")
+    table.add_column("USB PID")
+    table.add_column("USB Serial Number")
+    table.add_column("USB Manufacturer")
+    table.add_column("USB Product")
+    for info in serial.tools.list_ports.comports():
+        table.add_row(
+            info.device,
+            info.description if info.description != "n/a" else "",
+            hex(info.vid) if info.vid is not None else "",
+            hex(info.pid) if info.pid is not None else "",
+            info.serial_number,
+            info.manufacturer,
+            info.product,
+        )
+
+    rich.print()
+    rich.print(table)
+    rich.print("\nUse [green]--port[/] option to specify a serial port.")
 
 
 def _enrich_toplevel_data(data: Dict[str, Any], show_passwords: bool) -> None:
@@ -154,5 +181,10 @@ def callback(
 ) -> None:
     """PiShock serial interface commands."""
     global serial_api
-    serial_api = serialapi.SerialAPI(port)
+    try:
+        serial_api = serialapi.SerialAPI(port)
+    except serialapi.AutodetectError as e:
+        cli_utils.print_exception(e)
+        print_serial_ports()
+        raise typer.Exit(1)
     # FIXME close?
