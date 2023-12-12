@@ -187,13 +187,13 @@ def info(share_code: ShareCodeArg) -> None:
     table.add_row("Shocker ID", str(info.shocker_id))
 
     pause = paused_emoji(info.is_paused)
-    if isinstance(info, zap.BasicShockerInfo):  # serial
-        table.add_row("Paused", pause)
-    else:
+    if isinstance(info, zap.ShockerInfo):
         online = utils.bool_emoji(info.is_online)
         table.add_row("Online / Paused", f"{online} {pause}")
         table.add_row("Max intensity", f"{info.max_intensity}%")
         table.add_row("Max duration", f"{info.max_duration}s")
+    else:
+        table.add_row("Paused", pause)
 
     rich.print(table)
 
