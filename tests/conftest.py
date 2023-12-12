@@ -130,13 +130,11 @@ class PiShockPatcher:
         self, sharecode: str = FakeCredentials.SHARECODE
     ) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.API_KEY,
-                    "Code": sharecode,
-                }
-            ),
+            matchers.json_params_matcher({
+                "Username": FakeCredentials.USERNAME,
+                "Apikey": FakeCredentials.API_KEY,
+                "Code": sharecode,
+            }),
             matchers.header_matcher(self.HEADERS),
         ]
 
@@ -166,14 +164,12 @@ class PiShockPatcher:
 
     def pause_matchers(self, pause: bool) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.API_KEY,
-                    "ShockerId": 1001,
-                    "Pause": pause,
-                }
-            ),
+            matchers.json_params_matcher({
+                "Username": FakeCredentials.USERNAME,
+                "Apikey": FakeCredentials.API_KEY,
+                "ShockerId": 1001,
+                "Pause": pause,
+            }),
             matchers.header_matcher(self.HEADERS),
         ]
 
@@ -189,13 +185,11 @@ class PiShockPatcher:
 
     def get_shockers_matchers(self) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.API_KEY,
-                    "ClientId": 1000,
-                }
-            ),
+            matchers.json_params_matcher({
+                "Username": FakeCredentials.USERNAME,
+                "Apikey": FakeCredentials.API_KEY,
+                "ClientId": 1000,
+            }),
             matchers.header_matcher(self.HEADERS),
         ]
 
@@ -221,12 +215,10 @@ class PiShockPatcher:
         username: str = FakeCredentials.USERNAME,
     ) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher(
-                {
-                    "Username": username,
-                    "Apikey": FakeCredentials.API_KEY,
-                }
-            ),
+            matchers.json_params_matcher({
+                "Username": username,
+                "Apikey": FakeCredentials.API_KEY,
+            }),
             matchers.header_matcher(self.HEADERS),
         ]
 

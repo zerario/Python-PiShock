@@ -12,9 +12,9 @@ import rich
 import rich.progress
 import rich.prompt
 import rich.table
+import serial.tools.list_ports  # type: ignore[import-untyped]
 import typer
 from typing_extensions import Annotated, TypeAlias
-import serial.tools.list_ports  # type: ignore[import-untyped]
 
 from pishock import cli_random, cli_serial, cli_utils as utils, serialapi, zap
 
@@ -481,7 +481,7 @@ def _print_serial_ports():
 def init(
     force: Annotated[
         bool, typer.Option(help="Overwrite existing information without asking")
-    ] = False
+    ] = False,
 ) -> None:
     """Initialize the API credentials."""
     assert config is not None

@@ -90,7 +90,7 @@ def _json_to_rich(data: Dict[str, Any]) -> rich.console.RenderableType:
 def info(
     show_passwords: Annotated[
         bool, typer.Option(help="Don't conceal WiFi passwords")
-    ] = False
+    ] = False,
 ) -> None:
     """Show information about this PiShock."""
     assert serial_api is not None
@@ -150,7 +150,7 @@ def monitor() -> None:
 
 @app.callback()
 def callback(
-    port: Annotated[Optional[str], typer.Option(help="Serial port")] = None
+    port: Annotated[Optional[str], typer.Option(help="Serial port")] = None,
 ) -> None:
     """PiShock serial interface commands."""
     global serial_api
