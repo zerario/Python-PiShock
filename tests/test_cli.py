@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import copy
 import http
 import json
@@ -11,12 +12,17 @@ import platformdirs
 import pytest
 import rich
 import rich.prompt
+import rich.console
 import typer.testing
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
 from pishock import cli, zap
 
 from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
+
+
+pytestmark = pytest.mark.skipif(
+    rich.console.WINDOWS, reason="Output looks different on Windows")
 
 
 class Runner:
