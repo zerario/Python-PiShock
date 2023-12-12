@@ -31,7 +31,7 @@ def _autodetect_port() -> str:
     else:
         raise AutodetectError(
             "Multiple (possibly) PiShocks found via port autodetection: "
-            f"{', '.join(candidates)}. Use --port to select one."
+            f"{', '.join(candidates)}."
         )
 
 
