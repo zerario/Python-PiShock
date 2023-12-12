@@ -451,7 +451,7 @@ def verify() -> None:
         raise typer.Exit(1)
 
 
-def _print_serial_ports():
+def _print_serial_ports() -> None:
     """Print available serial ports."""
     table = rich.table.Table(title="Available serial ports")
     table.add_column("Device")
