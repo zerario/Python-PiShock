@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import copy
 import http
 import json
@@ -22,7 +21,8 @@ from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
 
 pytestmark = pytest.mark.skipif(
-    rich.console.WINDOWS, reason="Output looks different on Windows")
+    rich.console.WINDOWS, reason="Output looks different on Windows"
+)
 
 
 class Runner:
