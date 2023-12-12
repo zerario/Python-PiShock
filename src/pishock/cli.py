@@ -12,7 +12,6 @@ import rich
 import rich.progress
 import rich.prompt
 import rich.table
-import serial.tools.list_ports  # type: ignore[import-untyped]
 import typer
 from typing_extensions import Annotated, TypeAlias
 
