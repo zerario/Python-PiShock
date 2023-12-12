@@ -84,7 +84,40 @@ class SerialAPI:
         self.dev.write(self._build_cmd(cmd, value))
 
     def info(self) -> dict[str, Any]:
-        """Get device info."""
+        """Get device info.
+
+        The exact contents of the returned dict might depend on the PiShock
+        firmware version. At the time of writing, it looks like this (some data
+        redacted):
+
+        .. code-block:: python
+
+            {
+                'version': '3.1.1.231119.1556',
+                'type': 4,
+                'connected': False,
+                'clientId': 621,
+                'wifi': 'redacted-wifi-ssid',
+                'server': 'eu1.pishock.com',
+                'macAddress': '0C:B8:15:AB:CD:EF',
+                'shockers': [
+                    {'id': 420, 'type': 1, 'paused': False},
+                ],
+                'networks': [
+                    {'ssid': 'redacted-wifi-ssid', 'password': 'hunter2'},
+                    {'ssid': 'PiShock', 'password': 'Zappy454'}
+                ],
+                'otk': 'e71d7b27-dc38-4774-bafc-c427757f0134',
+                'claimed': True,
+                'isDev': False,
+                'publisher': False,
+                'polled': True,
+                'subscriber': True,
+                'publicIp': '203.0.113.69',
+                'internet': True,
+                'ownerId': 6969
+            }
+        """
         self._send_cmd("info")
         return self.wait_info()
 

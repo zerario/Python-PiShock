@@ -118,12 +118,18 @@ def info(
     show_passwords: Annotated[
         bool, typer.Option(help="Don't conceal WiFi passwords")
     ] = False,
+    raw: Annotated[
+        bool, typer.Option(help="Show raw JSON (implies --show-passwords)")
+    ] = False,
 ) -> None:
     """Show information about this PiShock."""
     assert serial_api is not None
     data = serial_api.info()
-    _enrich_toplevel_data(data, show_passwords=show_passwords)
-    rich.print(_json_to_rich(data))
+    if raw:
+        rich.print(data)
+    else:
+        _enrich_toplevel_data(data, show_passwords=show_passwords)
+        rich.print(_json_to_rich(data))
 
 
 @app.command()
