@@ -398,7 +398,9 @@ def code_list(
 
 @app.command(name="random")
 def random_mode(
-    share_codes: List[ShareCodeArg],
+    share_codes: Annotated[
+        List[str], typer.Argument(help="Share code for the shocker.")
+    ],
     duration: cli_random.DurationArg,
     intensity: cli_random.IntensityArg,
     pause: cli_random.PauseArg,
