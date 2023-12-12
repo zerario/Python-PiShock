@@ -464,7 +464,7 @@ def test_shockers(
     elif outcome == "not_authorized":
         patcher.get_shockers_raw(status=http.HTTPStatus.FORBIDDEN)
     elif outcome == "http_error":
-        patcher.get_shockers_raw(status=http.HTTPStatus.IM_A_TEAPOT)
+        patcher.get_shockers_raw(status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
     elif outcome == "invalid_data":
         patcher.get_shockers_raw(body="Not JSON lol")
 
@@ -485,7 +485,7 @@ def test_verify(
     elif outcome == "not_authorized":
         patcher.verify_credentials(False)
     else:
-        patcher.verify_credentials_raw(status=http.HTTPStatus.IM_A_TEAPOT)
+        patcher.verify_credentials_raw(status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
 
     result = runner.run("verify")
     assert result.output == golden.out[f"output_{outcome}"]

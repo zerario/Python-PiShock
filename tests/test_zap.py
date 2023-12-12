@@ -304,7 +304,7 @@ class TestInfo:
         [
             (http.HTTPStatus.NOT_FOUND, zap.ShareCodeNotFoundError),
             (http.HTTPStatus.FORBIDDEN, zap.NotAuthorizedError),
-            (http.HTTPStatus.IM_A_TEAPOT, zap.HTTPError),
+            (http.HTTPStatus.INTERNAL_SERVER_ERROR, zap.HTTPError),
         ],
     )
     def test_http_errors(
@@ -348,7 +348,7 @@ class TestGetShockers:
         "status, exception",
         [
             (http.HTTPStatus.FORBIDDEN, zap.NotAuthorizedError),
-            (http.HTTPStatus.IM_A_TEAPOT, zap.HTTPError),
+            (http.HTTPStatus.INTERNAL_SERVER_ERROR, zap.HTTPError),
         ],
     )
     def test_http_errors(
@@ -371,7 +371,7 @@ def test_verify_credentials(api: zap.API, patcher: PiShockPatcher, valid: bool) 
 
 def test_verify_credentials_error(api: zap.API, patcher: PiShockPatcher) -> None:
     patcher.verify_credentials_raw(
-        status=http.HTTPStatus.IM_A_TEAPOT,
+        status=http.HTTPStatus.INTERNAL_SERVER_ERROR,
         match=patcher.verify_credentials_matchers(),
     )
     with pytest.raises(zap.HTTPError):
