@@ -36,6 +36,16 @@ def _autodetect_port() -> str:
 
 
 class SerialOperation(enum.Enum):
+
+    """The operation to perform for :meth:`SerialAPI.operate`.
+
+    Attributes:
+        SHOCK: Send a shock to the shocker.
+        VIBRATE: Send a vibration to the shocker
+        BEEP: Send a beep to the shocker.
+        END: End the current operation.
+    """
+
     SHOCK = "shock"
     VIBRATE = "vibrate"
     BEEP = "beep"
@@ -43,6 +53,18 @@ class SerialOperation(enum.Enum):
 
 
 class SerialAPI:
+
+    """Low-level access to PiShock serial functionality.
+
+    Arguments:
+        port: Serial port to use, e.g. ``COM2`` or ``/dev/ttyUSB0``.
+          If ``None``, auto-detection is attempted.
+
+    Raises:
+        AutodetectError: No ``port`` was given, and either no PiShock was found, or
+          multiple PiShocks were found.
+    """
+
     INFO_PREFIX = b"TERMINALINFO: "
 
     def __init__(self, port: str | None) -> None:
@@ -69,15 +91,22 @@ class SerialAPI:
     def wait_info(self) -> dict[str, Any]:
         """Wait for device info without sending an info command.
 
-        FIXME: Timeout?
+        This will block until the next ``TERMINALINFO`` line is received. You should
+        normally call :meth:`info` instead. This is useful after sending a command
+        that is expected to return info on its own, e.g. :meth:`add_network`.
         """
+        # FIXME Timeout?
         while True:
             line = self.dev.readline()
             if line.startswith(self.INFO_PREFIX):
                 return self.decode_info(line)
 
     def decode_info(self, line: bytes) -> dict[str, Any]:
-        """Decode a TERMINALINFO line."""
+        """Decode a ``TERMINALINFO`` line.
+
+        Normally, you should not need to call this manually, use :meth:`wait_info` or
+        :meth:`info` instead.
+        """
         data = json.loads(line[len(self.INFO_PREFIX) :])
         assert isinstance(data, dict)
         return data
@@ -105,7 +134,11 @@ class SerialAPI:
         duration: int | float,
         intensity: int | None = None,
     ) -> None:
-        """Operate a shocker."""
+        """Operate a shocker.
+
+        You should not need to use this directly, use the higher-level
+        :class:`pishock.zap.SerialShocker` instead.
+        """
         if intensity is not None and not 0 <= intensity <= 100:
             raise ValueError(
                 f"intensity needs to be between 0 and 100, not {intensity}"
