@@ -84,8 +84,8 @@ class DeviceInUseError(APIError):
 class OperationNotAllowedError(APIError):
     """API returned: <Operation> not allowed.
 
-    Used as a base class for ShockNotAllowedError, VibrateNotAllowedError and
-    BeepNotAllowedError.
+    Used as a base class for :exc:`ShockNotAllowedError`,
+    :exc:`VibrateNotAllowedError` and :exc:`BeepNotAllowedError`.
     """
 
 
@@ -197,6 +197,7 @@ class API:
 
         Raises:
             NotAuthorizedError: If username/API key is wrong.
+            HTTPError: If the API returns an invalid HTTP status.
             UnknownError: If the response is not JSON.
         """
         params = {"ClientId": client_id}
@@ -218,6 +219,9 @@ class API:
 
         Returns:
             ``True`` on success, ``False`` on authentication failure.
+
+        Raises:
+            HTTPError: If the API returns an invalid HTTP status.
         """
         try:
             self.request("VerifyApiCredentials", {})
@@ -326,7 +330,8 @@ class SerialShocker(Shocker):
         api: The :class:`serialapi.SerialAPI` instance to use.
         shocker_id: The ID of the shocker to operate, as displayed under the
             cogwheels on the `PiShock website <https://pishock.com/#/control>`_, or
-            available via :meth:`APIShocker.info()` or :meth:`SerialAPI.info()`.
+            available via :meth:`APIShocker.info()` or
+            :meth:`pishock.serial.serialapi.SerialAPI.info()`.
     """
 
     IS_SERIAL = True
@@ -442,7 +447,7 @@ class APIShocker(Shocker):
 
         Raises:
             ValueError: ``duration`` or ``intensity`` are out of range.
-            APIError: Any of the :class:`APIError` subclasses in this module,
+            APIError: Any of the :exc:`APIError` subclasses in this module,
                refer to their documenation for details.
         """
         return self._call(Operation.SHOCK, duration=duration, intensity=intensity)
@@ -460,7 +465,7 @@ class APIShocker(Shocker):
 
         Raises:
             ValueError: ``duration`` or ``intensity`` are out of range.
-            APIError: Any of the :class:`APIError` subclasses in this
+            APIError: Any of the :exc:`APIError` subclasses in this
               module, refer to their documenation for details.
         """
         return self._call(Operation.VIBRATE, duration=duration, intensity=intensity)
@@ -478,7 +483,7 @@ class APIShocker(Shocker):
 
         Raises:
             ValueError: ``duration`` is out of range.
-            APIError: Any of the :class:`APIError` subclasses in this
+            APIError: Any of the :exc:`APIError` subclasses in this
               module, refer to their documenation for details.
         """
         return self._call(Operation.BEEP, duration=duration, intensity=None)

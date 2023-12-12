@@ -94,14 +94,14 @@ class SerialAPI:
 
             {
                 'version': '3.1.1.231119.1556',
-                'type': 4,
+                'type': 4,  # 3 = Lite, 4 = Lext
                 'connected': False,
                 'clientId': 621,
                 'wifi': 'redacted-wifi-ssid',
                 'server': 'eu1.pishock.com',
                 'macAddress': '0C:B8:15:AB:CD:EF',
                 'shockers': [
-                    {'id': 420, 'type': 1, 'paused': False},
+                    {'id': 420, 'type': 1, 'paused': False},  # 0 = Petrainer, 1 = SmallOne
                 ],
                 'networks': [
                     {'ssid': 'redacted-wifi-ssid', 'password': 'hunter2'},
@@ -124,7 +124,7 @@ class SerialAPI:
     def wait_info(self) -> dict[str, Any]:
         """Wait for device info without sending an info command.
 
-        This will block until the next ``TERMINALINFO`` line is received. You should
+        This will block until the next ``TERMINALINFO:`` line is received. You should
         normally call :meth:`info` instead. This is useful after sending a command
         that is expected to return info on its own, e.g. :meth:`add_network`.
         """
@@ -135,7 +135,7 @@ class SerialAPI:
                 return self.decode_info(line)
 
     def decode_info(self, line: bytes) -> dict[str, Any]:
-        """Decode a ``TERMINALINFO`` line.
+        """Decode a ``TERMINALINFO:`` line.
 
         Normally, you should not need to call this manually, use :meth:`wait_info` or
         :meth:`info` instead.
