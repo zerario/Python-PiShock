@@ -9,6 +9,7 @@ import random
 import click.testing
 import platformdirs
 import pytest
+import rich
 import rich.prompt
 import typer.testing
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
@@ -31,7 +32,8 @@ class Runner:
 
 @pytest.fixture
 def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Runner:
-    monkeypatch.setenv("COLUMNS", "80")
+    rich.reconfigure(width=80)
+    monkeypatch.setenv("COLUMNS", "80")  # for future console instances
     monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
     monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
     # so they get reset after every test

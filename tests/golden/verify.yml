@@ -3,4 +3,5 @@ output_ok: |
 output_not_authorized: |
   ❌ Credentials are invalid.
 output_http_error: |
-  Error: 418 Client Error: I'm a Teapot for url: https://do.pishock.com/api/VerifyApiCredentials (HTTPError)
+  Error: 418 Client Error: I'm a Teapot for url: 
+  https://do.pishock.com/api/VerifyApiCredentials (HTTPError)

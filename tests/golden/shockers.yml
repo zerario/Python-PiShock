@@ -6,4 +6,5 @@ output_not_authorized: |
 output_invalid_data: |
   Error: Not JSON lol (UnknownError)
 output_http_error: |
-  Error: 418 Client Error: I'm a Teapot for url: https://do.pishock.com/api/GetShockers (HTTPError)
+  Error: 418 Client Error: I'm a Teapot for url: 
+  https://do.pishock.com/api/GetShockers (HTTPError)
