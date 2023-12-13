@@ -163,6 +163,19 @@ class SerialAPI:
         """Restart the PiShock."""
         self._send_cmd("restart")
 
+    def shocker(self, shocker_id: int) -> SerialShocker:
+        """Get a :class:`SerialShocker` instance for the given shocker code.
+
+        This is the main entry point for operating a shocker via serial.
+
+        Arguments:
+            shocker_id: The shocker ID, as displayed under the
+              cogwheels on the `PiShock website <https://pishock.com/#/control>`_, or
+              available via :meth:`pishock.APIShocker.info()` or
+              :meth:`pishock.SerialAPI.info()`.
+        """
+        return SerialShocker(api=self, shocker_id=shocker_id)
+
     def operate(
         self,
         shocker_id: int,
@@ -172,8 +185,8 @@ class SerialAPI:
     ) -> None:
         """Operate a shocker.
 
-        You should not need to use this directly, use the higher-level
-        :class:`pishock.zap.SerialShocker` instead.
+        You should not need to use this directly, use :meth:`shocker` to get
+        access to the higher-level :class:`pishock.zap.SerialShocker` instead.
         """
         if intensity is not None and not 0 <= intensity <= 100:
             raise ValueError(
@@ -206,12 +219,12 @@ class SerialAPI:
 class SerialShocker(core.Shocker):
     """Represents a single shocker accessed via serial port.
 
+    Normally, there should be no need to instanciate this manually, use
+    :meth:`pishock.SerialAPI.shocker()` instead.
+
     Arguments:
         api: The :class:`SerialAPI` instance to use.
-        shocker_id: The ID of the shocker to operate, as displayed under the
-            cogwheels on the `PiShock website <https://pishock.com/#/control>`_, or
-            available via :meth:`pishock.APIShocker.info()` or
-            :meth:`pishock.SerialAPI.info()`.
+        shocker_id: The ID of the shocker to operate.
     """
 
     IS_SERIAL = True

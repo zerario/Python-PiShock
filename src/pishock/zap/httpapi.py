@@ -262,7 +262,11 @@ class DetailedShockerInfo(core.BasicShockerInfo):
 
 
 class HTTPShocker(core.Shocker):
-    """Represents a single shocker / share code using the HTTP API."""
+    """Represents a single shocker / share code using the HTTP API.
+
+    Normally, there should be no need to instanciate this manually, use
+    :meth:`pishock.PiShockAPI.shocker()` instead.
+    """
 
     IS_SERIAL = False
     SUCCESS_MESSAGES = [

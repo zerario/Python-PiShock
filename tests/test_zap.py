@@ -34,7 +34,7 @@ def serial_shocker(
         serial, "Serial", lambda port, baudrate, timeout: fake_serial_dev
     )
     api = serialapi.SerialAPI(credentials.SERIAL_PORT)
-    return serialapi.SerialShocker(api=api, shocker_id=credentials.SHOCKER_ID)
+    return api.shocker(shocker_id=credentials.SHOCKER_ID)
 
 
 @pytest.fixture
