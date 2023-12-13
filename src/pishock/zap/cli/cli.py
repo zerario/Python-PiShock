@@ -5,7 +5,7 @@ import random
 import sys
 from typing import Iterator, List, Optional
 
-import serial
+import serial  # type: ignore[import-untyped]
 import rich
 import rich.progress
 import rich.prompt

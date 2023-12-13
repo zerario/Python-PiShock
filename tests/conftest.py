@@ -79,6 +79,7 @@ class FakeCredentials:
     SHARECODE = "62169420AAA"
     SERIAL_PORT = "/dev/ttyFAKE"
     SHOCKER_ID = 1234
+    CLIENT_ID = 621
 
 
 class APIURLs:
@@ -120,7 +121,7 @@ class PiShockPatcher:
         self.responses = responses
         self.expected_serial_data: Any = None
 
-    def check_serial(self, dev: io.BytesIO) -> None:
+    def check_serial(self, dev: FakeSerial) -> None:
         """Check that the serial data matches what we expect."""
         if self.expected_serial_data is None:
             assert not dev.getvalue()
@@ -297,16 +298,34 @@ class PiShockPatcher:
         )
 
 
+class FakeSerial:
+
+    """Helper class which fakes the serial port."""
+
+    def __init__(self) -> None:
+        self._dev = io.BytesIO()
+        self.port = "FAKE"
+
+    def write(self, data: bytes) -> None:
+        self._dev.write(data)
+
+    def read(self, size: int) -> bytes:
+        return self._dev.read(size)
+
+    def getvalue(self) -> bytes:
+        return self._dev.getvalue()
+
+
 @pytest.fixture
-def fake_serial_dev() -> io.BytesIO:
-    return io.BytesIO()
+def fake_serial() -> FakeSerial:
+    return FakeSerial()
 
 
 @pytest.fixture
 def patcher(
-    responses: RequestsMock, fake_serial_dev: io.BytesIO
+    responses: RequestsMock, fake_serial: FakeSerial
 ) -> Iterator[PiShockPatcher]:
     """Helper to patch the PiShock API using responses."""
     patcher = PiShockPatcher(responses)
     yield patcher
-    patcher.check_serial(fake_serial_dev)
+    patcher.check_serial(fake_serial)

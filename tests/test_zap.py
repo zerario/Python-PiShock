@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import http
-import io
 from typing import cast
 
 import pytest
@@ -9,7 +8,7 @@ import serial  # type: ignore[import-untyped]
 
 from pishock.zap import serialapi, httpapi, core
 
-from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
+from tests.conftest import FakeCredentials, PiShockPatcher, FakeSerial  # for type hints
 
 
 @pytest.fixture(params=["api_shocker", "serial_shocker"])
@@ -21,12 +20,18 @@ def shocker(request: pytest.FixtureRequest) -> core.Shocker:
 def serial_shocker(
     monkeypatch: pytest.MonkeyPatch,
     credentials: FakeCredentials,
-    fake_serial_dev: io.BytesIO,
+    fake_serial: FakeSerial,
 ) -> serialapi.SerialShocker:
-    monkeypatch.setattr(
-        serial, "Serial", lambda port, baudrate, timeout: fake_serial_dev
-    )
+    monkeypatch.setattr(serial, "Serial", lambda port, baudrate, timeout: fake_serial)
     api = serialapi.SerialAPI(credentials.SERIAL_PORT)
+    monkeypatch.setattr(
+        api,
+        "info",
+        lambda: {
+            "clientId": credentials.CLIENT_ID,
+            "shockers": [{"id": credentials.SHOCKER_ID, "paused": False}],
+        },
+    )
     return api.shocker(shocker_id=credentials.SHOCKER_ID)
 
 
