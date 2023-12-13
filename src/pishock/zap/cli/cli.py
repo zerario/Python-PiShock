@@ -30,8 +30,26 @@ app.add_typer(cli_code.app, name="code", help="Manage share codes")
 # - selftest mode?
 
 
-ShareCodeArg: TypeAlias = Annotated[
-    str, typer.Argument(help="Share code for the shocker.")
+ShockerArg: TypeAlias = Annotated[
+    str,
+    typer.Argument(
+        help="Saved name, share code (HTTP) or shocker ID (serial) for the shocker.",
+        metavar="NAME/SHARECODE/ID",
+    ),
+]
+HttpShockerArg: TypeAlias = Annotated[
+    str,
+    typer.Argument(
+        help="Saved name or share code for the shocker (HTTP only).",
+        metavar="NAME/SHARECODE",
+    ),
+]
+SerialShockerArg: TypeAlias = Annotated[
+    str,
+    typer.Argument(
+        help="Shocker ID for the shocker (serial only).",
+        metavar="ID",
+    ),
 ]
 DurationOpt: TypeAlias = Annotated[
     float,
@@ -54,10 +72,10 @@ def handle_errors(*args: type[Exception]) -> Iterator[None]:
         raise typer.Exit(1)
 
 
-def get_shocker(app_ctx: cli_utils.AppContext, share_code: str) -> core.Shocker:
+def get_shocker(app_ctx: cli_utils.AppContext, shocker: str) -> core.Shocker:
     if app_ctx.serial_api is not None:
         with handle_errors(ValueError):
-            shocker_id = int(share_code)
+            shocker_id = int(shocker)
 
         with handle_errors(serialapi.ShockerNotFoundError):
             return serialapi.SerialShocker(app_ctx.serial_api, shocker_id)
@@ -66,21 +84,21 @@ def get_shocker(app_ctx: cli_utils.AppContext, share_code: str) -> core.Shocker:
     share_codes = app_ctx.config.sharecodes
 
     name = None
-    if share_code in share_codes:
-        name = share_code
-        share_code = share_codes[share_code]
-    elif not cli_utils.SHARE_CODE_REGEX.match(share_code):
+    if shocker in share_codes:
+        name = shocker
+        shocker = share_codes[shocker]
+    elif not cli_utils.SHARE_CODE_REGEX.match(shocker):
         rich.print(
-            f"[yellow]Error:[/] Share code [green]{share_code}[/] not in valid share "
+            f"[yellow]Error:[/] Share code [green]{shocker}[/] not in valid share "
             f"code format and not found in saved codes."
         )
-        matches = difflib.get_close_matches(share_code, share_codes.keys(), n=1)
+        matches = difflib.get_close_matches(shocker, share_codes.keys(), n=1)
         if matches:
             rich.print(f"Did you mean [green]{matches[0]}[/]?")
         raise typer.Exit(1)
 
     return app_ctx.pishock_api.shocker(
-        share_code, name=name, log_name=f"{httpapi.NAME} CLI"
+        shocker, name=name, log_name=f"{httpapi.NAME} CLI"
     )
 
 
@@ -91,14 +109,14 @@ def print_emoji(name: str, duration: float) -> None:
 @app.command(rich_help_panel="Actions")
 def shock(
     ctx: typer.Context,
-    share_code: ShareCodeArg,
+    shocker: ShockerArg,
     duration: DurationOpt,
     intensity: IntensityOpt,
 ) -> None:
     """Send a shock to the given share code."""
-    shocker = get_shocker(ctx.obj, share_code)
+    shocker_obj = get_shocker(ctx.obj, shocker)
     with handle_errors(ValueError):
-        shocker.shock(duration=duration, intensity=intensity)
+        shocker_obj.shock(duration=duration, intensity=intensity)
 
     print_emoji("zap", duration)
     if random.random() < 0.1:
@@ -108,43 +126,43 @@ def shock(
 @app.command(rich_help_panel="Actions")
 def vibrate(
     ctx: typer.Context,
-    share_code: ShareCodeArg,
+    shocker: ShockerArg,
     duration: DurationOpt,
     intensity: IntensityOpt,
 ) -> None:
     """Send a vibration to the given share code."""
-    shocker = get_shocker(ctx.obj, share_code)
+    shocker_obj = get_shocker(ctx.obj, shocker)
     with handle_errors(ValueError):
-        shocker.vibrate(duration=duration, intensity=intensity)
+        shocker_obj.vibrate(duration=duration, intensity=intensity)
     print_emoji("vibration_mode", duration)
 
 
 @app.command(rich_help_panel="Actions")
-def beep(ctx: typer.Context, share_code: ShareCodeArg, duration: DurationOpt) -> None:
+def beep(ctx: typer.Context, shocker: ShockerArg, duration: DurationOpt) -> None:
     """Send a beep to the given share code."""
-    shocker = get_shocker(ctx.obj, share_code)
+    shocker_obj = get_shocker(ctx.obj, shocker)
     with handle_errors(ValueError):
-        shocker.beep(duration=duration)
+        shocker_obj.beep(duration=duration)
     print_emoji("loud_sound", duration)
 
 
 @app.command(rich_help_panel="Actions")
-def end(ctx: typer.Context, share_code: ShareCodeArg) -> None:
+def end(ctx: typer.Context, shocker: SerialShockerArg) -> None:
     """End the currently running operation, if any."""
     ctx.obj.ensure_serial_api()
-    shocker = get_shocker(ctx.obj, share_code)
-    assert isinstance(shocker, serialapi.SerialShocker)
+    shocker_obj = get_shocker(ctx.obj, shocker)
+    assert isinstance(shocker_obj, serialapi.SerialShocker)
     with handle_errors():
-        shocker.end()
+        shocker_obj.end()
     print_emoji("x", 1)
 
 
 @app.command(rich_help_panel="Shockers")
-def info(ctx: typer.Context, share_code: ShareCodeArg) -> None:
+def info(ctx: typer.Context, shocker: ShockerArg) -> None:
     """Get information about the given shocker."""
-    shocker = get_shocker(ctx.obj, share_code)
+    shocker_obj = get_shocker(ctx.obj, shocker)
     with handle_errors(TimeoutError):
-        info = shocker.info()
+        info = shocker_obj.info()
 
     table = rich.table.Table(show_header=False)
     table.add_column()
@@ -167,23 +185,23 @@ def info(ctx: typer.Context, share_code: ShareCodeArg) -> None:
 
 
 @app.command(rich_help_panel="Shockers")
-def pause(ctx: typer.Context, share_code: ShareCodeArg) -> None:
+def pause(ctx: typer.Context, shocker: HttpShockerArg) -> None:
     """Pause the given shocker."""
     ctx.obj.ensure_pishock_api()
-    shocker = get_shocker(ctx.obj, share_code)
-    assert isinstance(shocker, httpapi.HTTPShocker)
+    shocker_obj = get_shocker(ctx.obj, shocker)
+    assert isinstance(shocker_obj, httpapi.HTTPShocker)
     with handle_errors():
-        shocker.pause(True)
+        shocker_obj.pause(True)
 
 
 @app.command(rich_help_panel="Shockers")
-def unpause(ctx: typer.Context, share_code: ShareCodeArg) -> None:
+def unpause(ctx: typer.Context, shocker: HttpShockerArg) -> None:
     """Unpause the given shocker."""
     ctx.obj.ensure_pishock_api()
-    shocker = get_shocker(ctx.obj, share_code)
-    assert isinstance(shocker, httpapi.HTTPShocker)
+    shocker_obj = get_shocker(ctx.obj, shocker)
+    assert isinstance(shocker_obj, httpapi.HTTPShocker)
     with handle_errors():
-        shocker.pause(False)
+        shocker_obj.pause(False)
 
 
 @app.command(rich_help_panel="Shockers")
@@ -203,8 +221,9 @@ def shockers(
 @app.command(name="random")
 def random_mode(
     ctx: typer.Context,
-    share_codes: Annotated[
-        List[str], typer.Argument(help="Share code for the shocker.")
+    shockers: Annotated[
+        List[str],
+        typer.Argument(metavar="shocker", help="Share code /IDs for the shockers."),
     ],
     duration: cli_random.DurationArg,
     intensity: cli_random.IntensityArg,
@@ -228,9 +247,9 @@ def random_mode(
         duration=spam_duration,
         intensity=spam_intensity,
     )
-    shockers = [get_shocker(ctx.obj, share_code) for share_code in share_codes]
+    shocker_objs = [get_shocker(ctx.obj, shocker) for shocker in shockers]
     random_shocker = cli_random.RandomShocker(
-        shockers=shockers,
+        shockers=shocker_objs,
         duration=duration,
         intensity=intensity,
         pause=pause,
