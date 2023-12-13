@@ -1,4 +1,9 @@
-# PiShock for Python
+```{include} ../README.md
+:relative-docs: docs/
+:relative-images:
+```
+
+# Full documentation
 
 ```{toctree}
 :maxdepth: 2
