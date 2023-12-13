@@ -53,14 +53,8 @@ def handle_errors() -> Iterator[None]:
         raise typer.Exit(1)
 
 
-def get_shocker(
-    app_ctx: cli_utils.AppContext, share_code: str, *, http_only: bool = False
-) -> core.Shocker:
+def get_shocker(app_ctx: cli_utils.AppContext, share_code: str) -> core.Shocker:
     if app_ctx.serial_api is not None:
-        if http_only:
-            cli_utils.print_error("Serial interface does not support this operation.")
-            raise typer.Exit(1)
-
         try:
             shocker_id = int(share_code)
         except ValueError as e:
@@ -165,7 +159,8 @@ def info(ctx: typer.Context, share_code: ShareCodeArg) -> None:
 @app.command(rich_help_panel="Shockers")
 def pause(ctx: typer.Context, share_code: ShareCodeArg) -> None:
     """Pause the given shocker."""
-    shocker = get_shocker(ctx.obj, share_code, http_only=True)
+    ctx.obj.ensure_pishock_api()
+    shocker = get_shocker(ctx.obj, share_code)
     assert isinstance(shocker, httpapi.HTTPShocker)
     with handle_errors():
         shocker.pause(True)
@@ -174,7 +169,8 @@ def pause(ctx: typer.Context, share_code: ShareCodeArg) -> None:
 @app.command(rich_help_panel="Shockers")
 def unpause(ctx: typer.Context, share_code: ShareCodeArg) -> None:
     """Unpause the given shocker."""
-    shocker = get_shocker(ctx.obj, share_code, http_only=True)
+    ctx.obj.ensure_pishock_api()
+    shocker = get_shocker(ctx.obj, share_code)
     assert isinstance(shocker, httpapi.HTTPShocker)
     with handle_errors():
         shocker.pause(False)
