@@ -4,15 +4,66 @@ import http
 import io
 import json
 import re
+import pathlib
 from typing import Any, Callable, Iterator
 
 import pytest
+import rich
+import platformdirs
+import click.testing
+import typer.testing
 from responses import RequestsMock, matchers
 from typing_extensions import TypeAlias
 
 from pishock.zap import httpapi, core
+from pishock.zap.cli import cli
 
 _MatcherType: TypeAlias = Callable[..., Any]
+ConfigDataType: TypeAlias = dict[str, dict[str, str]]
+
+
+@pytest.fixture(autouse=True)
+def config_path(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> pathlib.Path:
+    monkeypatch.setattr(
+        platformdirs,
+        "user_config_dir",
+        lambda appname, appauthor: tmp_path,
+    )
+    return tmp_path / "config.json"
+
+
+@pytest.fixture
+def config_data(credentials: FakeCredentials) -> ConfigDataType:
+    return {
+        "api": {
+            "username": credentials.USERNAME,
+            "key": credentials.API_KEY,
+        },
+        "sharecodes": {},
+    }
+
+
+class Runner:
+    def __init__(self, sharecode: str) -> None:
+        self._runner = typer.testing.CliRunner()
+        self.sharecode = sharecode  # for ease of access
+
+    def run(self, *args: str) -> click.testing.Result:
+        result = self._runner.invoke(cli.app, args, catch_exceptions=False)
+        print(result.output)
+        return result
+
+
+@pytest.fixture
+def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Runner:
+    rich.reconfigure(width=80)
+    monkeypatch.setenv("COLUMNS", "80")  # for future console instances
+    monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
+    monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
+    return Runner(credentials.SHARECODE)
 
 
 class FakeCredentials:

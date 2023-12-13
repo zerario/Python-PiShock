@@ -6,19 +6,20 @@ import json
 import pathlib
 import random
 
-import click.testing
-import platformdirs
 import pytest
 import rich
 import rich.prompt
 import rich.console
-import typer.testing
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
 from pishock.zap import httpapi
-from pishock.zap.cli import cli
 
-from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
+from tests.conftest import (
+    FakeCredentials,
+    PiShockPatcher,
+    Runner,
+    ConfigDataType,
+)  # for type hints
 
 
 pytestmark = pytest.mark.skipif(
@@ -26,92 +27,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-class Runner:
-    def __init__(self, sharecode: str) -> None:
-        self._runner = typer.testing.CliRunner()
-        self.sharecode = sharecode  # for ease of access
-
-    def run(self, *args: str) -> click.testing.Result:
-        result = self._runner.invoke(cli.app, args, catch_exceptions=False)
-        print(result.output)
-        return result
-
-
-@pytest.fixture
-def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Runner:
-    rich.reconfigure(width=80)
-    monkeypatch.setenv("COLUMNS", "80")  # for future console instances
-    monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
-    monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
-    return Runner(credentials.SHARECODE)
-
-
 @pytest.fixture(autouse=True)
 def patcher_cli_name(patcher: PiShockPatcher, monkeypatch: pytest.MonkeyPatch) -> None:
     """Set up the correct name sent to the API for CLI invocations."""
     monkeypatch.setattr(patcher, "NAME", f"{httpapi.NAME} CLI")
-
-
-@pytest.fixture(autouse=True)
-def config_path(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: pathlib.Path,
-) -> pathlib.Path:
-    monkeypatch.setattr(
-        platformdirs,
-        "user_config_dir",
-        lambda appname, appauthor: tmp_path,
-    )
-    return tmp_path / "config.json"
-
-
-CONFIG_DATA: dict[str, dict[str, str]] = {
-    "api": {
-        "username": FakeCredentials.USERNAME,
-        "key": FakeCredentials.API_KEY,
-    },
-    "sharecodes": {},
-}
-
-
-class TestConfig:
-    @pytest.fixture
-    def config(self, config_path: pathlib.Path) -> cli.Config:
-        cfg = cli.Config()
-        assert cfg._path == config_path
-        return cfg
-
-    def test_load_does_not_exist(self, config: cli.Config) -> None:
-        config.load()
-        assert config.username is None
-        assert config.api_key is None
-
-    def test_load(
-        self,
-        config: cli.Config,
-        config_path: pathlib.Path,
-        credentials: FakeCredentials,
-    ) -> None:
-        with config_path.open("w") as f:
-            json.dump(CONFIG_DATA, f)
-
-        config.load()
-        assert config.username == credentials.USERNAME
-        assert config.api_key == credentials.API_KEY
-
-    def test_save(
-        self,
-        config: cli.Config,
-        config_path: pathlib.Path,
-        credentials: FakeCredentials,
-    ) -> None:
-        config.username = credentials.USERNAME
-        config.api_key = credentials.API_KEY
-        config.save()
-
-        with config_path.open("r") as f:
-            data = json.load(f)
-        assert data == CONFIG_DATA
 
 
 class TestInit:
@@ -124,6 +43,7 @@ class TestInit:
     def test_init(
         self,
         config_path: pathlib.Path,
+        config_data: ConfigDataType,
         runner_noenv: Runner,
         patcher: PiShockPatcher,
         monkeypatch: pytest.MonkeyPatch,
@@ -141,7 +61,7 @@ class TestInit:
             assert result.output == "✅ Credentials saved.\n"
             with config_path.open("r") as f:
                 data = json.load(f)
-            assert data == CONFIG_DATA
+            assert data == config_data
         else:
             assert result.output == "❌ Credentials are invalid.\n"
             assert not config_path.exists()
@@ -149,6 +69,7 @@ class TestInit:
     def test_init_via_args(
         self,
         config_path: pathlib.Path,
+        config_data: ConfigDataType,
         runner: Runner,
         patcher: PiShockPatcher,
     ) -> None:
@@ -159,12 +80,13 @@ class TestInit:
 
         with config_path.open("r") as f:
             data = json.load(f)
-        assert data == CONFIG_DATA
+        assert data == config_data
 
     @pytest.mark.parametrize("confirmed", [True, False, "--force"])
     def test_init_overwrite(
         self,
         config_path: pathlib.Path,
+        config_data: ConfigDataType,
         runner_noenv: Runner,
         patcher: PiShockPatcher,
         monkeypatch: pytest.MonkeyPatch,
@@ -182,13 +104,13 @@ class TestInit:
             patcher.verify_credentials(True, username=new_username)
 
         with config_path.open("w") as f:
-            json.dump(CONFIG_DATA, f)
+            json.dump(config_data, f)
 
         force_arg = ["--force"] if confirmed == "--force" else []
         result = runner_noenv.run("init", *force_arg)
         assert result.exit_code == (0 if confirmed else 1)
 
-        expected_data = copy.deepcopy(CONFIG_DATA)
+        expected_data = copy.deepcopy(config_data)
         if confirmed:
             expected_data["api"]["username"] = new_username
 
@@ -228,10 +150,11 @@ class TestInit:
         self,
         runner_noenv: Runner,
         config_path: pathlib.Path,
+        config_data: ConfigDataType,
         patcher: PiShockPatcher,
     ) -> None:
         with config_path.open("w") as f:
-            json.dump(CONFIG_DATA, f)
+            json.dump(config_data, f)
         patcher.verify_credentials(True)
 
         result = runner_noenv.run("verify")
@@ -490,269 +413,3 @@ def test_verify(
     result = runner.run("verify")
     assert result.output == golden.out[f"output_{outcome}"]
     assert result.exit_code == (0 if outcome == "ok" else 1)
-
-
-class TestSharecodes:
-    @pytest.fixture(autouse=True)
-    def init_config(
-        self, config_path: pathlib.Path, request: pytest.FixtureRequest
-    ) -> None:
-        """Prepopulate the config with some share codes."""
-        data = copy.deepcopy(CONFIG_DATA)
-
-        if not request.node.get_closest_marker("empty_config"):
-            data["sharecodes"] = {
-                "test1": "62142069AA1",
-                "test3": "62142069AA3",  # unsorted to test sorting too
-                "test2": "62142069AA2",
-            }
-
-        with config_path.open("w") as f:
-            json.dump(data, f)
-
-    has_codes_parametrize = pytest.mark.parametrize(
-        "has_codes", [True, pytest.param(False, marks=pytest.mark.empty_config)]
-    )
-
-    def test_using_saved_code(self, runner: Runner, patcher: PiShockPatcher) -> None:
-        patcher.info(sharecode="62142069AA1")
-        result = runner.run("info", "test1")
-        assert result.exit_code == 0
-
-    @has_codes_parametrize
-    @pytest.mark.golden_test("golden/sharecodes/invalid.yml")
-    def test_invalid_code(
-        self,
-        runner: Runner,
-        golden: GoldenTestFixture,
-        has_codes: bool,
-    ) -> None:
-        suffix = "with_codes" if has_codes else "no_codes"
-        result = runner.run("info", "tset1")
-        assert result.output == golden.out[f"output_{suffix}"]
-        assert result.exit_code == 1
-
-    @pytest.mark.empty_config
-    @pytest.mark.golden_test("golden/sharecodes/list.yml")
-    def test_list_info_empty(
-        self,
-        runner: Runner,
-        golden: GoldenTestFixture,
-    ) -> None:
-        result = runner.run("code-list", "--info")
-        assert result.output == golden.out["output_empty"]
-        assert result.exit_code == 0
-
-    @pytest.mark.golden_test("golden/sharecodes/list.yml")
-    def test_list_info_not_authorized(
-        self,
-        runner: Runner,
-        patcher: PiShockPatcher,
-        golden: GoldenTestFixture,
-    ) -> None:
-        patcher.verify_credentials(False)
-        result = runner.run("code-list", "--info")
-        assert result.output == golden.out["output_info_not_authorized"]
-        assert result.exit_code == 1
-
-    @pytest.mark.golden_test("golden/sharecodes/list.yml")
-    def test_list_info(
-        self,
-        runner: Runner,
-        patcher: PiShockPatcher,
-        golden: GoldenTestFixture,
-    ) -> None:
-        patcher.verify_credentials(True)
-        patcher.info(sharecode="62142069AA1")
-        patcher.info_raw(status=http.HTTPStatus.NOT_FOUND)  # for ...AA2
-        patcher.info(sharecode="62142069AA3")
-        result = runner.run("code-list", "--info")
-        assert result.output == golden.out["output_info"]
-        assert result.exit_code == 0
-
-    @has_codes_parametrize
-    @pytest.mark.golden_test("golden/sharecodes/list.yml")
-    def test_list(
-        self,
-        runner: Runner,
-        golden: GoldenTestFixture,
-        has_codes: bool,
-    ) -> None:
-        suffix = "" if has_codes else "_empty"
-        result = runner.run("code-list")
-        assert result.output == golden.out[f"output{suffix}"]
-        assert result.exit_code == 0
-
-    @has_codes_parametrize
-    @pytest.mark.golden_test("golden/sharecodes/add.yml")
-    @pytest.mark.parametrize("force", [True, False])
-    def test_add(
-        self,
-        runner: Runner,
-        golden: GoldenTestFixture,
-        config_path: pathlib.Path,
-        has_codes: bool,
-        force: bool,
-    ) -> None:
-        force_arg = ["--force"] if force else []
-        result = runner.run("code-add", "test4", "62142069AA4", *force_arg)
-
-        suffix = "_force" if force else ""
-        if not has_codes:
-            suffix += "_empty"
-
-        assert result.output == golden.out[f"output{suffix}"]
-        assert result.exit_code == 0
-
-        with config_path.open("r") as f:
-            data = json.load(f)
-
-        if has_codes:
-            assert data["sharecodes"] == {
-                "test1": "62142069AA1",
-                "test3": "62142069AA3",
-                "test2": "62142069AA2",
-                "test4": "62142069AA4",
-            }
-        else:
-            assert data["sharecodes"] == {"test4": "62142069AA4"}
-
-    @pytest.mark.parametrize("confirmed", [True, False, "--force"])
-    @pytest.mark.golden_test("golden/sharecodes/add.yml")
-    def test_add_overwrite(
-        self,
-        runner: Runner,
-        config_path: pathlib.Path,
-        monkeypatch: pytest.MonkeyPatch,
-        golden: GoldenTestFixture,
-        confirmed: bool | str,
-    ) -> None:
-        if confirmed != "--force":
-            monkeypatch.setattr(rich.prompt.Confirm, "ask", lambda text: confirmed)
-
-        suffixes = {
-            "--force": "force",
-            True: "yes",
-            False: "no",
-        }
-        suffix = suffixes[confirmed]
-
-        force_arg = ["--force"] if confirmed == "--force" else []
-        result = runner.run("code-add", "test1", "62142069AB1", *force_arg)
-        assert result.output == golden.out[f"output_overwrite_{suffix}"]
-        assert result.exit_code == (0 if confirmed else 1)
-
-        with config_path.open("r") as f:
-            data = json.load(f)
-        if confirmed:
-            assert data["sharecodes"] == {
-                "test1": "62142069AB1",
-                "test3": "62142069AA3",
-                "test2": "62142069AA2",
-            }
-        else:
-            assert data["sharecodes"] == {
-                "test1": "62142069AA1",
-                "test3": "62142069AA3",
-                "test2": "62142069AA2",
-            }
-
-    @pytest.mark.golden_test("golden/sharecodes/add.yml")
-    def test_add_invalid(
-        self,
-        runner: Runner,
-        golden: GoldenTestFixture,
-        config_path: pathlib.Path,
-    ) -> None:
-        result = runner.run("code-add", "test1", "62142069ABX")
-        assert result.output == golden.out["output_invalid"]
-        assert result.exit_code == 1
-
-        with config_path.open("r") as f:
-            data = json.load(f)
-        assert data["sharecodes"] == {
-            "test1": "62142069AA1",
-            "test3": "62142069AA3",
-            "test2": "62142069AA2",
-        }
-
-    @has_codes_parametrize
-    @pytest.mark.golden_test("golden/sharecodes/del.yml")
-    def test_del(
-        self,
-        runner: Runner,
-        golden: GoldenTestFixture,
-        config_path: pathlib.Path,
-        has_codes: bool,
-    ) -> None:
-        suffix = "" if has_codes else "_empty"
-
-        result = runner.run("code-del", "test1")
-
-        assert result.output == golden.out[f"output{suffix}"]
-        assert result.exit_code == 0 if has_codes else 1
-
-        with config_path.open("r") as f:
-            data = json.load(f)
-
-        if has_codes:
-            assert data["sharecodes"] == {
-                "test3": "62142069AA3",
-                "test2": "62142069AA2",
-            }
-        else:
-            assert data["sharecodes"] == {}
-
-    @pytest.mark.parametrize(
-        "old_name, new_name, overwrite, suffix, successful",
-        [
-            ("test1", "test4", None, "ok", True),
-            ("test1", "test3", True, "exists-overwrite", True),
-            ("test1", "test3", "--force", "exists-force", True),
-            ("test1", "test3", False, "exists-abort", False),
-            ("test1", "test1", None, "same", False),
-            ("test4", "test5", None, "not_found", False),
-        ],
-    )
-    @pytest.mark.golden_test("golden/sharecodes/rename.yml")
-    def test_rename(
-        self,
-        runner: Runner,
-        golden: GoldenTestFixture,
-        config_path: pathlib.Path,
-        monkeypatch: pytest.MonkeyPatch,
-        old_name: str,
-        new_name: str,
-        overwrite: bool | str | None,
-        suffix: str,
-        successful: bool,
-    ) -> None:
-        if overwrite in [True, False]:
-            monkeypatch.setattr(rich.prompt.Confirm, "ask", lambda text: overwrite)
-
-        force_arg = ["--force"] if overwrite == "--force" else []
-        result = runner.run("code-rename", old_name, new_name, *force_arg)
-
-        assert result.output == golden.out[f"output_{suffix}"]
-        assert result.exit_code == (0 if successful else 1)
-
-        with config_path.open("r") as f:
-            data = json.load(f)
-
-        if successful and overwrite:
-            assert data["sharecodes"] == {
-                "test3": "62142069AA1",
-                "test2": "62142069AA2",
-            }
-        elif successful:
-            assert data["sharecodes"] == {
-                "test4": "62142069AA1",
-                "test3": "62142069AA3",
-                "test2": "62142069AA2",
-            }
-        else:
-            assert data["sharecodes"] == {
-                "test1": "62142069AA1",
-                "test3": "62142069AA3",
-                "test2": "62142069AA2",
-            }

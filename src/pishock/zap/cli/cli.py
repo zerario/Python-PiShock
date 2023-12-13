@@ -1,14 +1,10 @@
 import contextlib
-import dataclasses
 import difflib
-import json
 import pathlib
 import random
-import re
 import sys
-from typing import Dict, Iterator, List, Optional
+from typing import Iterator, List, Optional
 
-import platformdirs
 import rich
 import rich.progress
 import rich.prompt
@@ -17,14 +13,13 @@ import typer
 from typing_extensions import Annotated, TypeAlias
 
 from pishock.zap import serialapi, core, httpapi
-from pishock.zap.cli import cli_random, cli_serial, cli_utils
+from pishock.zap.cli import cli_random, cli_serial, cli_utils, cli_code
 
 """Command-line interface for PiShock."""
 
 app = typer.Typer()
 app.add_typer(cli_serial.app, name="serial", help="Serial interface commands")
-
-SHARE_CODE_REGEX = re.compile(r"^[0-9A-F]{11}$")  # 11 upper case hex digits
+app.add_typer(cli_code.app, name="code", help="Manage share codes")
 
 
 # TODO:
@@ -32,53 +27,6 @@ SHARE_CODE_REGEX = re.compile(r"^[0-9A-F]{11}$")  # 11 upper case hex digits
 # - Random mode
 # - Handle basic invalid configs?
 # - selftest mode?
-
-
-class Config:
-    def __init__(self) -> None:
-        self._path = pathlib.Path(
-            platformdirs.user_config_dir(appname="PiShock-CLI", appauthor="PiShock"),
-            "config.json",
-        )
-
-        self.username: Optional[str] = None
-        self.api_key: Optional[str] = None
-        self.sharecodes: Dict[str, str] = {}
-
-    def load(self) -> None:
-        if not self._path.exists():
-            return
-        with self._path.open("r") as f:
-            data = json.load(f)
-
-        self.username = data["api"]["username"]
-        self.api_key = data["api"]["key"]
-        self.sharecodes = data.get("sharecodes", {})
-
-    def save(self) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        data = {
-            "api": {
-                "username": self.username,
-                "key": self.api_key,
-            },
-            "sharecodes": self.sharecodes,
-        }
-        with self._path.open("w") as f:
-            json.dump(data, f)
-
-
-@dataclasses.dataclass
-class AppContext:
-    config: Config
-    pishock_api: Optional[httpapi.PiShockAPI]
-    serial_api: Optional[serialapi.SerialAPI]
-
-    def ensure_pishock_api(self) -> httpapi.PiShockAPI:
-        if self.pishock_api is None:
-            cli_utils.print_error("This command is only available with the HTTP API.")
-            raise typer.Exit(1)
-        return self.pishock_api
 
 
 ShareCodeArg: TypeAlias = Annotated[
@@ -106,7 +54,7 @@ def handle_errors() -> Iterator[None]:
 
 
 def get_shocker(
-    app_ctx: AppContext, share_code: str, *, http_only: bool = False
+    app_ctx: cli_utils.AppContext, share_code: str, *, http_only: bool = False
 ) -> core.Shocker:
     if app_ctx.serial_api is not None:
         if http_only:
@@ -128,7 +76,7 @@ def get_shocker(
     if share_code in share_codes:
         name = share_code
         share_code = share_codes[share_code]
-    elif not SHARE_CODE_REGEX.match(share_code):
+    elif not cli_utils.SHARE_CODE_REGEX.match(share_code):
         rich.print(
             f"[yellow]Error:[/] Share code [green]{share_code}[/] not in valid share "
             f"code format and not found in saved codes."
@@ -187,10 +135,6 @@ def beep(ctx: typer.Context, share_code: ShareCodeArg, duration: DurationOpt) ->
     print_emoji("loud_sound", duration)
 
 
-def paused_emoji(is_paused: bool) -> str:
-    return ":double_vertical_bar:" if is_paused else ":arrow_forward:"
-
-
 @app.command(rich_help_panel="Shockers")
 def info(ctx: typer.Context, share_code: ShareCodeArg) -> None:
     """Get information about the given shocker."""
@@ -206,7 +150,7 @@ def info(ctx: typer.Context, share_code: ShareCodeArg) -> None:
     table.add_row("PiShock ID", str(info.client_id))
     table.add_row("Shocker ID", str(info.shocker_id))
 
-    pause = paused_emoji(info.is_paused)
+    pause = cli_utils.paused_emoji(info.is_paused)
     if isinstance(info, httpapi.DetailedShockerInfo):
         online = cli_utils.bool_emoji(info.is_online)
         table.add_row("Online / Paused", f"{online} {pause}")
@@ -246,177 +190,8 @@ def shockers(
         shockers = ctx.obj.ensure_pishock_api().get_shockers(client_id)
 
     for shocker in shockers:
-        emoji = paused_emoji(shocker.is_paused)
+        emoji = cli_utils.paused_emoji(shocker.is_paused)
         rich.print(f"{shocker.shocker_id}: {shocker.name} {emoji}")
-
-
-def list_sharecodes_info(app_ctx: AppContext) -> None:
-    """List all saved share codes with additional info from the API."""
-    if not app_ctx.config.sharecodes:
-        rich.print("[yellow]No share codes saved.[/]")
-        return
-
-    pishock_api = app_ctx.ensure_pishock_api()
-    if not pishock_api.verify_credentials():
-        # explicit check because this might save a lot of time when invalid, but
-        # when valid, doesn't add much (assuming multiple requests below anyways).
-        rich.print("[yellow]Warning:[/] Credentials are invalid. Skipping info.\n")
-        list_sharecodes(app_ctx.config)
-        raise typer.Exit(1)
-
-    table = rich.table.Table()
-    table.add_column("Name", style="green")
-    table.add_column("Share code")
-    table.add_column("Shocker Name")
-    table.add_column("PiShock ID")
-    table.add_column("Shocker ID")
-    table.add_column("Online / Paused")
-    table.add_column("Max intensity")
-    table.add_column("Max duration")
-
-    for name, share_code in rich.progress.track(
-        sorted(app_ctx.config.sharecodes.items()), description="Gathering info..."
-    ):
-        try:
-            info = pishock_api.shocker(share_code).info()
-        except httpapi.APIError as e:
-            table.add_row(name, share_code, f"[red]{e}[/]")
-            continue
-
-        pause = paused_emoji(info.is_paused)
-        online = cli_utils.bool_emoji(info.is_online)
-        table.add_row(
-            name,
-            share_code,
-            info.name,
-            str(info.client_id),
-            str(info.shocker_id),
-            f"{online} {pause}",
-            f"{info.max_intensity}%",
-            f"{info.max_duration}s",
-        )
-
-    rich.print(table)
-
-
-def list_sharecodes(
-    config: Config,
-    added: Optional[str] = None,
-    removed: Optional[str] = None,
-) -> None:
-    """List all saved share codes."""
-    if not config.sharecodes:
-        rich.print("[yellow]No share codes saved.[/]")
-        return
-
-    table = rich.table.Table.grid(padding=(0, 2))
-
-    table.add_column("")  # emoji
-    table.add_column("Name", style="green")
-    table.add_column("Share code")
-
-    for name, share_code in sorted(config.sharecodes.items()):
-        if name == added:
-            emoji = ":white_check_mark:"
-            style = "green"
-        elif name == removed:
-            emoji = ":x:"
-            style = "red"
-        else:
-            emoji = ":link:"
-            style = None
-        table.add_row(emoji, name, share_code, style=style)
-
-    rich.print(table)
-
-
-@app.command(rich_help_panel="Share codes")
-def code_add(
-    ctx: typer.Context,
-    name: Annotated[str, typer.Argument(help="Name for the share code.")],
-    share_code: Annotated[str, typer.Argument(help="Share code to add.")],
-    force: Annotated[bool, typer.Option(help="Overwrite existing code.")] = False,
-) -> None:
-    """Add a new share code to the saved codes."""
-    config = ctx.obj.config
-
-    if not SHARE_CODE_REGEX.match(share_code):
-        rich.print(f"[yellow]Error:[/] Share code [green]{share_code}[/] is not valid.")
-        raise typer.Exit(1)
-
-    if name in config.sharecodes and not force:
-        code = config.sharecodes[name]
-        ok = rich.prompt.Confirm.ask(
-            f"Name [green]{name}[/] already exists ({code}). Overwrite?"
-        )
-        if not ok:
-            raise typer.Abort()
-
-    config.sharecodes[name] = share_code
-    config.save()
-    list_sharecodes(config, added=name)
-
-
-@app.command(rich_help_panel="Share codes")
-def code_del(
-    ctx: typer.Context,
-    name: Annotated[str, typer.Argument(help="Name of the share code to delete.")],
-) -> None:
-    """Delete a saved share code."""
-    config = ctx.obj.config
-
-    if name not in config.sharecodes:
-        rich.print(f"[red]Error:[/] Name [green]{name}[/] not found.")
-        raise typer.Exit(1)
-
-    list_sharecodes(config, removed=name)
-    del config.sharecodes[name]
-    config.save()
-
-
-@app.command(rich_help_panel="Share codes")
-def code_rename(
-    ctx: typer.Context,
-    name: Annotated[str, typer.Argument(help="Name of the share code to rename.")],
-    new_name: Annotated[str, typer.Argument(help="New name for the share code.")],
-    force: Annotated[bool, typer.Option(help="Overwrite existing code.")] = False,
-) -> None:
-    """Rename a saved share code."""
-    config = ctx.obj.config
-
-    if name not in config.sharecodes:
-        rich.print(f"[red]Error:[/] Name [green]{name}[/] not found.")
-        raise typer.Exit(1)
-    if name == new_name:
-        rich.print("[red]Error:[/] New name is the same as the old name.")
-        raise typer.Exit(1)
-
-    if new_name in config.sharecodes and not force:
-        code = config.sharecodes[name]
-        ok = rich.prompt.Confirm.ask(
-            f"Name [green]{name}[/] already exists ({code}). Overwrite?"
-        )
-        if not ok:
-            raise typer.Exit(1)
-
-    config.sharecodes[new_name] = config.sharecodes[name]
-    del config.sharecodes[name]
-    config.save()
-    list_sharecodes(config, added=new_name, removed=name)
-
-
-@app.command(rich_help_panel="Share codes")
-def code_list(
-    ctx: typer.Context,
-    info: Annotated[
-        bool, typer.Option(help="Show information about each code.")
-    ] = False,
-) -> None:
-    """List all saved share codes."""
-    if info:
-        list_sharecodes_info(ctx.obj)
-    else:
-        list_sharecodes(ctx.obj.config)
 
 
 @app.command(name="random")
@@ -520,8 +295,8 @@ def init(
     rich.print("[green]:white_check_mark: Credentials saved.[/]")
 
 
-def init_serial(port: Optional[str]) -> AppContext:
-    config = Config()
+def init_serial(port: Optional[str]) -> cli_utils.AppContext:
+    config = cli_utils.Config()
     config.load()
 
     # FIXME close?
@@ -532,13 +307,13 @@ def init_serial(port: Optional[str]) -> AppContext:
         cli_serial.print_serial_ports()
         raise typer.Exit(1)
 
-    return AppContext(config=config, pishock_api=None, serial_api=serial_api)
+    return cli_utils.AppContext(config=config, pishock_api=None, serial_api=serial_api)
 
 
 def init_pishock_api(
     username: Optional[str], api_key: Optional[str], *, is_init: bool
-) -> AppContext:
-    config = Config()
+) -> cli_utils.AppContext:
+    config = cli_utils.Config()
     config.load()
 
     if username is None or api_key is None:
@@ -548,7 +323,9 @@ def init_pishock_api(
             rich.print("[yellow]Warning:[/] API key given but no username. Ignoring.\n")
 
         if is_init:
-            return AppContext(config=Config(), pishock_api=None, serial_api=None)
+            return cli_utils.AppContext(
+                config=cli_utils.Config(), pishock_api=None, serial_api=None
+            )
 
         if config.username is None or config.api_key is None:
             cmd = pathlib.PurePath(sys.argv[0]).name
@@ -566,7 +343,7 @@ def init_pishock_api(
         assert api_key is not None
 
     pishock_api = httpapi.PiShockAPI(username, api_key)
-    return AppContext(config=config, pishock_api=pishock_api, serial_api=None)
+    return cli_utils.AppContext(config=config, pishock_api=pishock_api, serial_api=None)
 
 
 @app.callback()
