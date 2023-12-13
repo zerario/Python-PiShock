@@ -27,7 +27,7 @@ SHOCKER_TYPES = {0: "SmallOne", 1: "Petrainer"}
 def print_serial_ports() -> None:
     """Print available serial ports."""
     table = rich.table.Table(title="Available serial ports")
-    table.add_column("Device")
+    table.add_column("Device", style="bold")
     table.add_column("Description")
     table.add_column("USB VID")
     table.add_column("USB PID")
@@ -43,11 +43,17 @@ def print_serial_ports() -> None:
             info.serial_number,
             info.manufacturer,
             info.product,
+            style=None if serialapi.is_maybe_pishock(info) else "bright_black",
         )
 
     rich.print()
     rich.print(table)
     rich.print("\nUse [green]--port[/] option to specify a serial port.")
+    rich.print(
+        "[bright_black]Note:[/] If you see your PiShock greyed out above, "
+        "please report this as a bug: "
+        "https://github.com/zerario/Python-PiShock/issues/new"
+    )
 
 
 def _enrich_toplevel_data(data: Dict[str, Any], show_passwords: bool) -> None:
