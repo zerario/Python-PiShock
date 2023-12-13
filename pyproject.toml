@@ -16,7 +16,7 @@ platformdirs = "^4.1.0"
 pyserial = "^3.5"
 
 [tool.poetry.scripts]
-pishock = "pishock.cli.cli:app"
+pishock = "pishock.zap.cli.cli:app"
 
 [build-system]
 requires = ["poetry-core"]
