@@ -46,10 +46,10 @@ IntensityOpt: TypeAlias = Annotated[
 
 
 @contextlib.contextmanager
-def handle_errors() -> Iterator[None]:
+def handle_errors(*args: type[Exception]) -> Iterator[None]:
     try:
         yield
-    except (httpapi.APIError, ValueError, serial.SerialException, TimeoutError) as e:
+    except (httpapi.APIError, serial.SerialException, *args) as e:
         cli_utils.print_exception(e)
         raise typer.Exit(1)
 
@@ -99,7 +99,7 @@ def shock(
 ) -> None:
     """Send a shock to the given share code."""
     shocker = get_shocker(ctx.obj, share_code)
-    with handle_errors():
+    with handle_errors(ValueError):
         shocker.shock(duration=duration, intensity=intensity)
 
     print_emoji("zap", duration)
@@ -116,7 +116,7 @@ def vibrate(
 ) -> None:
     """Send a vibration to the given share code."""
     shocker = get_shocker(ctx.obj, share_code)
-    with handle_errors():
+    with handle_errors(ValueError):
         shocker.vibrate(duration=duration, intensity=intensity)
     print_emoji("vibration_mode", duration)
 
@@ -125,7 +125,7 @@ def vibrate(
 def beep(ctx: typer.Context, share_code: ShareCodeArg, duration: DurationOpt) -> None:
     """Send a beep to the given share code."""
     shocker = get_shocker(ctx.obj, share_code)
-    with handle_errors():
+    with handle_errors(ValueError):
         shocker.beep(duration=duration)
     print_emoji("loud_sound", duration)
 
@@ -134,7 +134,7 @@ def beep(ctx: typer.Context, share_code: ShareCodeArg, duration: DurationOpt) ->
 def info(ctx: typer.Context, share_code: ShareCodeArg) -> None:
     """Get information about the given shocker."""
     shocker = get_shocker(ctx.obj, share_code)
-    with handle_errors():
+    with handle_errors(TimeoutError):
         info = shocker.info()
 
     table = rich.table.Table(show_header=False)
