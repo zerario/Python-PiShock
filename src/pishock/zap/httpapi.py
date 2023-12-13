@@ -115,7 +115,7 @@ class UnknownError(APIError):
     """Unknown message returned from the API."""
 
 
-class HTTPAPI:
+class PiShockAPI:
 
     """Base entry point for the PiShock API.
 
@@ -129,7 +129,7 @@ class HTTPAPI:
         self.api_key = api_key
 
     def __repr__(self) -> str:
-        return f"HTTPAPI(username={self.username!r}, api_key=...)"
+        return f"PiShockAPI(username={self.username!r}, api_key=...)"
 
     def request(self, endpoint: str, params: dict[str, Any]) -> requests.Response:
         """Make a raw request to the API.
@@ -232,7 +232,7 @@ class DetailedShockerInfo(core.BasicShockerInfo):
     """Detailed information about a shocker.
 
     Used by :meth:`pishock.HTTPShocker.info()`. Calling
-    :meth:`pishock.HTTPAPI.get_shockers()` or
+    :meth:`pishock.PiShockAPI.get_shockers()` or
     :meth:`pishock.SerialShocker.info()` returns a
     :class:`pishock.BasicShockerInfo` instance instead.
 
@@ -286,7 +286,7 @@ class HTTPShocker(core.Shocker):
     }
 
     def __init__(
-        self, api: HTTPAPI, sharecode: str, name: str | None, log_name: str
+        self, api: PiShockAPI, sharecode: str, name: str | None, log_name: str
     ) -> None:
         self.api = api
         self.sharecode = sharecode

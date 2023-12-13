@@ -477,7 +477,7 @@ def init(
             ":key: PiShock [green]API key[/] "
             "([blue][link]https://pishock.com/#/account[/][/])"
         ).strip()
-        temp_api = httpapi.HTTPAPI(username, api_key)
+        temp_api = httpapi.PiShockAPI(username, api_key)
     else:
         # Credentials already given via environment or arguments
         username = api.username
@@ -563,7 +563,7 @@ def main(
 
     assert username is not None
     assert api_key is not None
-    api = httpapi.HTTPAPI(username, api_key)
+    api = httpapi.PiShockAPI(username, api_key)
 
 
 if __name__ == "__main__":

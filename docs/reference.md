@@ -18,7 +18,7 @@ flat ``pishock`` namespace.
 
 .. autoclass:: DetailedShockerInfo
 
-.. autoclass:: HTTPAPI
+.. autoclass:: PiShockAPI
    :members:
 
 .. autoclass:: HTTPShocker

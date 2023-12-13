@@ -13,8 +13,10 @@ from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
 
 @pytest.fixture
-def api(credentials: FakeCredentials) -> httpapi.HTTPAPI:
-    return httpapi.HTTPAPI(username=credentials.USERNAME, api_key=credentials.API_KEY)
+def api(credentials: FakeCredentials) -> httpapi.PiShockAPI:
+    return httpapi.PiShockAPI(
+        username=credentials.USERNAME, api_key=credentials.API_KEY
+    )
 
 
 @pytest.fixture(params=["api_shocker", "serial_shocker"])
@@ -37,16 +39,16 @@ def serial_shocker(
 
 @pytest.fixture
 def api_shocker(
-    api: httpapi.HTTPAPI, credentials: FakeCredentials
+    api: httpapi.PiShockAPI, credentials: FakeCredentials
 ) -> httpapi.HTTPShocker:
     return api.shocker(credentials.SHARECODE)
 
 
-def test_api_repr(api: httpapi.HTTPAPI, credentials: FakeCredentials) -> None:
-    assert repr(api) == f"HTTPAPI(username='{credentials.USERNAME}', api_key=...)"
+def test_api_repr(api: httpapi.PiShockAPI, credentials: FakeCredentials) -> None:
+    assert repr(api) == f"PiShockAPI(username='{credentials.USERNAME}', api_key=...)"
 
 
-def test_api_not_found(api: httpapi.HTTPAPI, patcher: PiShockPatcher) -> None:
+def test_api_not_found(api: httpapi.PiShockAPI, patcher: PiShockPatcher) -> None:
     status = http.HTTPStatus.NOT_FOUND
     patcher.operate_raw(body=status.description, status=status)
     with pytest.raises(httpapi.HTTPError) as excinfo:
@@ -92,7 +94,7 @@ def test_beep(shocker: core.Shocker, patcher: PiShockPatcher, success_msg: str) 
 
 
 def test_log_name_override(
-    api: httpapi.HTTPAPI,
+    api: httpapi.PiShockAPI,
     patcher: PiShockPatcher,
     credentials: FakeCredentials,
 ) -> None:
@@ -109,7 +111,7 @@ def test_log_name_override(
     ],
 )
 def test_shocker_str(
-    api: httpapi.HTTPAPI,
+    api: httpapi.PiShockAPI,
     patcher: PiShockPatcher,
     credentials: FakeCredentials,
     name: str | None,
@@ -233,13 +235,13 @@ def test_unauthorized(patcher: PiShockPatcher, credentials: FakeCredentials) -> 
         apikey="wrong",
         code="wrong",
     )
-    api = httpapi.HTTPAPI(username=credentials.USERNAME, api_key="wrong")
+    api = httpapi.PiShockAPI(username=credentials.USERNAME, api_key="wrong")
     shocker = api.shocker(sharecode="wrong")
     with pytest.raises(httpapi.NotAuthorizedError):
         shocker.vibrate(duration=1, intensity=2)
 
 
-def test_unknown_share_code(api: httpapi.HTTPAPI, patcher: PiShockPatcher) -> None:
+def test_unknown_share_code(api: httpapi.PiShockAPI, patcher: PiShockPatcher) -> None:
     patcher.operate(
         body=httpapi.ShareCodeNotFoundError.TEXT,
         code="wrong",
@@ -250,7 +252,7 @@ def test_unknown_share_code(api: httpapi.HTTPAPI, patcher: PiShockPatcher) -> No
 
 
 def test_unknown_error(
-    api_shocker: httpapi.HTTPShocker, api: httpapi.HTTPAPI, patcher: PiShockPatcher
+    api_shocker: httpapi.HTTPShocker, api: httpapi.PiShockAPI, patcher: PiShockPatcher
 ) -> None:
     message = "Failed to frobnicate the zap."
     patcher.operate(body=message)
@@ -332,7 +334,9 @@ class TestInfo:
 
 
 class TestGetShockers:
-    def test_get_shockers(self, api: httpapi.HTTPAPI, patcher: PiShockPatcher) -> None:
+    def test_get_shockers(
+        self, api: httpapi.PiShockAPI, patcher: PiShockPatcher
+    ) -> None:
         patcher.get_shockers()
         shockers = api.get_shockers(client_id=1000)
         assert shockers == [
@@ -350,7 +354,9 @@ class TestGetShockers:
             ),
         ]
 
-    def test_invalid_body(self, api: httpapi.HTTPAPI, patcher: PiShockPatcher) -> None:
+    def test_invalid_body(
+        self, api: httpapi.PiShockAPI, patcher: PiShockPatcher
+    ) -> None:
         message = "Not JSON lol"
         patcher.get_shockers_raw(body=message, match=patcher.get_shockers_matchers())
         with pytest.raises(httpapi.UnknownError, match=message):
@@ -365,7 +371,7 @@ class TestGetShockers:
     )
     def test_http_errors(
         self,
-        api: httpapi.HTTPAPI,
+        api: httpapi.PiShockAPI,
         patcher: PiShockPatcher,
         status: http.HTTPStatus,
         exception: type[httpapi.APIError],
@@ -377,14 +383,14 @@ class TestGetShockers:
 
 @pytest.mark.parametrize("valid", [True, False])
 def test_verify_credentials(
-    api: httpapi.HTTPAPI, patcher: PiShockPatcher, valid: bool
+    api: httpapi.PiShockAPI, patcher: PiShockPatcher, valid: bool
 ) -> None:
     patcher.verify_credentials(valid)
     assert api.verify_credentials() == valid
 
 
 def test_verify_credentials_error(
-    api: httpapi.HTTPAPI, patcher: PiShockPatcher
+    api: httpapi.PiShockAPI, patcher: PiShockPatcher
 ) -> None:
     patcher.verify_credentials_raw(
         status=http.HTTPStatus.INTERNAL_SERVER_ERROR,
