@@ -54,9 +54,10 @@ class RangeParser(click.ParamType):
         a = self._parse_single(a_str)
         b = self._parse_single(b_str)
 
-        if b < a:
-            self.fail("Min must be less than max.")
-        return utils.Range(a, b)
+        try:
+            return utils.Range(a, b)
+        except ValueError as e:
+            self.fail(str(e))
 
 
 def parse_duration(duration: str) -> int:

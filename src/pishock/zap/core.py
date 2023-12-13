@@ -21,16 +21,16 @@ class Shocker:
     IS_SERIAL: bool
 
     def shock(self, *, duration: int | float, intensity: int) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def vibrate(self, *, duration: int | float, intensity: int) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def beep(self, duration: int | float) -> None:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def info(self) -> BasicShockerInfo:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 @dataclasses.dataclass

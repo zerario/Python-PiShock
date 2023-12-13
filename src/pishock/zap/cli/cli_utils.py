@@ -69,6 +69,10 @@ class Range:
     a: int
     b: int
 
+    def __post_init__(self) -> None:
+        if self.b < self.a:
+            raise ValueError("Min must be less than max.")
+
     def pick(self) -> int:
         return random.randint(self.a, self.b)
 

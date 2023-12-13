@@ -46,6 +46,13 @@ def config_data(credentials: FakeCredentials) -> ConfigDataType:
     }
 
 
+@pytest.fixture
+def pishock_api(credentials: FakeCredentials) -> httpapi.PiShockAPI:
+    return httpapi.PiShockAPI(
+        username=credentials.USERNAME, api_key=credentials.API_KEY
+    )
+
+
 class Runner:
     def __init__(self, sharecode: str) -> None:
         self._runner = typer.testing.CliRunner()
