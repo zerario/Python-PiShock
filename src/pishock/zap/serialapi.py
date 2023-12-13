@@ -21,6 +21,10 @@ class SerialAutodetectError(Exception):
     """Raised if there are multiple or no PiShocks found via port autodetection."""
 
 
+class ShockerNotFoundError(Exception):
+    """Raised if a shocker ID is not found."""
+
+
 def is_maybe_pishock(info: serial.tools.list_ports.ListPortInfo) -> bool:
     """Check if the given port might be a PiShock."""
     return (info.vid, info.pid) in USB_IDS
@@ -216,6 +220,9 @@ class SerialAPI:
     ) -> None:
         """Operate a shocker.
 
+        Note that the firmware will silently ignore any commands for a
+        non-existing shocker ID.
+
         You should not need to use this directly, use :meth:`shocker` to get
         access to the higher-level :class:`pishock.zap.SerialShocker` instead.
         """
@@ -256,6 +263,9 @@ class SerialShocker(core.Shocker):
     Arguments:
         api: The :class:`SerialAPI` instance to use.
         shocker_id: The ID of the shocker to operate.
+
+    Raises:
+        ShockerNotFoundError: The given ``shocker_id`` was not found.
     """
 
     IS_SERIAL = True
@@ -263,6 +273,7 @@ class SerialShocker(core.Shocker):
     def __init__(self, api: SerialAPI, shocker_id: int) -> None:
         self.shocker_id = shocker_id
         self.api = api
+        self.info()  # make sure the shocker exists
 
     def shock(self, *, duration: int | float, intensity: int) -> None:
         """Send a shock with the given duration (seconds, >0) and intensity (0-100).
@@ -312,6 +323,12 @@ class SerialShocker(core.Shocker):
         """Get information about the shocker."""
         data = self.api.info()
         shockers = {s["id"]: s for s in data["shockers"]}
+        if self.shocker_id not in shockers:
+            available = ", ".join(str(s) for s in shockers)
+            raise ShockerNotFoundError(
+                f"Shocker {self.shocker_id} not found, available: {available}"
+            )
+
         return core.BasicShockerInfo(
             name=f"Serial shocker ({self.api.dev.port})",
             client_id=data["clientId"],

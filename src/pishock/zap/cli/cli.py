@@ -56,13 +56,11 @@ def handle_errors(*args: type[Exception]) -> Iterator[None]:
 
 def get_shocker(app_ctx: cli_utils.AppContext, share_code: str) -> core.Shocker:
     if app_ctx.serial_api is not None:
-        try:
+        with handle_errors(ValueError):
             shocker_id = int(share_code)
-        except ValueError as e:
-            cli_utils.print_exception(e)
-            raise typer.Exit(1)
 
-        return serialapi.SerialShocker(app_ctx.serial_api, shocker_id)
+        with handle_errors(serialapi.ShockerNotFoundError):
+            return serialapi.SerialShocker(app_ctx.serial_api, shocker_id)
 
     assert app_ctx.pishock_api is not None
     share_codes = app_ctx.config.sharecodes
