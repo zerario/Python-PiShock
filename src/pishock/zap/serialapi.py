@@ -20,11 +20,16 @@ class SerialAutodetectError(Exception):
     """Raised if there are multiple or no PiShocks found via port autodetection."""
 
 
+def is_maybe_pishock(info: serial.tools.list_ports.ListPortInfo) -> bool:
+    """Check if the given port might be a PiShock."""
+    return (info.vid, info.pid) in USB_IDS
+
+
 def _autodetect_port() -> str:
     """Auto-detect possible PiShock ports."""
     candidates: list[str] = []
     for info in serial.tools.list_ports.comports():
-        if (info.vid, info.pid) in USB_IDS:
+        if is_maybe_pishock(info):
             candidates.append(info.device)
 
     if len(candidates) == 1:

@@ -43,9 +43,6 @@ def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Run
     monkeypatch.setenv("COLUMNS", "80")  # for future console instances
     monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
     monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
-    # so they get reset after every test
-    monkeypatch.setattr(cli, "api", None)
-    monkeypatch.setattr(cli, "config", None)
     return Runner(credentials.SHARECODE)
 
 

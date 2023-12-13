@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import rich
 import rich.box
@@ -18,7 +18,6 @@ from pishock.zap import serialapi
 """Serial interface commands for PiShock."""
 
 app = typer.Typer(no_args_is_help=True)
-serial_api = None
 
 DEVICE_TYPES = {3: "Lite", 4: "Next"}
 SHOCKER_TYPES = {0: "SmallOne", 1: "Petrainer"}
@@ -124,6 +123,7 @@ def _json_to_rich(data: Dict[str, Any]) -> rich.console.RenderableType:
 
 @app.command()
 def info(
+    ctx: typer.Context,
     show_passwords: Annotated[
         bool, typer.Option(help="Don't conceal WiFi passwords")
     ] = False,
@@ -132,8 +132,7 @@ def info(
     ] = False,
 ) -> None:
     """Show information about this PiShock."""
-    assert serial_api is not None
-    data = serial_api.info()
+    data = ctx.obj.serial_api.info()
     if raw:
         rich.print(data)
     else:
@@ -142,64 +141,44 @@ def info(
 
 
 @app.command()
-def add_network(ssid: str, password: str) -> None:
+def add_network(ctx: typer.Context, ssid: str, password: str) -> None:
     """Add a new network to the PiShock config and reboot."""
-    assert serial_api is not None
-    serial_api.add_network(ssid, password)
-    data = serial_api.wait_info()
+    ctx.obj.serial_api.add_network(ssid, password)
+    data = ctx.obj.serial_api.wait_info()
     _enrich_toplevel_data(data, show_passwords=False)
     rich.print(_json_to_rich(data["networks"]))
 
 
 @app.command()
-def remove_network(ssid: str) -> None:
+def remove_network(ctx: typer.Context, ssid: str) -> None:
     """Remove a network from the PiShock config."""
-    assert serial_api is not None
-    serial_api.remove_network(ssid)
-    data = serial_api.wait_info()
+    ctx.obj.serial_api.remove_network(ssid)
+    data = ctx.obj.serial_api.wait_info()
     _enrich_toplevel_data(data, show_passwords=False)
     rich.print(_json_to_rich(data["networks"]))
 
 
 @app.command()
-def try_connect(ssid: str, password: str) -> None:
+def try_connect(ctx: typer.Context, ssid: str, password: str) -> None:
     """Temporarily try connecting to the given network."""
-    assert serial_api is not None
-    serial_api.try_connect(ssid, password)
+    ctx.obj.serial_api.try_connect(ssid, password)
 
 
 @app.command()
-def restart() -> None:
+def restart(ctx: typer.Context) -> None:
     """Restart the PiShock."""
-    assert serial_api is not None
-    serial_api.restart()
+    ctx.obj.serial_api.restart()
 
 
 @app.command()
-def monitor() -> None:
+def monitor(ctx: typer.Context) -> None:
     """Monitor serial output."""
-    assert serial_api is not None
-    for line in serial_api.monitor():
+    for line in ctx.obj.serial_api.monitor():
         rich.print(line.decode("utf-8", errors="replace"), end="")
         if line.startswith(serialapi.SerialAPI.INFO_PREFIX):
             try:
-                info = serial_api.decode_info(line)
+                info = ctx.obj.serial_api.decode_info(line)
             except json.JSONDecodeError:
                 pass
             else:
                 rich.print(_json_to_rich(info))
-
-
-@app.callback()
-def callback(
-    port: Annotated[Optional[str], typer.Option(help="Serial port")] = None,
-) -> None:
-    """PiShock serial interface commands."""
-    global serial_api
-    try:
-        serial_api = serialapi.SerialAPI(port)
-    except serialapi.SerialAutodetectError as e:
-        cli_utils.print_exception(e)
-        print_serial_ports()
-        raise typer.Exit(1)
-    # FIXME close?
