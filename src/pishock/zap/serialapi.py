@@ -16,6 +16,8 @@ USB_IDS = [
     (0x1A86, 0x55D4),  # CH9102, PiShock Lite
 ]
 
+INFO_TIMEOUT = 20
+
 
 class SerialAutodetectError(Exception):
     """Raised if there are multiple or no PiShocks found via port autodetection."""
@@ -96,7 +98,7 @@ class SerialAPI:
         """Send the given command/value over the serial port."""
         self.dev.write(self._build_cmd(cmd, value))
 
-    def info(self, *, timeout: int | None = 10, debug: bool = False) -> dict[str, Any]:
+    def info(self, *, timeout: int | None = INFO_TIMEOUT, debug: bool = False) -> dict[str, Any]:
         """Get device info.
 
         The exact contents of the returned dict might depend on the PiShock
@@ -142,7 +144,7 @@ class SerialAPI:
         return self.wait_info(timeout=timeout, debug=debug)
 
     def wait_info(
-        self, timeout: int | None = 10, debug: bool = False
+        self, timeout: int | None = INFO_TIMEOUT, debug: bool = False
     ) -> dict[str, Any]:
         """Wait for device info without sending an info command.
 

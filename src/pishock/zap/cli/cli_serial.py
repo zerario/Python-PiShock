@@ -146,7 +146,7 @@ def info(
             help="How many seconds / serial lines to wait for an answer",
             show_default=False,
         ),
-    ] = 10,
+    ] = serialapi.INFO_TIMEOUT,
     debug: Annotated[
         bool, typer.Option(help="Show debug output while waiting", show_default=False)
     ] = False,
