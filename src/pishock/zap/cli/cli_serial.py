@@ -6,11 +6,14 @@ import rich.box
 import rich.console
 import rich.pretty
 import rich.text
-import serial.tools
+import rich.table
 import typer
 from typing_extensions import Annotated
 
-from pishock import cli_utils, serialapi
+import serial.tools  # type: ignore[import-untyped]
+
+from pishock.zap.cli import cli_utils
+from pishock.zap import serialapi
 
 """Serial interface commands for PiShock."""
 
@@ -189,7 +192,7 @@ def callback(
     global serial_api
     try:
         serial_api = serialapi.SerialAPI(port)
-    except serialapi.AutodetectError as e:
+    except serialapi.SerialAutodetectError as e:
         cli_utils.print_exception(e)
         print_serial_ports()
         raise typer.Exit(1)

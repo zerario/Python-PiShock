@@ -10,7 +10,7 @@ import pytest
 from responses import RequestsMock, matchers
 from typing_extensions import TypeAlias
 
-from pishock import zap
+from pishock.zap import httpapi, core
 
 _MatcherType: TypeAlias = Callable[..., Any]
 
@@ -53,10 +53,10 @@ class PiShockPatcher:
     """
 
     HEADERS: dict[str, str | re.Pattern[str]] = {
-        "User-Agent": f"{zap.NAME}/{zap.__version__}",
+        "User-Agent": f"{httpapi.NAME}/{core.__version__}",
         "Content-Type": "application/json",
     }
-    NAME = zap.NAME
+    NAME = httpapi.NAME
 
     def __init__(self, responses: RequestsMock) -> None:
         self.responses = responses
@@ -90,8 +90,8 @@ class PiShockPatcher:
 
     def operate(
         self,
-        body: str = zap.APIShocker.SUCCESS_MESSAGES[0],
-        operation: zap.Operation = zap.Operation.VIBRATE,
+        body: str = httpapi.HTTPShocker.SUCCESS_MESSAGES[0],
+        operation: httpapi.Operation = httpapi.Operation.VIBRATE,
         duration: int | float = 1,
         intensity: int | None = 2,
         name: str | None = None,
@@ -177,7 +177,7 @@ class PiShockPatcher:
         self.responses.post(APIURLs.PAUSE, **kwargs)
 
     def pause(
-        self, pause: bool, body: str = zap.APIShocker.SUCCESS_MESSAGE_PAUSE
+        self, pause: bool, body: str = httpapi.HTTPShocker.SUCCESS_MESSAGE_PAUSE
     ) -> None:
         self.pause_raw(body=body, match=self.pause_matchers(pause))
 

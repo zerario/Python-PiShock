@@ -1,33 +1,34 @@
 # Reference
 
+For convenience, all classes documented here are re-exported in the
+flat ``pishock`` namespace.
+
 ## Basic Data structures
 
 ```{eval-rst}
-.. module:: pishock.zap
-   :no-index:
-
-.. autoclass:: Shocker
-.. autoclass:: BasicShockerInfo
-.. autoclass:: ShockerInfo
+.. autoclass:: pishock.zap.core.Shocker
+.. autoclass:: pishock.zap.core.BasicShockerInfo
 ```
 
 ## API access
 
 ```{eval-rst}
-.. module:: pishock.zap
+.. module:: pishock.zap.httpapi
    :no-index:
 
-.. autoclass:: API
+.. autoclass:: DetailedShockerInfo
+
+.. autoclass:: HTTPAPI
    :members:
 
-.. autoclass:: APIShocker
+.. autoclass:: HTTPShocker
    :members:
 ```
 
 ### API Errors
 
 ```{eval-rst}
-.. module:: pishock.zap
+.. module:: pishock.zap.httpapi
    :no-index:
 
 .. autoexception:: APIError
@@ -53,24 +54,27 @@
 
 ### High-level API
 
-The {class}`pishock.zap.SerialShocker` shares a common
-{class}`pishock.zap.Shocker` base with {class}`pishock.zap.APIShocker`. It can
+The {class}`pishock.zap.serialapi.SerialShocker` shares a common
+{class}`pishock.zap.core.Shocker` base with {class}`pishock.zap.httpapi.HTTPShocker`. It can
 thus act as a drop-in replacement for using the HTTP API, and is recommended for
 most usage.
 
 ```{eval-rst}
-.. autoclass:: pishock.zap.SerialShocker
+.. autoclass:: pishock.zap.serialapi.SerialShocker
    :members:
 ```
 
 ### Low-level API
 
-The low-level {class}`pishock.serialapi.SerialAPI` class can be used to send raw
+The low-level {class}`pishock.zap.serialapi.SerialAPI` class can be used to send raw
 serial commands to the PiShock.
 
 ```{eval-rst}
-.. autoclass:: pishock.serialapi.AutodetectError
-.. autoclass:: pishock.serialapi.SerialOperation
-.. autoclass:: pishock.serialapi.SerialAPI
+.. module:: pishock.zap.serialapi
+   :no-index:
+
+.. autoclass:: SerialAutodetectError
+.. autoclass:: SerialOperation
+.. autoclass:: SerialAPI
    :members:
 ```

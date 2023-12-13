@@ -15,7 +15,8 @@ import rich.console
 import typer.testing
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
-from pishock import cli, zap
+from pishock.zap import httpapi
+from pishock.zap.cli import cli
 
 from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
 
@@ -51,7 +52,7 @@ def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Run
 @pytest.fixture(autouse=True)
 def patcher_cli_name(patcher: PiShockPatcher, monkeypatch: pytest.MonkeyPatch) -> None:
     """Set up the correct name sent to the API for CLI invocations."""
-    monkeypatch.setattr(patcher, "NAME", f"{zap.NAME} CLI")
+    monkeypatch.setattr(patcher, "NAME", f"{httpapi.NAME} CLI")
 
 
 @pytest.fixture(autouse=True)
@@ -292,7 +293,7 @@ def test_shock(
     if keysmash:
         key += "_keysmash"
 
-    patcher.operate(duration=api_duration, operation=zap.Operation.SHOCK)
+    patcher.operate(duration=api_duration, operation=httpapi.Operation.SHOCK)
     monkeypatch.setattr(random, "random", lambda: 0.01 if keysmash else 0.2)
     monkeypatch.setattr(random, "choices", lambda values, k: "asdfg")
 
@@ -312,7 +313,7 @@ def test_vibrate(
     duration: float,
     api_duration: int,
 ) -> None:
-    patcher.operate(duration=api_duration, operation=zap.Operation.VIBRATE)
+    patcher.operate(duration=api_duration, operation=httpapi.Operation.VIBRATE)
     result = runner.run("vibrate", runner.sharecode, "-d", str(duration), "-i", "2")
     assert result.output == golden.out["output_vibrate"]
 
@@ -329,7 +330,9 @@ def test_beep(
     duration: float,
     api_duration: int,
 ) -> None:
-    patcher.operate(operation=zap.Operation.BEEP, intensity=None, duration=api_duration)
+    patcher.operate(
+        operation=httpapi.Operation.BEEP, intensity=None, duration=api_duration
+    )
     result = runner.run("beep", runner.sharecode, "-d", str(duration))
     assert result.output == golden.out["output_beep"]
 
@@ -380,11 +383,11 @@ def test_invalid_inputs(
     assert result.exit_code in [1, 2]
 
 
-@pytest.mark.parametrize("op", list(zap.Operation))
+@pytest.mark.parametrize("op", list(httpapi.Operation))
 @pytest.mark.parametrize(
     "name, text",
     [
-        ("not_authorized", zap.NotAuthorizedError.TEXT),
+        ("not_authorized", httpapi.NotAuthorizedError.TEXT),
         ("unknown_error", "Frobnicating the zap failed"),
     ],
 )
@@ -393,17 +396,17 @@ def test_errors(
     runner: Runner,
     patcher: PiShockPatcher,
     golden: GoldenTestFixture,
-    op: zap.Operation,
+    op: httpapi.Operation,
     name: str,
     text: str,
 ) -> None:
     cmd = op.name.lower()
 
-    intensity = None if op == zap.Operation.BEEP else 2
+    intensity = None if op == httpapi.Operation.BEEP else 2
     patcher.operate(body=text, operation=op, intensity=intensity)
 
     args = [cmd, runner.sharecode, "-d", "1"]
-    if op != zap.Operation.BEEP:
+    if op != httpapi.Operation.BEEP:
         args += ["-i", "2"]
     result = runner.run(*args)
 
@@ -428,7 +431,7 @@ def test_pause_unpause(
 @pytest.mark.parametrize(
     "name, text",
     [
-        ("not_authorized", zap.NotAuthorizedError.TEXT),
+        ("not_authorized", httpapi.NotAuthorizedError.TEXT),
         ("unknown_error", "Frobnicating the zap failed"),
     ],
 )

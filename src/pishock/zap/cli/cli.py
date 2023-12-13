@@ -15,7 +15,8 @@ import rich.table
 import typer
 from typing_extensions import Annotated, TypeAlias
 
-from pishock import cli_random, cli_serial, cli_utils as utils, serialapi, zap
+from pishock.zap import serialapi, core, httpapi
+from pishock.zap.cli import cli_random, cli_serial, cli_utils
 
 """Command-line interface for PiShock."""
 
@@ -89,26 +90,26 @@ IntensityOpt: TypeAlias = Annotated[
 def handle_errors() -> Iterator[None]:
     try:
         yield
-    except (zap.APIError, ValueError) as e:
-        utils.print_exception(e)
+    except (httpapi.APIError, ValueError) as e:
+        cli_utils.print_exception(e)
         raise typer.Exit(1)
 
 
-def get_shocker(share_code: str, *, http_only: bool = False) -> zap.Shocker:
+def get_shocker(share_code: str, *, http_only: bool = False) -> core.Shocker:
     assert config is not None
 
     if serial_api is not None:
         if http_only:
-            utils.print_error("Serial interface does not support this operation.")
+            cli_utils.print_error("Serial interface does not support this operation.")
             raise typer.Exit(1)
 
         try:
             shocker_id = int(share_code)
         except ValueError as e:
-            utils.print_exception(e)
+            cli_utils.print_exception(e)
             raise typer.Exit(1)
 
-        return zap.SerialShocker(serial_api, shocker_id)
+        return serialapi.SerialShocker(serial_api, shocker_id)
 
     assert api is not None
     name = None
@@ -125,7 +126,7 @@ def get_shocker(share_code: str, *, http_only: bool = False) -> zap.Shocker:
             rich.print(f"Did you mean [green]{matches[0]}[/]?")
         raise typer.Exit(1)
 
-    return api.shocker(share_code, name=name, log_name=f"{zap.NAME} CLI")
+    return api.shocker(share_code, name=name, log_name=f"{httpapi.NAME} CLI")
 
 
 def print_emoji(name: str, duration: float) -> None:
@@ -186,8 +187,8 @@ def info(share_code: ShareCodeArg) -> None:
     table.add_row("Shocker ID", str(info.shocker_id))
 
     pause = paused_emoji(info.is_paused)
-    if isinstance(info, zap.ShockerInfo):
-        online = utils.bool_emoji(info.is_online)
+    if isinstance(info, httpapi.DetailedShockerInfo):
+        online = cli_utils.bool_emoji(info.is_online)
         table.add_row("Online / Paused", f"{online} {pause}")
         table.add_row("Max intensity", f"{info.max_intensity}%")
         table.add_row("Max duration", f"{info.max_duration}s")
@@ -201,7 +202,7 @@ def info(share_code: ShareCodeArg) -> None:
 def pause(share_code: ShareCodeArg) -> None:
     """Pause the given shocker."""
     shocker = get_shocker(share_code, http_only=True)
-    assert isinstance(shocker, zap.APIShocker)
+    assert isinstance(shocker, httpapi.HTTPShocker)
     with handle_errors():
         shocker.pause(True)
 
@@ -210,7 +211,7 @@ def pause(share_code: ShareCodeArg) -> None:
 def unpause(share_code: ShareCodeArg) -> None:
     """Unpause the given shocker."""
     shocker = get_shocker(share_code, http_only=True)
-    assert isinstance(shocker, zap.APIShocker)
+    assert isinstance(shocker, httpapi.HTTPShocker)
     with handle_errors():
         shocker.pause(False)
 
@@ -260,12 +261,12 @@ def list_sharecodes_info() -> None:
     ):
         try:
             info = api.shocker(share_code).info()
-        except zap.APIError as e:
+        except httpapi.APIError as e:
             table.add_row(name, share_code, f"[red]{e}[/]")
             continue
 
         pause = paused_emoji(info.is_paused)
-        online = utils.bool_emoji(info.is_online)
+        online = cli_utils.bool_emoji(info.is_online)
         table.add_row(
             name,
             share_code,
@@ -404,9 +405,9 @@ def random_mode(
     intensity: cli_random.IntensityArg,
     pause: cli_random.PauseArg,
     spam_possibility: cli_random.SpamPossibilityArg = 0,
-    spam_operations: cli_random.SpamOperationsArg = utils.Range(5, 25),
-    spam_pause: cli_random.SpamPauseArg = utils.Range(0, 0),
-    spam_duration: cli_random.SpamDurationArg = utils.Range(1, 1),
+    spam_operations: cli_random.SpamOperationsArg = cli_utils.Range(5, 25),
+    spam_pause: cli_random.SpamPauseArg = cli_utils.Range(0, 0),
+    spam_duration: cli_random.SpamDurationArg = cli_utils.Range(1, 1),
     spam_intensity: cli_random.SpamIntensityArg = None,  # use -i
     max_runtime: cli_random.MaxRuntimeArg = None,
     vibrate_duration: cli_random.VibrateDurationArg = None,  # use -d
@@ -476,7 +477,7 @@ def init(
             ":key: PiShock [green]API key[/] "
             "([blue][link]https://pishock.com/#/account[/][/])"
         ).strip()
-        temp_api = zap.API(username, api_key)
+        temp_api = httpapi.HTTPAPI(username, api_key)
     else:
         # Credentials already given via environment or arguments
         username = api.username
@@ -526,14 +527,14 @@ def main(
     config.load()
 
     if port is not None and not serial:
-        utils.print_error("--port option only valid with --serial.")
+        cli_utils.print_error("--port option only valid with --serial.")
         raise typer.Exit(1)
 
     if serial:
         try:
             serial_api = serialapi.SerialAPI(port)
-        except serialapi.AutodetectError as e:
-            utils.print_exception(e)
+        except serialapi.SerialAutodetectError as e:
+            cli_utils.print_exception(e)
             cli_serial.print_serial_ports()
             raise typer.Exit(1)
         return
@@ -562,7 +563,7 @@ def main(
 
     assert username is not None
     assert api_key is not None
-    api = zap.API(username, api_key)
+    api = httpapi.HTTPAPI(username, api_key)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,8 @@ import rich
 import typer
 from typing_extensions import Annotated, TypeAlias
 
-from pishock import cli_utils as utils, zap
+from pishock.zap import httpapi, core
+from pishock.zap.cli import cli_utils as utils
 
 
 class RangeParser(click.ParamType):
@@ -94,7 +95,7 @@ class SpamSettings:
 class RandomShocker:
     def __init__(
         self,
-        shockers: List[zap.Shocker],
+        shockers: List[core.Shocker],
         duration: utils.Range,
         intensity: utils.Range,
         pause: utils.Range,
@@ -117,9 +118,9 @@ class RandomShocker:
         self.start_time = time.monotonic()
         self.operations = []
         if shock:
-            self.operations.append(zap.Operation.SHOCK)
+            self.operations.append(httpapi.Operation.SHOCK)
         if vibrate:
-            self.operations.append(zap.Operation.VIBRATE)
+            self.operations.append(httpapi.Operation.VIBRATE)
 
     def _log(self, message: str) -> None:
         rich.print(message)  # TODO
@@ -128,11 +129,11 @@ class RandomShocker:
     def _handle_errors(self) -> Iterator[None]:
         try:
             yield
-        except (zap.APIError, ValueError) as e:
+        except (httpapi.APIError, ValueError) as e:
             utils.print_exception(e)
 
     def _spam(self) -> None:
-        assert zap.Operation.SHOCK in self.operations
+        assert httpapi.Operation.SHOCK in self.operations
         self._log("[red bold]Spamming.[/]")
         for _ in range(self.spam_settings.operations.pick()):
             shocker = random.choice(self.shockers)
@@ -141,7 +142,7 @@ class RandomShocker:
 
             try:
                 shocker.shock(duration=duration, intensity=intensity)
-            except (zap.APIError, ValueError):
+            except (httpapi.APIError, ValueError):
                 rich.print(":x:", end="", flush=True)
             else:
                 rich.print(f":zap: [green]{intensity}[/green] ", end="", flush=True)
@@ -152,7 +153,7 @@ class RandomShocker:
 
         rich.print()
 
-    def _shock(self, shocker: zap.Shocker) -> None:
+    def _shock(self, shocker: core.Shocker) -> None:
         duration = self.duration.pick()
         intensity = self.intensity.pick()
         self._log(
@@ -162,7 +163,7 @@ class RandomShocker:
         with self._handle_errors():
             shocker.shock(duration=duration, intensity=intensity)
 
-    def _vibrate(self, shocker: zap.Shocker) -> None:
+    def _vibrate(self, shocker: core.Shocker) -> None:
         duration = (self.vibrate_duration or self.duration).pick()
         intensity = (self.vibrate_intensity or self.intensity).pick()
         self._log(
@@ -190,9 +191,9 @@ class RandomShocker:
         operation = random.choice(self.operations)
         shocker = random.choice(self.shockers)
 
-        if operation == zap.Operation.SHOCK:
+        if operation == httpapi.Operation.SHOCK:
             self._shock(shocker)
-        elif operation == zap.Operation.VIBRATE:
+        elif operation == httpapi.Operation.VIBRATE:
             self._vibrate(shocker)
         else:  # pragma: no cover
             raise ValueError(f"Invalid operation: {operation}")

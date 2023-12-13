@@ -7,13 +7,16 @@ from typing import Any, Iterator
 import serial  # type: ignore[import-untyped]
 import serial.tools.list_ports  # type: ignore[import-untyped]
 
+from pishock.zap import core
+
+
 USB_IDS = [
     (0x1A86, 0x7523),  # CH340, PiShock Next
     (0x1A86, 0x55D4),  # CH9102, PiShock Lite
 ]
 
 
-class AutodetectError(Exception):
+class SerialAutodetectError(Exception):
     """Raised if there are multiple or no PiShocks found via port autodetection."""
 
 
@@ -27,9 +30,9 @@ def _autodetect_port() -> str:
     if len(candidates) == 1:
         return candidates[0]
     elif not candidates:
-        raise AutodetectError("No PiShock found via port autodetection.")
+        raise SerialAutodetectError("No PiShock found via port autodetection.")
     else:
-        raise AutodetectError(
+        raise SerialAutodetectError(
             "Multiple (possibly) PiShocks found via port autodetection: "
             f"{', '.join(candidates)}."
         )
@@ -61,7 +64,7 @@ class SerialAPI:
           If ``None``, auto-detection is attempted.
 
     Raises:
-        AutodetectError: No ``port`` was given, and either no PiShock was found, or
+        SerialAutodetectError: No ``port`` was given, and either no PiShock was found, or
           multiple PiShocks were found.
     """
 
@@ -198,3 +201,76 @@ class SerialAPI:
         """Monitor serial output."""
         while True:
             yield self.dev.readline()
+
+
+class SerialShocker(core.Shocker):
+    """Represents a single shocker accessed via serial port.
+
+    Arguments:
+        api: The :class:`SerialAPI` instance to use.
+        shocker_id: The ID of the shocker to operate, as displayed under the
+            cogwheels on the `PiShock website <https://pishock.com/#/control>`_, or
+            available via :meth:`pishock.APIShocker.info()` or
+            :meth:`pishock.SerialAPI.info()`.
+    """
+
+    IS_SERIAL = True
+
+    def __init__(self, api: SerialAPI, shocker_id: int) -> None:
+        self.shocker_id = shocker_id
+        self.api = api
+
+    def shock(self, *, duration: int | float, intensity: int) -> None:
+        """Send a shock with the given duration (seconds, >0) and intensity (0-100).
+
+        Durations can also be floats for fractional seconds.
+
+        Raises:
+            ValueError: ``duration`` or ``intensity`` are out of range.
+        """
+        self.api.operate(
+            shocker_id=self.shocker_id,
+            operation=SerialOperation.SHOCK,
+            duration=duration,
+            intensity=intensity,
+        )
+
+    def vibrate(self, *, duration: int | float, intensity: int) -> None:
+        """Send a vibration with the given duration (seconds, >0) and intensity (0-100).
+
+        Durations can also be floats for fractional seconds.
+
+        Raises:
+            ValueError: ``duration`` or ``intensity`` are out of range.
+        """
+        self.api.operate(
+            shocker_id=self.shocker_id,
+            operation=SerialOperation.VIBRATE,
+            duration=duration,
+            intensity=intensity,
+        )
+
+    def beep(self, duration: int | float) -> None:
+        """Send a beep with the given duration (seconds, >0).
+
+        Durations can also be floats for fractional seconds.
+
+        Raises:
+            ValueError: ``duration`` is out of range.
+        """
+        self.api.operate(
+            shocker_id=self.shocker_id,
+            operation=SerialOperation.BEEP,
+            duration=duration,
+        )
+
+    def info(self) -> core.BasicShockerInfo:
+        """Get information about the shocker."""
+        data = self.api.info()
+        shockers = {s["id"]: s for s in data["shockers"]}
+        return core.BasicShockerInfo(
+            name=f"Serial shocker ({self.api.dev.port})",
+            client_id=data["clientId"],
+            shocker_id=self.shocker_id,
+            is_paused=shockers[self.shocker_id]["paused"],
+        )
