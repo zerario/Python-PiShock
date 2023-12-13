@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import enum
 import json
 from typing import Any, Iterator
@@ -91,7 +92,7 @@ class SerialAPI:
         """Send the given command/value over the serial port."""
         self.dev.write(self._build_cmd(cmd, value))
 
-    def info(self) -> dict[str, Any]:
+    def info(self, *, timeout: int | None = 10, debug: bool = False) -> dict[str, Any]:
         """Get device info.
 
         The exact contents of the returned dict might depend on the PiShock
@@ -125,22 +126,47 @@ class SerialAPI:
                 'internet': True,
                 'ownerId': 6969
             }
+
+        Arguments:
+            timeout: How many seconds or serial lines to wait for the info response.
+            debug: Print the raw serial output to stdout while waiting.
+
+        Raises:
+            TimeoutError: No info was received within the given timeout.
         """
         self._send_cmd("info")
-        return self.wait_info()
+        return self.wait_info(timeout=timeout, debug=debug)
 
-    def wait_info(self) -> dict[str, Any]:
+    def wait_info(
+        self, timeout: int | None = 10, debug: bool = False
+    ) -> dict[str, Any]:
         """Wait for device info without sending an info command.
 
         This will block until the next ``TERMINALINFO:`` line is received. You should
         normally call :meth:`info` instead. This is useful after sending a command
         that is expected to return info on its own, e.g. :meth:`add_network`.
+
+        Arguments:
+            timeout: How many seconds or serial lines to wait for the info response.
+            debug: Print the raw serial output to stdout while waiting.
+
+        Raises:
+            TimeoutError: No info was received within the given timeout.
         """
-        # FIXME Timeout?
-        while True:
+        count = 0
+        while timeout is None or count < timeout:
             line = self.dev.readline()
             if line.startswith(self.INFO_PREFIX):
                 return self.decode_info(line)
+
+            if debug:
+                sys.stdout.buffer.write(line)
+
+            count += 1
+
+        raise TimeoutError(
+            "No info received within timeout. Make sure the given device is indeed a PiShock."
+        )
 
     def decode_info(self, line: bytes) -> dict[str, Any]:
         """Decode a ``TERMINALINFO:`` line.

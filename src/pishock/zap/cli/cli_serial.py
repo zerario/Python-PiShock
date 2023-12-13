@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import rich
 import rich.box
@@ -130,9 +130,24 @@ def info(
     raw: Annotated[
         bool, typer.Option(help="Show raw JSON (implies --show-passwords)")
     ] = False,
+    timeout: Annotated[
+        Optional[int],
+        typer.Option(
+            help="How many seconds / serial lines to wait for an answer",
+            show_default=False,
+        ),
+    ] = 10,
+    debug: Annotated[
+        bool, typer.Option(help="Show debug output while waiting", show_default=False)
+    ] = False,
 ) -> None:
     """Show information about this PiShock."""
-    data = ctx.obj.serial_api.info()
+    try:
+        data = ctx.obj.serial_api.info(timeout=timeout, debug=debug)
+    except TimeoutError as e:
+        cli_utils.print_exception(e)
+        return
+
     if raw:
         rich.print(data)
     else:
@@ -144,18 +159,28 @@ def info(
 def add_network(ctx: typer.Context, ssid: str, password: str) -> None:
     """Add a new network to the PiShock config and reboot."""
     ctx.obj.serial_api.add_network(ssid, password)
-    data = ctx.obj.serial_api.wait_info()
-    _enrich_toplevel_data(data, show_passwords=False)
-    rich.print(_json_to_rich(data["networks"]))
+
+    try:
+        data = ctx.obj.serial_api.wait_info()
+    except TimeoutError as e:
+        cli_utils.print_exception(e)
+    else:
+        _enrich_toplevel_data(data, show_passwords=False)
+        rich.print(_json_to_rich(data["networks"]))
 
 
 @app.command()
 def remove_network(ctx: typer.Context, ssid: str) -> None:
     """Remove a network from the PiShock config."""
     ctx.obj.serial_api.remove_network(ssid)
-    data = ctx.obj.serial_api.wait_info()
-    _enrich_toplevel_data(data, show_passwords=False)
-    rich.print(_json_to_rich(data["networks"]))
+
+    try:
+        data = ctx.obj.serial_api.wait_info()
+    except TimeoutError as e:
+        cli_utils.print_exception(e)
+    else:
+        _enrich_toplevel_data(data, show_passwords=False)
+        rich.print(_json_to_rich(data["networks"]))
 
 
 @app.command()
@@ -173,6 +198,7 @@ def restart(ctx: typer.Context) -> None:
 @app.command()
 def monitor(ctx: typer.Context) -> None:
     """Monitor serial output."""
+    rich.print("[bright_black]Press Ctrl+C to exit.[/]")
     for line in ctx.obj.serial_api.monitor():
         rich.print(line.decode("utf-8", errors="replace"), end="")
         if line.startswith(serialapi.SerialAPI.INFO_PREFIX):
