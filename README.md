@@ -19,12 +19,21 @@ The *bestest* Python PiShock API wrapper and CLI!
 
 Using the CLI to send a vibrate (or a shock, if you dare):
 
-- `pip install pishock`
-- Get your API key [from the website](https://pishock.com/#/account)
-- `pishock init`
-- Generate a share code [on the website](https://pishock.com/#/control)
-- `pishock code add my-shocker ABCDEF12345`
-- `pishock vibrate my-shocker --duration 1 --intensity 10`
+```console
+$ pip install pishock
+[...]
+
+$ pishock init
+👤 PiShock username (your own username): Zerario
+🔑 PiShock API key (https://pishock.com/#/account): 964f1513-c76a-48cc-82d4-41e757d4eb04
+✅ Credentials saved.
+
+$ pishock code-add my-shocker ABCDEF12345
+✅  my-shocker    ABCDEF12345
+
+$ pishock vibrate my-shocker --duration 1 --intensity 20
+📳
+```
 
 Or via the Python API:
 
