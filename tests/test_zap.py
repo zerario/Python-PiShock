@@ -58,7 +58,7 @@ def test_api_not_found(
     assert excinfo.value.status_code == status
 
 
-@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker.SUCCESS_MESSAGES)
+@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker._SUCCESS_MESSAGES)
 def test_vibrate(
     shocker: core.Shocker, patcher: PiShockPatcher, success_msg: str
 ) -> None:
@@ -70,7 +70,7 @@ def test_vibrate(
     shocker.vibrate(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker.SUCCESS_MESSAGES)
+@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker._SUCCESS_MESSAGES)
 def test_shock(
     shocker: core.Shocker, patcher: PiShockPatcher, success_msg: str
 ) -> None:
@@ -82,7 +82,7 @@ def test_shock(
     shocker.shock(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker.SUCCESS_MESSAGES)
+@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker._SUCCESS_MESSAGES)
 def test_beep(shocker: core.Shocker, patcher: PiShockPatcher, success_msg: str) -> None:
     patcher.operate(
         body=success_msg,

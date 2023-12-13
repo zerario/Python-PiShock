@@ -269,12 +269,12 @@ class HTTPShocker(core.Shocker):
     """
 
     IS_SERIAL = False
-    SUCCESS_MESSAGES = [
+    _SUCCESS_MESSAGES = [
         "Operation Succeeded.",
         "Operation Attempted.",
     ]
-    SUCCESS_MESSAGE_PAUSE = "Operation Successful, Probably."  # ...shrug
-    ERROR_MESSAGES = {
+    _SUCCESS_MESSAGE_PAUSE = "Operation Successful, Probably."  # ...shrug
+    _ERROR_MESSAGES = {
         cls.TEXT: cls
         for cls in [
             NotAuthorizedError,
@@ -392,9 +392,9 @@ class HTTPShocker(core.Shocker):
 
         response = self.api.request("apioperate", params)
 
-        if response.text in self.ERROR_MESSAGES:
-            raise self.ERROR_MESSAGES[response.text](response.text)
-        elif response.text not in self.SUCCESS_MESSAGES:
+        if response.text in self._ERROR_MESSAGES:
+            raise self._ERROR_MESSAGES[response.text](response.text)
+        elif response.text not in self._SUCCESS_MESSAGES:
             raise UnknownError(response.text)
 
     def pause(self, pause: bool) -> None:
@@ -418,7 +418,7 @@ class HTTPShocker(core.Shocker):
 
         if response.text == NotAuthorizedError.TEXT:
             raise NotAuthorizedError(response.text)
-        elif response.text != self.SUCCESS_MESSAGE_PAUSE:
+        elif response.text != self._SUCCESS_MESSAGE_PAUSE:
             raise UnknownError(response.text)
 
     def info(self) -> DetailedShockerInfo:

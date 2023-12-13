@@ -148,7 +148,7 @@ class PiShockPatcher:
 
     def operate(
         self,
-        body: str = httpapi.HTTPShocker.SUCCESS_MESSAGES[0],
+        body: str = httpapi.HTTPShocker._SUCCESS_MESSAGES[0],
         operation: httpapi.Operation = httpapi.Operation.VIBRATE,
         duration: int | float = 1,
         intensity: int | None = 2,
@@ -235,7 +235,7 @@ class PiShockPatcher:
         self.responses.post(APIURLs.PAUSE, **kwargs)
 
     def pause(
-        self, pause: bool, body: str = httpapi.HTTPShocker.SUCCESS_MESSAGE_PAUSE
+        self, pause: bool, body: str = httpapi.HTTPShocker._SUCCESS_MESSAGE_PAUSE
     ) -> None:
         self.pause_raw(body=body, match=self.pause_matchers(pause))
 
