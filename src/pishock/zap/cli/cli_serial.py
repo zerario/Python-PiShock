@@ -1,5 +1,6 @@
 import json
-from typing import Any, Dict, Optional
+import contextlib
+from typing import Any, Dict, Optional, Iterator
 
 import rich
 import rich.box
@@ -121,6 +122,15 @@ def _json_to_rich(data: Dict[str, Any]) -> rich.console.RenderableType:
         return rich.pretty.Pretty(data)
 
 
+@contextlib.contextmanager
+def handle_errors() -> Iterator[None]:
+    try:
+        yield
+    except (serial.SerialException, TimeoutError) as e:
+        cli_utils.print_exception(e)
+        raise typer.Exit(1)
+
+
 @app.command()
 def info(
     ctx: typer.Context,
@@ -142,11 +152,8 @@ def info(
     ] = False,
 ) -> None:
     """Show information about this PiShock."""
-    try:
+    with handle_errors():
         data = ctx.obj.serial_api.info(timeout=timeout, debug=debug)
-    except TimeoutError as e:
-        cli_utils.print_exception(e)
-        return
 
     if raw:
         rich.print(data)
@@ -160,13 +167,11 @@ def add_network(ctx: typer.Context, ssid: str, password: str) -> None:
     """Add a new network to the PiShock config and reboot."""
     ctx.obj.serial_api.add_network(ssid, password)
 
-    try:
+    with handle_errors():
         data = ctx.obj.serial_api.wait_info()
-    except TimeoutError as e:
-        cli_utils.print_exception(e)
-    else:
-        _enrich_toplevel_data(data, show_passwords=False)
-        rich.print(_json_to_rich(data["networks"]))
+
+    _enrich_toplevel_data(data, show_passwords=False)
+    rich.print(_json_to_rich(data["networks"]))
 
 
 @app.command()
@@ -174,37 +179,38 @@ def remove_network(ctx: typer.Context, ssid: str) -> None:
     """Remove a network from the PiShock config."""
     ctx.obj.serial_api.remove_network(ssid)
 
-    try:
+    with handle_errors():
         data = ctx.obj.serial_api.wait_info()
-    except TimeoutError as e:
-        cli_utils.print_exception(e)
-    else:
-        _enrich_toplevel_data(data, show_passwords=False)
-        rich.print(_json_to_rich(data["networks"]))
+
+    _enrich_toplevel_data(data, show_passwords=False)
+    rich.print(_json_to_rich(data["networks"]))
 
 
 @app.command()
 def try_connect(ctx: typer.Context, ssid: str, password: str) -> None:
     """Temporarily try connecting to the given network."""
-    ctx.obj.serial_api.try_connect(ssid, password)
+    with handle_errors():
+        ctx.obj.serial_api.try_connect(ssid, password)
 
 
 @app.command()
 def restart(ctx: typer.Context) -> None:
     """Restart the PiShock."""
-    ctx.obj.serial_api.restart()
+    with handle_errors():
+        ctx.obj.serial_api.restart()
 
 
 @app.command()
 def monitor(ctx: typer.Context) -> None:
     """Monitor serial output."""
     rich.print("[bright_black]Press Ctrl+C to exit.[/]")
-    for line in ctx.obj.serial_api.monitor():
-        rich.print(line.decode("utf-8", errors="replace"), end="")
-        if line.startswith(serialapi.SerialAPI.INFO_PREFIX):
-            try:
-                info = ctx.obj.serial_api.decode_info(line)
-            except json.JSONDecodeError:
-                pass
-            else:
-                rich.print(_json_to_rich(info))
+    with handle_errors():
+        for line in ctx.obj.serial_api.monitor():
+            rich.print(line.decode("utf-8", errors="replace"), end="")
+            if line.startswith(serialapi.SerialAPI.INFO_PREFIX):
+                try:
+                    info = ctx.obj.serial_api.decode_info(line)
+                except json.JSONDecodeError:
+                    pass
+                else:
+                    rich.print(_json_to_rich(info))

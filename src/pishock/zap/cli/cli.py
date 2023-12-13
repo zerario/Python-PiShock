@@ -5,6 +5,7 @@ import random
 import sys
 from typing import Iterator, List, Optional
 
+import serial
 import rich
 import rich.progress
 import rich.prompt
@@ -48,7 +49,7 @@ IntensityOpt: TypeAlias = Annotated[
 def handle_errors() -> Iterator[None]:
     try:
         yield
-    except (httpapi.APIError, ValueError) as e:
+    except (httpapi.APIError, ValueError, serial.SerialException, TimeoutError) as e:
         cli_utils.print_exception(e)
         raise typer.Exit(1)
 
@@ -297,7 +298,8 @@ def init_serial(port: Optional[str]) -> cli_utils.AppContext:
 
     # FIXME close?
     try:
-        serial_api = serialapi.SerialAPI(port)
+        with handle_errors():
+            serial_api = serialapi.SerialAPI(port)
     except serialapi.SerialAutodetectError as e:
         cli_utils.print_exception(e)
         cli_serial.print_serial_ports()
