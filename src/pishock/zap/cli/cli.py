@@ -128,6 +128,17 @@ def beep(ctx: typer.Context, share_code: ShareCodeArg, duration: DurationOpt) ->
     print_emoji("loud_sound", duration)
 
 
+@app.command(rich_help_panel="Actions")
+def end(ctx: typer.Context, share_code: ShareCodeArg) -> None:
+    """End the currently running operation, if any."""
+    ctx.obj.ensure_serial_api()
+    shocker = get_shocker(ctx.obj, share_code)
+    assert isinstance(shocker, serialapi.SerialShocker)
+    with handle_errors():
+        shocker.end()
+    print_emoji("x", 1)
+
+
 @app.command(rich_help_panel="Shockers")
 def info(ctx: typer.Context, share_code: ShareCodeArg) -> None:
     """Get information about the given shocker."""

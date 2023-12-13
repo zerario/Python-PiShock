@@ -55,6 +55,12 @@ class AppContext:
     pishock_api: httpapi.PiShockAPI | None
     serial_api: serialapi.SerialAPI | None
 
+    def ensure_serial_api(self) -> serialapi.SerialAPI:
+        if self.serial_api is None:
+            print_error("This command is only available with the serial API.")
+            raise typer.Exit(1)
+        return self.serial_api
+
     def ensure_pishock_api(self) -> httpapi.PiShockAPI:
         if self.pishock_api is None:
             print_error("This command is only available with the HTTP API.")

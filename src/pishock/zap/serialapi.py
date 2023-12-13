@@ -98,7 +98,9 @@ class SerialAPI:
         """Send the given command/value over the serial port."""
         self.dev.write(self._build_cmd(cmd, value))
 
-    def info(self, *, timeout: int | None = INFO_TIMEOUT, debug: bool = False) -> dict[str, Any]:
+    def info(
+        self, *, timeout: int | None = INFO_TIMEOUT, debug: bool = False
+    ) -> dict[str, Any]:
         """Get device info.
 
         The exact contents of the returned dict might depend on the PiShock
@@ -319,6 +321,14 @@ class SerialShocker(core.Shocker):
             shocker_id=self.shocker_id,
             operation=SerialOperation.BEEP,
             duration=duration,
+        )
+
+    def end(self) -> None:
+        """End the currently running operation."""
+        self.api.operate(
+            shocker_id=self.shocker_id,
+            operation=SerialOperation.END,
+            duration=0,
         )
 
     def info(self) -> core.BasicShockerInfo:

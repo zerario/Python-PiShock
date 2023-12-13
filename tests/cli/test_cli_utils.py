@@ -8,7 +8,7 @@ import pytest
 import click.exceptions
 
 from pishock.zap.cli import cli_utils
-from pishock.zap import httpapi
+from pishock.zap import httpapi, serialapi
 
 # for type hints
 from tests.conftest import FakeCredentials, ConfigDataType
@@ -89,6 +89,28 @@ class TestAppContext:
 
         out, _err = capsys.readouterr()
         assert out == "Error: This command is only available with the HTTP API.\n"
+
+    def test_ensure_serial_api(
+        self, config: cli_utils.Config, serial_api: serialapi.SerialAPI
+    ) -> None:
+        app_context = cli_utils.AppContext(
+            config=config,
+            pishock_api=None,
+            serial_api=serial_api,
+        )
+        assert app_context.ensure_serial_api() is serial_api
+
+    def test_ensure_serial_api_not_available(
+        self,
+        app_context: cli_utils.AppContext,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        app_context.serial_api = None
+        with pytest.raises(click.exceptions.Exit):
+            app_context.ensure_serial_api()
+
+        out, _err = capsys.readouterr()
+        assert out == "Error: This command is only available with the serial API.\n"
 
 
 class TestRange:

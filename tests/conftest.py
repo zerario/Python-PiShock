@@ -9,13 +9,14 @@ from typing import Any, Callable, Iterator
 
 import pytest
 import rich
+import serial  # type: ignore[import-untyped]
 import platformdirs
 import click.testing
 import typer.testing
 from responses import RequestsMock, matchers
 from typing_extensions import TypeAlias
 
-from pishock.zap import httpapi, core
+from pishock.zap import httpapi, serialapi, core
 from pishock.zap.cli import cli
 
 _MatcherType: TypeAlias = Callable[..., Any]
@@ -51,6 +52,25 @@ def pishock_api(credentials: FakeCredentials) -> httpapi.PiShockAPI:
     return httpapi.PiShockAPI(
         username=credentials.USERNAME, api_key=credentials.API_KEY
     )
+
+
+@pytest.fixture
+def serial_api(
+    fake_serial: FakeSerial,
+    monkeypatch: pytest.MonkeyPatch,
+    credentials: FakeCredentials,
+) -> serialapi.SerialAPI:
+    monkeypatch.setattr(serial, "Serial", lambda port, baudrate, timeout: fake_serial)
+    api = serialapi.SerialAPI(credentials.SERIAL_PORT)
+    monkeypatch.setattr(
+        api,
+        "info",
+        lambda: {
+            "clientId": credentials.CLIENT_ID,
+            "shockers": [{"id": credentials.SHOCKER_ID, "paused": False}],
+        },
+    )
+    return api
 
 
 class Runner:

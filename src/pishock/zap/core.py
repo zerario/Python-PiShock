@@ -12,10 +12,11 @@ class Shocker:
     """Base class for :class:`pishock.HTTPShocker` and :class:`pishock.SerialShocker`.
 
     Applications which only need access to :meth:`pishock.HTTPShocker.shock()`,
-    :meth:`pishock.HTTPShocker.vibrate()`, :meth:`pishock.HTTPShocker.beep()` and
-    :meth:`pishock.HTTPShocker.info()` (with :class:`BasicShockerInfo` only) can
-    swap out a :class:`pishock.HTTPShocker` for a :class:`pishock.SerialShocker`
-    (with only initialization changing) to support both APIs.
+    :meth:`pishock.HTTPShocker.vibrate()`, :meth:`pishock.HTTPShocker.beep()`,
+    and :meth:`pishock.HTTPShocker.info()` (with :class:`BasicShockerInfo` only)
+    can swap out a :class:`pishock.HTTPShocker` for a
+    :class:`pishock.SerialShocker` (with only initialization changing) to
+    support both APIs.
     """
 
     IS_SERIAL: bool
