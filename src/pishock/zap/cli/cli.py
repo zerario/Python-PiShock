@@ -3,7 +3,7 @@ import difflib
 import pathlib
 import random
 import sys
-from typing import Iterator, List, Optional
+from typing import Iterator, List, Optional, Type
 
 import serial  # type: ignore[import-untyped]
 import rich
@@ -64,7 +64,7 @@ IntensityOpt: TypeAlias = Annotated[
 
 
 @contextlib.contextmanager
-def handle_errors(*args: type[Exception]) -> Iterator[None]:
+def handle_errors(*args: Type[Exception]) -> Iterator[None]:
     try:
         yield
     except (httpapi.APIError, serial.SerialException, *args) as e:
