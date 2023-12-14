@@ -1,26 +1,26 @@
 output: |
-  🔗  test1  62142069AA1
-  🔗  test2  62142069AA2
-  🔗  test3  62142069AA3
-  ✅  test4  62142069AA4
+  🔗  test1  62142069AA1  1001
+  🔗  test2  62142069AA2  1002
+  🔗  test3  62142069AA3  1003
+  ✅  test4  62142069AA4  1004
 output_force: |
-  🔗  test1  62142069AA1
-  🔗  test2  62142069AA2
-  🔗  test3  62142069AA3
-  ✅  test4  62142069AA4
+  🔗  test1  62142069AA1  1001
+  🔗  test2  62142069AA2  1002
+  🔗  test3  62142069AA3  1003
+  ✅  test4  62142069AA4  1004
 output_invalid: |
   Error: Share code 62142069ABX is not valid.
 output_overwrite_yes: |
-  ✅  test1  62142069AB1
-  🔗  test2  62142069AA2
-  🔗  test3  62142069AA3
+  ✅  test1  62142069AB1  1001
+  🔗  test2  62142069AA2  1002
+  🔗  test3  62142069AA3  1003
 output_overwrite_no: |
   Aborted.
 output_overwrite_force: |
-  ✅  test1  62142069AB1
-  🔗  test2  62142069AA2
-  🔗  test3  62142069AA3
+  ✅  test1  62142069AB1  1001
+  🔗  test2  62142069AA2  1002
+  🔗  test3  62142069AA3  1003
 output_force_empty: |
-  ✅  test4  62142069AA4
+  ✅  test4  62142069AA4  1004
 output_empty: |
-  ✅  test4  62142069AA4
+  ✅  test4  62142069AA4  1004

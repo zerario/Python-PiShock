@@ -1,13 +1,13 @@
 output_ok: |
-  🔗  test2  62142069AA2
-  🔗  test3  62142069AA3
-  ✅  test4  62142069AA1
+  🔗  test2  62142069AA2  1002
+  🔗  test3  62142069AA3  1003
+  ✅  test4  62142069AA1  1001
 output_exists-overwrite: |
-  🔗  test2  62142069AA2
-  ✅  test3  62142069AA1
+  🔗  test2  62142069AA2  1002
+  ✅  test3  62142069AA1  1001
 output_exists-force: |
-  🔗  test2  62142069AA2
-  ✅  test3  62142069AA1
+  🔗  test2  62142069AA2  1002
+  ✅  test3  62142069AA1  1001
 output_exists-abort: ''
 output_same: |
   Error: New name is the same as the old name.

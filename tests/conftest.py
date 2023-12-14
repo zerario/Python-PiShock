@@ -20,7 +20,7 @@ from pishock.zap import httpapi, serialapi, core
 from pishock.zap.cli import cli
 
 _MatcherType: TypeAlias = Callable[..., Any]
-ConfigDataType: TypeAlias = dict[str, dict[str, str]]
+ConfigDataType: TypeAlias = dict[str, dict[str, Any]]
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +43,7 @@ def config_data(credentials: FakeCredentials) -> ConfigDataType:
             "username": credentials.USERNAME,
             "key": credentials.API_KEY,
         },
-        "sharecodes": {},
+        "shockers": {},
     }
 
 
@@ -225,12 +225,13 @@ class PiShockPatcher:
         sharecode: str = FakeCredentials.SHARECODE,
         paused: bool = False,
         online: bool = True,
+        shocker_id: int = 1001,
     ) -> None:
         self.info_raw(
             json={
                 "name": "test shocker",
                 "clientId": 1000,
-                "id": 1001,
+                "id": shocker_id,
                 "paused": paused,
                 "online": online,
                 "maxIntensity": 100,

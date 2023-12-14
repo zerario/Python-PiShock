@@ -28,10 +28,11 @@ def init_config(
     data = copy.deepcopy(config_data)
 
     if not request.node.get_closest_marker("empty_config"):
-        data["sharecodes"] = {
-            "test1": "62142069AA1",
-            "test3": "62142069AA3",  # unsorted to test sorting too
-            "test2": "62142069AA2",
+        data["shockers"] = {
+            "test1": {"sharecode": "62142069AA1", "shocker_id": 1001},
+            # unsorted to test sorting too
+            "test3": {"sharecode": "62142069AA3", "shocker_id": 1003},
+            "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
         }
 
     with config_path.open("w") as f:
@@ -119,12 +120,16 @@ def test_list(
 def test_add(
     runner: Runner,
     golden: GoldenTestFixture,
+    patcher: PiShockPatcher,
     config_path: pathlib.Path,
     has_codes: bool,
     force: bool,
 ) -> None:
+    new_code = "62142069AA4"
     force_arg = ["--force"] if force else []
-    result = runner.run("code", "add", "test4", "62142069AA4", *force_arg)
+
+    patcher.info(sharecode=new_code, shocker_id=1004)
+    result = runner.run("code", "add", "test4", new_code, *force_arg)
 
     suffix = "_force" if force else ""
     if not has_codes:
@@ -137,14 +142,16 @@ def test_add(
         data = json.load(f)
 
     if has_codes:
-        assert data["sharecodes"] == {
-            "test1": "62142069AA1",
-            "test3": "62142069AA3",
-            "test2": "62142069AA2",
-            "test4": "62142069AA4",
+        assert data["shockers"] == {
+            "test1": {"sharecode": "62142069AA1", "shocker_id": 1001},
+            "test3": {"sharecode": "62142069AA3", "shocker_id": 1003},
+            "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
+            "test4": {"sharecode": new_code, "shocker_id": 1004},
         }
     else:
-        assert data["sharecodes"] == {"test4": "62142069AA4"}
+        assert data["shockers"] == {
+            "test4": {"sharecode": new_code, "shocker_id": 1004}
+        }
 
 
 @pytest.mark.parametrize("confirmed", [True, False, "--force"])
@@ -154,6 +161,7 @@ def test_add_overwrite(
     config_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     golden: GoldenTestFixture,
+    patcher: PiShockPatcher,
     confirmed: bool | str,
 ) -> None:
     if confirmed != "--force":
@@ -166,24 +174,28 @@ def test_add_overwrite(
     }
     suffix = suffixes[confirmed]
 
+    new_code = "62142069AB1"
     force_arg = ["--force"] if confirmed == "--force" else []
-    result = runner.run("code", "add", "test1", "62142069AB1", *force_arg)
+
+    if confirmed:
+        patcher.info(sharecode=new_code)
+    result = runner.run("code", "add", "test1", new_code, *force_arg)
     assert result.output == golden.out[f"output_overwrite_{suffix}"]
     assert result.exit_code == (0 if confirmed else 1)
 
     with config_path.open("r") as f:
         data = json.load(f)
     if confirmed:
-        assert data["sharecodes"] == {
-            "test1": "62142069AB1",
-            "test3": "62142069AA3",
-            "test2": "62142069AA2",
+        assert data["shockers"] == {
+            "test1": {"sharecode": new_code, "shocker_id": 1001},
+            "test3": {"sharecode": "62142069AA3", "shocker_id": 1003},
+            "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
         }
     else:
-        assert data["sharecodes"] == {
-            "test1": "62142069AA1",
-            "test3": "62142069AA3",
-            "test2": "62142069AA2",
+        assert data["shockers"] == {
+            "test1": {"sharecode": "62142069AA1", "shocker_id": 1001},
+            "test3": {"sharecode": "62142069AA3", "shocker_id": 1003},
+            "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
         }
 
 
@@ -199,10 +211,10 @@ def test_add_invalid(
 
     with config_path.open("r") as f:
         data = json.load(f)
-    assert data["sharecodes"] == {
-        "test1": "62142069AA1",
-        "test3": "62142069AA3",
-        "test2": "62142069AA2",
+    assert data["shockers"] == {
+        "test1": {"sharecode": "62142069AA1", "shocker_id": 1001},
+        "test3": {"sharecode": "62142069AA3", "shocker_id": 1003},
+        "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
     }
 
 
@@ -225,12 +237,12 @@ def test_del(
         data = json.load(f)
 
     if has_codes:
-        assert data["sharecodes"] == {
-            "test3": "62142069AA3",
-            "test2": "62142069AA2",
+        assert data["shockers"] == {
+            "test3": {"sharecode": "62142069AA3", "shocker_id": 1003},
+            "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
         }
     else:
-        assert data["sharecodes"] == {}
+        assert data["shockers"] == {}
 
 
 @pytest.mark.parametrize(
@@ -269,19 +281,19 @@ def test_rename(
         data = json.load(f)
 
     if successful and overwrite:
-        assert data["sharecodes"] == {
-            "test3": "62142069AA1",
-            "test2": "62142069AA2",
+        assert data["shockers"] == {
+            "test3": {"sharecode": "62142069AA1", "shocker_id": 1001},
+            "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
         }
     elif successful:
-        assert data["sharecodes"] == {
-            "test4": "62142069AA1",
-            "test3": "62142069AA3",
-            "test2": "62142069AA2",
+        assert data["shockers"] == {
+            "test4": {"sharecode": "62142069AA1", "shocker_id": 1001},
+            "test3": {"sharecode": "62142069AA3", "shocker_id": 1003},
+            "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
         }
     else:
-        assert data["sharecodes"] == {
-            "test1": "62142069AA1",
-            "test3": "62142069AA3",
-            "test2": "62142069AA2",
+        assert data["shockers"] == {
+            "test1": {"sharecode": "62142069AA1", "shocker_id": 1001},
+            "test3": {"sharecode": "62142069AA3", "shocker_id": 1003},
+            "test2": {"sharecode": "62142069AA2", "shocker_id": 1002},
         }

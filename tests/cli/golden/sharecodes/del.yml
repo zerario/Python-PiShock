@@ -1,6 +1,6 @@
 output: |
-  ❌  test1  62142069AA1
-  🔗  test2  62142069AA2
-  🔗  test3  62142069AA3
+  ❌  test1  62142069AA1  1001
+  🔗  test2  62142069AA2  1002
+  🔗  test3  62142069AA3  1003
 output_empty: |
   Error: Name test1 not found.

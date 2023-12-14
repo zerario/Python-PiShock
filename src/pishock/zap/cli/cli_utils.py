@@ -5,6 +5,7 @@ import dataclasses
 import random
 import pathlib
 import json
+from typing import Any
 
 import platformdirs
 import rich
@@ -16,6 +17,18 @@ SHARE_CODE_REGEX = re.compile(r"^[0-9A-F]{11}$")  # 11 upper case hex digits
 SHOCKER_ID_REGEX = re.compile(r"^[0-9]{3,5}$")  # 3-5 decimal digits
 
 
+@dataclasses.dataclass
+class ShockerInfo:
+    sharecode: str | None = None
+    shocker_id: int | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return dataclasses.asdict(self)
+
+    def __str__(self) -> str:
+        return str(self.sharecode or self.shocker_id or "???")
+
+
 class Config:
     def __init__(self) -> None:
         self._path = pathlib.Path(
@@ -25,7 +38,7 @@ class Config:
 
         self.username: str | None = None
         self.api_key: str | None = None
-        self.sharecodes: dict[str, str] = {}
+        self.shockers: dict[str, ShockerInfo] = {}
 
     def load(self) -> None:
         if not self._path.exists():
@@ -35,7 +48,18 @@ class Config:
 
         self.username = data["api"]["username"]
         self.api_key = data["api"]["key"]
-        self.sharecodes = data.get("sharecodes", {})
+
+        if "sharecodes" in data:
+            self.shockers = {
+                name: ShockerInfo(sharecode=sharecode)
+                for name, sharecode in data["sharecodes"].items()
+            }
+        elif "shockers" in data:
+            self.shockers = {
+                name: ShockerInfo(**info) for name, info in data["shockers"].items()
+            }
+        else:
+            self.shockers = {}
 
     def save(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,7 +68,7 @@ class Config:
                 "username": self.username,
                 "key": self.api_key,
             },
-            "sharecodes": self.sharecodes,
+            "shockers": {name: info.to_dict() for name, info in self.shockers.items()},
         }
         with self._path.open("w") as f:
             json.dump(data, f)

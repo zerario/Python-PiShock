@@ -3,6 +3,7 @@ from typing import Optional
 import rich
 import rich.table
 import rich.progress
+import rich.prompt
 import typer
 from typing_extensions import Annotated
 
@@ -15,7 +16,7 @@ app = typer.Typer()
 
 def list_sharecodes_info(app_ctx: cli_utils.AppContext) -> None:
     """List all saved share codes with additional info from the API."""
-    if not app_ctx.config.sharecodes:
+    if not app_ctx.config.shockers:
         rich.print("[yellow]No share codes saved.[/]")
         return
 
@@ -37,26 +38,27 @@ def list_sharecodes_info(app_ctx: cli_utils.AppContext) -> None:
     table.add_column("Max intensity")
     table.add_column("Max duration")
 
-    for name, share_code in rich.progress.track(
-        sorted(app_ctx.config.sharecodes.items()), description="Gathering info..."
+    for name, info in rich.progress.track(
+        sorted(app_ctx.config.shockers.items()), description="Gathering info..."
     ):
+        assert info.sharecode is not None
         try:
-            info = pishock_api.shocker(share_code).info()
+            api_info = pishock_api.shocker(info.sharecode).info()
         except httpapi.APIError as e:
-            table.add_row(name, share_code, f"[red]{e}[/]")
+            table.add_row(name, info.sharecode, f"[red]{e}[/]")
             continue
 
-        pause = cli_utils.paused_emoji(info.is_paused)
-        online = cli_utils.bool_emoji(info.is_online)
+        pause = cli_utils.paused_emoji(api_info.is_paused)
+        online = cli_utils.bool_emoji(api_info.is_online)
         table.add_row(
             name,
-            share_code,
-            info.name,
-            str(info.client_id),
-            str(info.shocker_id),
+            info.sharecode,
+            api_info.name,
+            str(api_info.client_id),
+            str(api_info.shocker_id),
             f"{online} {pause}",
-            f"{info.max_intensity}%",
-            f"{info.max_duration}s",
+            f"{api_info.max_intensity}%",
+            f"{api_info.max_duration}s",
         )
 
     rich.print(table)
@@ -68,7 +70,7 @@ def list_sharecodes(
     removed: Optional[str] = None,
 ) -> None:
     """List all saved share codes."""
-    if not config.sharecodes:
+    if not config.shockers:
         rich.print("[yellow]No share codes saved.[/]")
         return
 
@@ -77,8 +79,9 @@ def list_sharecodes(
     table.add_column("")  # emoji
     table.add_column("Name", style="green")
     table.add_column("Share code")
+    table.add_column("Shocker ID")
 
-    for name, share_code in sorted(config.sharecodes.items()):
+    for name, info in sorted(config.shockers.items()):
         if name == added:
             emoji = ":white_check_mark:"
             style = "green"
@@ -88,7 +91,7 @@ def list_sharecodes(
         else:
             emoji = ":link:"
             style = None
-        table.add_row(emoji, name, share_code, style=style)
+        table.add_row(emoji, name, info.sharecode, str(info.shocker_id), style=style)
 
     rich.print(table)
 
@@ -107,15 +110,24 @@ def add(
         rich.print(f"[yellow]Error:[/] Share code [green]{share_code}[/] is not valid.")
         raise typer.Exit(1)
 
-    if name in config.sharecodes and not force:
-        code = config.sharecodes[name]
+    if name in config.shockers and not force:
+        info = config.shockers[name]
         ok = rich.prompt.Confirm.ask(
-            f"Name [green]{name}[/] already exists ({code}). Overwrite?"
+            f"Name [green]{name}[/] already exists ({info}). Overwrite?"
         )
         if not ok:
             raise typer.Abort()
 
-    config.sharecodes[name] = share_code
+    pishock_api = ctx.obj.ensure_pishock_api()
+    try:
+        shocker_id = pishock_api.shocker(share_code).info().shocker_id
+    except httpapi.APIError as e:
+        cli_utils.print_exception(e)
+        raise typer.Exit(1)
+
+    config.shockers[name] = cli_utils.ShockerInfo(
+        sharecode=share_code, shocker_id=shocker_id
+    )
     config.save()
     list_sharecodes(config, added=name)
 
@@ -128,12 +140,12 @@ def del_(
     """Delete a saved share code."""
     config = ctx.obj.config
 
-    if name not in config.sharecodes:
+    if name not in config.shockers:
         rich.print(f"[red]Error:[/] Name [green]{name}[/] not found.")
         raise typer.Exit(1)
 
     list_sharecodes(config, removed=name)
-    del config.sharecodes[name]
+    del config.shockers[name]
     config.save()
 
 
@@ -147,23 +159,23 @@ def rename(
     """Rename a saved share code."""
     config = ctx.obj.config
 
-    if name not in config.sharecodes:
+    if name not in config.shockers:
         rich.print(f"[red]Error:[/] Name [green]{name}[/] not found.")
         raise typer.Exit(1)
     if name == new_name:
         rich.print("[red]Error:[/] New name is the same as the old name.")
         raise typer.Exit(1)
 
-    if new_name in config.sharecodes and not force:
-        code = config.sharecodes[name]
+    if new_name in config.shockers and not force:
+        info = config.shockers[name]
         ok = rich.prompt.Confirm.ask(
-            f"Name [green]{name}[/] already exists ({code}). Overwrite?"
+            f"Name [green]{name}[/] already exists ({info}). Overwrite?"
         )
         if not ok:
             raise typer.Exit(1)
 
-    config.sharecodes[new_name] = config.sharecodes[name]
-    del config.sharecodes[name]
+    config.shockers[new_name] = config.shockers[name]
+    del config.shockers[name]
     config.save()
     list_sharecodes(config, added=new_name, removed=name)
 
