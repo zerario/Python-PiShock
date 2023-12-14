@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import enum
 import tempfile
+from typing import Iterator
 
 import pishock
 from pishock.zap import httpapi, serialapi
@@ -36,22 +39,25 @@ def is_compatible(
         raise ValueError(f"Unknown device type: {device_type}")
 
 
-def download_firmware(firmware_type: FirmwareType) -> bytes:
+def download_firmware(firmware_type: FirmwareType) -> tuple[int, Iterator[bytes]]:
     """Get the latest firmware for the given device.
+
+    Returns:
+        A tuple of the firmware size, and an iterator over the firmware data.
 
     Raises:
         requests.HTTPError: If the request fails.
     """
-    # FIXME stream?
     headers = {"User-Agent": f"{httpapi.NAME}/{pishock.__version__}"}
     response = requests.get(
         "https://do.pishock.com/api/GetLatestFirmware",
         params={"type": firmware_type.value},
         headers=headers,
+        stream=True,
     )
     response.raise_for_status()
-
-    return response.content
+    size = int(response.headers["Content-Length"])
+    return size, response.iter_content(chunk_size=4096)
 
 
 def truncate(data: bytes) -> bytes:

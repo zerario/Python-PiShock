@@ -7,7 +7,7 @@ The *bestest* Python PiShock API wrapper and CLI!
 > *If you have no idea what [PiShock](https://pishock.com/#/?campaign=zerario) is: I'm left wondering how you found this, but it's an ecosystem around using dog shock collars on humans (clearly the better way to use them!).*
 
 - Pythonic, **easy-to-use API**.
-- Beautiful **command-line interface** to send shocks/vibrates/beeps, manage share codes, keep someone on their toes with **random shocks**, interfacing with the PiShock over **USB/serial**, and more!
+- Beautiful **command-line interface** to send shocks/vibrates/beeps, manage share codes, keep someone on their toes with **random shocks**, interfacing with the PiShock over **USB/serial**, updating firmware, and more!
 - **Ticks the boxes**: Support for **mini-shocks**, getting **shocker info**, and various other undocumented API features. If it's possible to do, this project probably supports it.
 - **Local shocking**: Drop-in support for the **USB serial API** instead of HTTP.
 - **Battle-tested**: I accidentally shocked my balls while developing so you don't have to (I *wish* this was a joke).

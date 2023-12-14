@@ -302,7 +302,7 @@ def _validate_before_flash(
 
 
 @contextlib.contextmanager
-def hide_progress(progress: rich.progress.Progress):
+def hide_progress(progress: rich.progress.Progress) -> Iterator[None]:
     """Temporarily hide progress for confirm messages.
 
     See https://github.com/Textualize/rich/issues/1535#issuecomment-1745297594
@@ -335,6 +335,16 @@ def flash(
         bool,
         typer.Option(help="Restore WiFi networks after flashing"),
     ] = True,
+    check: Annotated[
+        bool,
+        typer.Option(
+            help=(
+                "Run additional checks on device. Passing --no-check allows flashing "
+                "devices currently not running propely without waiting for a timeout, "
+                "but implies --no-restore-networks."
+            )
+        ),
+    ] = True,
 ) -> None:
     """Flash the latest firmware."""
     if esptool is None:
@@ -352,9 +362,12 @@ def flash(
         )
 
         api_type = firmwareupdate.FirmwareType[firmware_type.name]
-        info = _validate_before_flash(
-            ctx.obj.serial_api, firmware_type=api_type, progress=progress
-        )
+        if check:
+            info = _validate_before_flash(
+                ctx.obj.serial_api, firmware_type=api_type, progress=progress
+            )
+        else:
+            info = None
 
         if info is None or not restore_networks:
             networks = None
@@ -369,8 +382,17 @@ def flash(
                 rich.print()
 
         progress.update(task, advance=1, description=FlashProgress.DOWNLOAD.value)
+
+        chunks = []
         with handle_errors(requests.HTTPError):
-            data = firmwareupdate.download_firmware(api_type)
+            size, data_iter = firmwareupdate.download_firmware(api_type)
+            download_task = progress.add_task("Downloading...", total=size)
+            for chunk in data_iter:
+                progress.advance(download_task, len(chunk))
+                chunks.append(chunk)
+
+        progress.update(download_task, visible=False)
+        data = b"".join(chunks)
 
         progress.update(task, advance=1, description=FlashProgress.TRUNCATE.value)
         with handle_errors(firmwareupdate.FirmwareUpdateError):
@@ -389,7 +411,7 @@ def flash(
 
         progress.update(task, advance=1, description=FlashProgress.WAIT_INFO.value)
         with handle_errors():
-            info = ctx.obj.serial_api.wait_info(timeout=None)
+            ctx.obj.serial_api.wait_info(timeout=None)
 
         progress.update(
             task, advance=1, description=FlashProgress.RESTORE_NETWORKS.value
@@ -407,17 +429,17 @@ def flash(
                     ctx.obj.serial_api.wait_info(timeout=None)
 
             progress.update(net_task, advance=1, description="Validating")
-            info = ctx.obj.serial_api.info()
+            new_info = ctx.obj.serial_api.info()
             restored = [
                 (net["ssid"], net["password"])
-                for net in info.get("networks", [])
+                for net in new_info.get("networks", [])
                 if net["ssid"] != "PiShock"
             ]
             if networks != restored:
-                rich.print(f"[red]Restored networks don't match saved networks:[/]")
+                rich.print("[red]Restored networks don't match saved networks:[/]")
                 rich.print(f"Saved:    {networks}")
                 rich.print(f"Restored: {restored}")
 
-            progress.update(net_task, advance=1, description="Done")
+            progress.update(net_task, visible=False)
 
-        progress.update(task, advance=1, description="Done")
+        progress.update(task, visible=False)
