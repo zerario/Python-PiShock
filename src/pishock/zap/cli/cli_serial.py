@@ -1,6 +1,7 @@
+import enum
 import json
 import contextlib
-from typing import Any, Dict, Optional, Iterator
+from typing import Any, Dict, Optional, Iterator, Type
 
 import rich
 import rich.box
@@ -8,19 +9,26 @@ import rich.console
 import rich.pretty
 import rich.text
 import rich.table
+import rich.prompt
 import typer
+import requests
 from typing_extensions import Annotated
-
 import serial.tools  # type: ignore[import-untyped]
+
+try:
+    import esptool  # type: ignore[import-untyped]
+except ModuleNotFoundError:
+    esptool = None
 
 from pishock.zap.cli import cli_utils
 from pishock.zap import serialapi
+from pishock import firmwareupdate
 
 """Serial interface commands for PiShock."""
 
 app = typer.Typer(no_args_is_help=True)
 
-DEVICE_TYPES = {3: "Lite", 4: "Next"}
+
 SHOCKER_TYPES = {0: "SmallOne", 1: "Petrainer"}
 
 
@@ -94,9 +102,13 @@ def _enrich_toplevel_data(data: Dict[str, Any], show_passwords: bool) -> None:
         data["shockers"] = shockers
 
     pishock_type = data.get("type")
-    if pishock_type is not None and pishock_type in DEVICE_TYPES:
+    try:
+        type_name = serialapi.DeviceType(pishock_type).name.capitalize()
+    except ValueError:
+        pass
+    else:
         text = rich.text.Text(str(pishock_type))
-        text.append(f" ({DEVICE_TYPES[pishock_type]})", style="bright_black")
+        text.append(f" ({type_name})", style="bright_black")
         data["type"] = text
 
 
@@ -123,10 +135,10 @@ def _json_to_rich(data: Dict[str, Any]) -> rich.console.RenderableType:
 
 
 @contextlib.contextmanager
-def handle_errors() -> Iterator[None]:
+def handle_errors(*args: Type[Exception]) -> Iterator[None]:
     try:
         yield
-    except (serial.SerialException, TimeoutError) as e:
+    except (serial.SerialException, *args) as e:
         cli_utils.print_exception(e)
         raise typer.Exit(1)
 
@@ -152,7 +164,7 @@ def info(
     ] = False,
 ) -> None:
     """Show information about this PiShock."""
-    with handle_errors():
+    with handle_errors(TimeoutError):
         data = ctx.obj.serial_api.info(timeout=timeout, debug=debug)
 
     if raw:
@@ -165,9 +177,8 @@ def info(
 @app.command()
 def add_network(ctx: typer.Context, ssid: str, password: str) -> None:
     """Add a new network to the PiShock config and reboot."""
-    ctx.obj.serial_api.add_network(ssid, password)
-
-    with handle_errors():
+    with handle_errors(TimeoutError):
+        ctx.obj.serial_api.add_network(ssid, password)
         data = ctx.obj.serial_api.wait_info()
 
     _enrich_toplevel_data(data, show_passwords=False)
@@ -177,9 +188,8 @@ def add_network(ctx: typer.Context, ssid: str, password: str) -> None:
 @app.command()
 def remove_network(ctx: typer.Context, ssid: str) -> None:
     """Remove a network from the PiShock config."""
-    ctx.obj.serial_api.remove_network(ssid)
-
-    with handle_errors():
+    with handle_errors(TimeoutError):
+        ctx.obj.serial_api.remove_network(ssid)
         data = ctx.obj.serial_api.wait_info()
 
     _enrich_toplevel_data(data, show_passwords=False)
@@ -214,3 +224,118 @@ def monitor(ctx: typer.Context) -> None:
                     pass
                 else:
                     rich.print(_json_to_rich(info))
+
+
+# Should line up with firmwareupdate.FirmwareType!
+class FirmwareType(enum.Enum):
+    V1_LITE = "v1-lite"
+    VAULT = "vault"  # untested!
+    V1_NEXT = "v1-next"
+    V3_NEXT = "v3-next"
+    V3_LITE = "v3-lite"
+
+
+def _validate_before_flash(
+    serial_api: serialapi.SerialAPI, firmware_type: firmwareupdate.FirmwareType
+) -> Optional[Dict[str, Any]]:
+    """Validate the info response."""
+    try:
+        info = serial_api.info()
+    except (serial.SerialException, TimeoutError):
+        ok = rich.prompt.Confirm.ask(
+            f"Can't connect to PiShock at {serial_api.dev.port}, flash anyway?"
+        )
+        if ok:
+            return None
+        raise typer.Abort()
+
+    try:
+        device_type = serialapi.DeviceType(info.get("type"))
+    except ValueError:
+        ok = rich.prompt.Confirm.ask(
+            f"Unknown device type {info.get('type')} at {serial_api.dev.port}, flash anyway?"
+        )
+        if ok:
+            return info
+        raise typer.Abort()
+
+    if not firmwareupdate.is_compatible(
+        device_type=device_type, firmware_type=firmware_type
+    ):
+        ok = rich.prompt.Confirm.ask(
+            f"Device type {device_type.name} at {serial_api.dev.port} might not be "
+            f"compatible with selected firmware {firmware_type.name}, flash anyway?"
+        )
+        if ok:
+            return info
+        raise typer.Abort()
+
+    return info
+
+
+@app.command()
+def flash(
+    ctx: typer.Context,
+    firmware_type: Annotated[
+        FirmwareType,
+        typer.Argument(
+            help=(
+                "Which firmware to flash. V1/V3 are old/new firmare versions, Lite is "
+                "a PiShock with a MicroUSB port, Next is a PiShock with an USB-C port."
+            )
+        ),
+    ],
+    restore_networks: Annotated[
+        bool,
+        typer.Option(help="Restore WiFi networks after flashing"),
+    ] = True,
+) -> None:
+    """Flash the latest firmware."""
+    if esptool is None:
+        cli_utils.print_error(
+            "Optional esptool dependency is required for firmware updates"
+        )
+        raise typer.Exit(1)
+
+    rich.print("Checking device state...")
+    api_type = firmwareupdate.FirmwareType[firmware_type.name]
+    info = _validate_before_flash(ctx.obj.serial_api, firmware_type=api_type)
+
+    if info is None or not restore_networks:
+        networks = None
+    else:
+        networks = [
+            (net["ssid"], net["password"])
+            for net in info.get("networks", [])
+            if net["ssid"] != "PiShock"
+        ]
+        rich.print(f"Saved networks: {', '.join(ssid for ssid, _ in networks)}")
+
+    # FIXME nicer output
+    rich.print("Downloading firmware...")
+    with handle_errors(requests.HTTPError):
+        data = firmwareupdate.download_firmware(api_type)
+
+    rich.print("Truncating firmware...")
+    with handle_errors(firmwareupdate.FirmwareUpdateError):
+        data = firmwareupdate.truncate(data)
+
+    rich.print("Flashing firmware...")
+    with handle_errors(
+        firmwareupdate.FirmwareUpdateError, esptool.FatalError, StopIteration, OSError
+    ):
+        firmwareupdate.flash(ctx.obj.serial_api.dev.port, data)
+
+    rich.print("Waiting for info...")
+    with handle_errors():
+        info = ctx.obj.serial_api.wait_info(timeout=None)
+
+    if networks is not None:
+        with handle_errors():
+            for ssid, password in networks:
+                rich.print(f"Restoring network: {ssid}...")
+                ctx.obj.serial_api.add_network(ssid, password)
+                rich.print("Waiting for info...")
+                ctx.obj.serial_api.wait_info(timeout=None, debug=True)
+                rich.print("Waiting for reboot...")
+                ctx.obj.serial_api.wait_info(timeout=None, debug=True)

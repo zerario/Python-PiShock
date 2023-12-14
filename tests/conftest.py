@@ -16,7 +16,8 @@ import typer.testing
 from responses import RequestsMock, matchers
 from typing_extensions import TypeAlias
 
-from pishock.zap import httpapi, serialapi, core
+import pishock
+from pishock.zap import httpapi, serialapi
 from pishock.zap.cli import cli
 
 _MatcherType: TypeAlias = Callable[..., Any]
@@ -132,7 +133,7 @@ class PiShockPatcher:
     """
 
     HEADERS: dict[str, str | re.Pattern[str]] = {
-        "User-Agent": f"{httpapi.NAME}/{core.__version__}",
+        "User-Agent": f"{httpapi.NAME}/{pishock.__version__}",
         "Content-Type": "application/json",
     }
     NAME = httpapi.NAME

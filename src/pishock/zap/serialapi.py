@@ -19,6 +19,11 @@ USB_IDS = [
 INFO_TIMEOUT = 20
 
 
+class DeviceType(enum.Enum):
+    NEXT = 3
+    LITE = 4
+
+
 class SerialAutodetectError(Exception):
     """Raised if there are multiple or no PiShocks found via port autodetection."""
 
@@ -111,7 +116,7 @@ class SerialAPI:
 
             {
                 'version': '3.1.1.231119.1556',
-                'type': 4,  # 3 = Lite, 4 = Lext
+                'type': 4,  # 3 = Next, 4 = Lite
                 'connected': False,
                 'clientId': 621,
                 'wifi': 'redacted-wifi-ssid',

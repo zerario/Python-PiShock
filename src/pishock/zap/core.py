@@ -4,9 +4,6 @@ import dataclasses
 from typing import Any
 
 
-__version__ = "0.1.0"
-
-
 class Shocker:
 
     """Base class for :class:`pishock.HTTPShocker` and :class:`pishock.SerialShocker`.

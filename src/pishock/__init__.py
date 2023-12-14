@@ -1,7 +1,8 @@
+__version__ = "0.1.0"
+
 from .zap.core import (
     Shocker as Shocker,
     BasicShockerInfo as BasicShockerInfo,
-    __version__ as __version__,
 )
 
 from pishock.zap.httpapi import (
