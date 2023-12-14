@@ -34,7 +34,7 @@ def list_sharecodes_info(app_ctx: cli_utils.AppContext) -> None:
     table.add_column("Shocker Name")
     table.add_column("PiShock ID")
     table.add_column("Shocker ID")
-    table.add_column("Online / Paused")
+    table.add_column("Paused")
     table.add_column("Max intensity")
     table.add_column("Max duration")
 
@@ -55,14 +55,13 @@ def list_sharecodes_info(app_ctx: cli_utils.AppContext) -> None:
             )
 
         pause = cli_utils.paused_emoji(api_info.is_paused)
-        online = cli_utils.bool_emoji(api_info.is_online)
         table.add_row(
             name,
             info.sharecode,
             api_info.name,
             str(api_info.client_id),
             str(api_info.shocker_id),
-            f"{online} {pause}",
+            pause,
             f"{api_info.max_intensity}%",
             f"{api_info.max_duration}s",
         )

@@ -1,38 +1,38 @@
 output_paused: |
-  ┌─────────────────┬──────────────┐
-  │ Name            │ test shocker │
-  │ PiShock ID      │ 1000         │
-  │ Shocker ID      │ 1001         │
-  │ Online / Paused │ ✅ ⏸         │
-  │ Max intensity   │ 100%         │
-  │ Max duration    │ 15s          │
-  └─────────────────┴──────────────┘
+  ┌───────────────┬──────────────┐
+  │ Name          │ test shocker │
+  │ PiShock ID    │ 1000         │
+  │ Shocker ID    │ 1001         │
+  │ Paused        │ ⏸            │
+  │ Max intensity │ 100%         │
+  │ Max duration  │ 15s          │
+  └───────────────┴──────────────┘
 output_offline_paused: |
-  ┌─────────────────┬──────────────┐
-  │ Name            │ test shocker │
-  │ PiShock ID      │ 1000         │
-  │ Shocker ID      │ 1001         │
-  │ Online / Paused │ ❌ ⏸         │
-  │ Max intensity   │ 100%         │
-  │ Max duration    │ 15s          │
-  └─────────────────┴──────────────┘
+  ┌───────────────┬──────────────┐
+  │ Name          │ test shocker │
+  │ PiShock ID    │ 1000         │
+  │ Shocker ID    │ 1001         │
+  │ Paused        │ ⏸            │
+  │ Max intensity │ 100%         │
+  │ Max duration  │ 15s          │
+  └───────────────┴──────────────┘
 output: |
-  ┌─────────────────┬──────────────┐
-  │ Name            │ test shocker │
-  │ PiShock ID      │ 1000         │
-  │ Shocker ID      │ 1001         │
-  │ Online / Paused │ ✅ ▶         │
-  │ Max intensity   │ 100%         │
-  │ Max duration    │ 15s          │
-  └─────────────────┴──────────────┘
+  ┌───────────────┬──────────────┐
+  │ Name          │ test shocker │
+  │ PiShock ID    │ 1000         │
+  │ Shocker ID    │ 1001         │
+  │ Paused        │ ▶            │
+  │ Max intensity │ 100%         │
+  │ Max duration  │ 15s          │
+  └───────────────┴──────────────┘
 output_offline: |
-  ┌─────────────────┬──────────────┐
-  │ Name            │ test shocker │
-  │ PiShock ID      │ 1000         │
-  │ Shocker ID      │ 1001         │
-  │ Online / Paused │ ❌ ▶         │
-  │ Max intensity   │ 100%         │
-  │ Max duration    │ 15s          │
-  └─────────────────┴──────────────┘
+  ┌───────────────┬──────────────┐
+  │ Name          │ test shocker │
+  │ PiShock ID    │ 1000         │
+  │ Shocker ID    │ 1001         │
+  │ Paused        │ ▶            │
+  │ Max intensity │ 100%         │
+  │ Max duration  │ 15s          │
+  └───────────────┴──────────────┘
 output_error: |
   Error: Not JSON lol (UnknownError)

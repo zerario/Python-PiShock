@@ -197,8 +197,7 @@ def info(ctx: typer.Context, shocker: ShockerArg) -> None:
 
     pause = cli_utils.paused_emoji(info.is_paused)
     if isinstance(info, httpapi.DetailedShockerInfo):
-        online = cli_utils.bool_emoji(info.is_online)
-        table.add_row("Online / Paused", f"{online} {pause}")
+        table.add_row("Paused", pause)
         table.add_row("Max intensity", f"{info.max_intensity}%")
         table.add_row("Max duration", f"{info.max_duration}s")
     else:

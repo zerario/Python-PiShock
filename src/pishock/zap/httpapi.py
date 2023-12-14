@@ -239,12 +239,10 @@ class DetailedShockerInfo(core.BasicShockerInfo):
     This class extends :class:`pishock.BasicShockerInfo` with the following attributes:
 
     Attributes:
-        is_online: Whether the PiShock is currently connected.
         max_intensity: The maximum intensity (0-100) the shocker can be set to.
         max_duration: The maximum duration (0-15) the shocker can be set to.
     """
 
-    is_online: bool
     max_intensity: int
     max_duration: int
 
@@ -255,7 +253,6 @@ class DetailedShockerInfo(core.BasicShockerInfo):
             client_id=data["clientId"],
             shocker_id=data["id"],
             is_paused=data["paused"],
-            is_online=data["online"],
             max_intensity=data["maxIntensity"],
             max_duration=data["maxDuration"],
         )

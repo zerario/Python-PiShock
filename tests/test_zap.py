@@ -296,7 +296,6 @@ class TestInfo:
         assert info.shocker_id == 1001
         assert not info.is_paused
         if isinstance(info, httpapi.DetailedShockerInfo):  # not serial
-            assert info.is_online
             assert info.max_intensity == 100
             assert info.max_duration == 15
 
