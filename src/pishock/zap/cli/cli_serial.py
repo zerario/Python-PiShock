@@ -288,6 +288,16 @@ def _validate_before_flash(
                 return info
             raise typer.Abort()
 
+    if not info.get("networks"):
+        with hide_progress(progress):
+            ok = rich.prompt.Confirm.ask(
+                "No existing networks found on PiShock at "
+                f"[green]{serial_api.dev.port}[/], flash anyway?"
+            )
+            if ok:
+                return info
+            raise typer.Abort()
+
     return info
 
 
@@ -354,7 +364,8 @@ def flash(
                 for net in info.get("networks", [])
                 if net["ssid"] != "PiShock"
             ]
-            rich.print(f"Saved networks: {', '.join(ssid for ssid, _ in networks)}")
+            if networks:
+                rich.print(f"Saved networks: {', '.join(ssid for ssid, _ in networks)}")
 
         progress.update(task, advance=1, description=FlashProgress.DOWNLOAD.value)
         with handle_errors(requests.HTTPError):
