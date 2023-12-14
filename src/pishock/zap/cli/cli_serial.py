@@ -165,7 +165,7 @@ def info(
     ] = False,
 ) -> None:
     """Show information about this PiShock."""
-    with handle_errors(TimeoutError):
+    with handle_errors(TimeoutError, json.JSONDecodeError):
         data = ctx.obj.serial_api.info(timeout=timeout, debug=debug)
 
     if raw:
@@ -253,7 +253,7 @@ def _validate_before_flash(
     """Validate the info response."""
     try:
         info = serial_api.info()
-    except (serial.SerialException, TimeoutError):
+    except (serial.SerialException, TimeoutError, json.JSONDecodeError):
         with hide_progress(progress):
             ok = rich.prompt.Confirm.ask(
                 "Can't communicate with PiShock firmware at "
@@ -366,6 +366,7 @@ def flash(
             ]
             if networks:
                 rich.print(f"Saved networks: {', '.join(ssid for ssid, _ in networks)}")
+                rich.print()
 
         progress.update(task, advance=1, description=FlashProgress.DOWNLOAD.value)
         with handle_errors(requests.HTTPError):
@@ -384,6 +385,8 @@ def flash(
         ):
             firmwareupdate.flash(ctx.obj.serial_api.dev.port, data)
 
+        rich.print()
+
         progress.update(task, advance=1, description=FlashProgress.WAIT_INFO.value)
         with handle_errors():
             info = ctx.obj.serial_api.wait_info(timeout=None)
@@ -392,15 +395,29 @@ def flash(
             task, advance=1, description=FlashProgress.RESTORE_NETWORKS.value
         )
         if networks:
-            net_task = progress.add_task("Restoring networks", total=len(networks) + 1)
+            net_task = progress.add_task("Restoring networks", total=len(networks) + 2)
             with handle_errors():
                 for ssid, password in networks:
                     progress.update(net_task, advance=1, description=ssid)
                     rich.print("Adding network...")
                     ctx.obj.serial_api.add_network(ssid, password)
                     rich.print("Waiting for info...")
-                    ctx.obj.serial_api.wait_info(timeout=None, debug=True)
+                    ctx.obj.serial_api.wait_info(timeout=None)
                     rich.print("Waiting for reboot...")
-                    ctx.obj.serial_api.wait_info(timeout=None, debug=True)
+                    ctx.obj.serial_api.wait_info(timeout=None)
+
+            progress.update(net_task, advance=1, description="Validating")
+            info = ctx.obj.serial_api.info()
+            restored = [
+                (net["ssid"], net["password"])
+                for net in info.get("networks", [])
+                if net["ssid"] != "PiShock"
+            ]
+            if networks != restored:
+                rich.print(f"[red]Restored networks don't match saved networks:[/]")
+                rich.print(f"Saved:    {networks}")
+                rich.print(f"Restored: {restored}")
+
+            progress.update(net_task, advance=1, description="Done")
 
         progress.update(task, advance=1, description="Done")
