@@ -13,6 +13,7 @@ import typer
 from pishock.zap import serialapi, httpapi
 
 SHARE_CODE_REGEX = re.compile(r"^[0-9A-F]{11}$")  # 11 upper case hex digits
+SHOCKER_ID_REGEX = re.compile(r"^[0-9]{3,5}$")  # 3-5 decimal digits
 
 
 class Config:
