@@ -14,6 +14,7 @@ The *bestest* Python PiShock API wrapper and CLI!
 - **High-quality, modern** codebase: Type annotations in [Mypy strict mode](https://mypy.readthedocs.io/en/stable/), Linting/Formatting via [Ruff](https://docs.astral.sh/ruff/), Automated tests with [pytest](https://docs.pytest.org/).
 - **Made with love**: Decent test coverage, CI, nice documentation, …. — I love zappies and I love going the extra mile!
 - **Almost official**: While this is not an official pishock.com product, I'm the same person who developed the code running on your PiShock that's sending out the shocks.
+- **Runs anywhere**: Tested on CPython 3.8 to 3.12, on Windows, macOS and Linux. Possibly CircuitPython soon?
 
 ---
 
