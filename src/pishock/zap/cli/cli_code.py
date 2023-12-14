@@ -47,6 +47,13 @@ def list_sharecodes_info(app_ctx: cli_utils.AppContext) -> None:
             table.add_row(name, info.sharecode, f"[red]{e}[/]")
             continue
 
+        if api_info.shocker_id != info.shocker_id:
+            rich.print(
+                f"[yellow]Warning:[/] Shocker ID mismatch for [green]{name}[/]: "
+                f"config has [green]{info.shocker_id}[/] but API claims "
+                f"[green]{api_info.shocker_id}[/]. Consider deleting and re-adding."
+            )
+
         pause = cli_utils.paused_emoji(api_info.is_paused)
         online = cli_utils.bool_emoji(api_info.is_online)
         table.add_row(
@@ -60,6 +67,7 @@ def list_sharecodes_info(app_ctx: cli_utils.AppContext) -> None:
             f"{api_info.max_duration}s",
         )
 
+    rich.print()
     rich.print(table)
 
 

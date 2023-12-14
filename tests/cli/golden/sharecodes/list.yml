@@ -11,7 +11,10 @@ output_info_not_authorized: |
   🔗  test2  62142069AA2  1002
   🔗  test3  62142069AA3  1003
 output_info: |
+  Warning: Shocker ID mismatch for test3: config has 1003 but API claims 1001. 
+  Consider deleting and re-adding.
   Gathering info... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+
   ┏━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━┓
   ┃       ┃         ┃         ┃         ┃         ┃ Online  ┃          ┃         ┃
   ┃       ┃ Share   ┃ Shocker ┃ PiShock ┃ Shocker ┃ /       ┃ Max      ┃ Max     ┃
