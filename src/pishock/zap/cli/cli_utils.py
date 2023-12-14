@@ -19,8 +19,8 @@ SHOCKER_ID_REGEX = re.compile(r"^[0-9]{3,5}$")  # 3-5 decimal digits
 
 @dataclasses.dataclass
 class ShockerInfo:
-    sharecode: str | None = None
-    shocker_id: int | None = None
+    sharecode: str
+    shocker_id: int | None
 
     def to_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -51,7 +51,7 @@ class Config:
 
         if "sharecodes" in data:
             self.shockers = {
-                name: ShockerInfo(sharecode=sharecode)
+                name: ShockerInfo(sharecode=sharecode, shocker_id=None)
                 for name, sharecode in data["sharecodes"].items()
             }
         elif "shockers" in data:

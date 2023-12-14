@@ -41,7 +41,6 @@ def list_sharecodes_info(app_ctx: cli_utils.AppContext) -> None:
     for name, info in rich.progress.track(
         sorted(app_ctx.config.shockers.items()), description="Gathering info..."
     ):
-        assert info.sharecode is not None
         try:
             api_info = pishock_api.shocker(info.sharecode).info()
         except httpapi.APIError as e:

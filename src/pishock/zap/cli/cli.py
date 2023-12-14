@@ -75,18 +75,22 @@ def handle_errors(*args: type[Exception]) -> Iterator[None]:
 def get_shocker(app_ctx: cli_utils.AppContext, shocker: str) -> core.Shocker:
     config = app_ctx.config
     name = None
+    shocker_id = None
+    sharecode = None
 
     if shocker in config.shockers:
         name = shocker
         info = config.shockers[shocker]
+        shocker_id = info.shocker_id
+        sharecode = info.sharecode
     elif cli_utils.SHOCKER_ID_REGEX.match(shocker):
         if app_ctx.serial_api is None:
             cli_utils.print_error("Shocker IDs are only valid with serial API.")
             raise typer.Exit(1)
 
-        info = cli_utils.ShockerInfo(sharecode=None, shocker_id=int(shocker))
+        shocker_id = int(shocker)
     elif cli_utils.SHARE_CODE_REGEX.match(shocker):
-        info = cli_utils.ShockerInfo(sharecode=shocker)
+        sharecode = shocker
     else:
         rich.print(
             f"[yellow]Error:[/] Share code [green]{shocker}[/] not in valid share "
@@ -98,27 +102,27 @@ def get_shocker(app_ctx: cli_utils.AppContext, shocker: str) -> core.Shocker:
         raise typer.Exit(1)
 
     if app_ctx.pishock_api is not None:
-        assert info.sharecode is not None
+        assert sharecode is not None
         return app_ctx.pishock_api.shocker(
-            info.sharecode, name=name, log_name=f"{httpapi.NAME} CLI"
+            sharecode, name=name, log_name=f"{httpapi.NAME} CLI"
         )
     else:
         assert app_ctx.serial_api is not None
-        if info.shocker_id is None:
-            assert info.sharecode is not None
+        if shocker_id is None:
+            assert sharecode is not None
             rich.print("[yellow]Warning:[/] Doing HTTP API call to resolve share code.")
             temp_ctx = init_pishock_api(username=None, api_key=None, is_init=False)
             temp_api = temp_ctx.ensure_pishock_api()
             with handle_errors():
-                info.shocker_id = temp_api.shocker(info.sharecode).info().shocker_id
+                shocker_id = temp_api.shocker(sharecode).info().shocker_id
             rich.print(
                 f"   [yellow]Hint:[/] Use [green]--serial[/] with shocker ID "
-                f"[green]{info.shocker_id}[/] instead of share code, or use "
+                f"[green]{shocker_id}[/] instead of share code, or use "
                 "[green]code add[/] to save the share code with its shocker ID."
             )
 
         with handle_errors(serialapi.ShockerNotFoundError):
-            return serialapi.SerialShocker(app_ctx.serial_api, info.shocker_id)
+            return serialapi.SerialShocker(app_ctx.serial_api, shocker_id)
 
 
 def print_emoji(name: str, duration: float) -> None:
