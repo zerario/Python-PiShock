@@ -10,6 +10,7 @@ import rich.pretty
 import rich.text
 import rich.table
 import rich.prompt
+import rich.progress
 import typer
 import requests
 from typing_extensions import Annotated
@@ -235,42 +236,77 @@ class FirmwareType(enum.Enum):
     V3_LITE = "v3-lite"
 
 
+class FlashProgress(enum.Enum):
+    CHECK_STATE = "Checking device state"
+    DOWNLOAD = "Downloading firmware"
+    TRUNCATE = "Truncating firmware"
+    FLASH = "Flashing firmware"
+    WAIT_INFO = "Waiting for info"
+    RESTORE_NETWORKS = "Restoring networks"
+
+
 def _validate_before_flash(
-    serial_api: serialapi.SerialAPI, firmware_type: firmwareupdate.FirmwareType
+    serial_api: serialapi.SerialAPI,
+    firmware_type: firmwareupdate.FirmwareType,
+    progress: rich.progress.Progress,
 ) -> Optional[Dict[str, Any]]:
     """Validate the info response."""
     try:
         info = serial_api.info()
     except (serial.SerialException, TimeoutError):
-        ok = rich.prompt.Confirm.ask(
-            f"Can't connect to PiShock at {serial_api.dev.port}, flash anyway?"
-        )
-        if ok:
-            return None
-        raise typer.Abort()
+        with hide_progress(progress):
+            ok = rich.prompt.Confirm.ask(
+                "Can't communicate with PiShock firmware at "
+                f"[green]{serial_api.dev.port}[/], flash anyway?"
+            )
+            if ok:
+                return None
+            raise typer.Abort()
 
     try:
         device_type = serialapi.DeviceType(info.get("type"))
     except ValueError:
-        ok = rich.prompt.Confirm.ask(
-            f"Unknown device type {info.get('type')} at {serial_api.dev.port}, flash anyway?"
-        )
-        if ok:
-            return info
-        raise typer.Abort()
+        with hide_progress(progress):
+            ok = rich.prompt.Confirm.ask(
+                f"Unknown device type [green]{info.get('type')}[/] at "
+                f"[green]{serial_api.dev.port}[/], flash anyway?"
+            )
+            if ok:
+                return info
+            raise typer.Abort()
 
     if not firmwareupdate.is_compatible(
         device_type=device_type, firmware_type=firmware_type
     ):
-        ok = rich.prompt.Confirm.ask(
-            f"Device type {device_type.name} at {serial_api.dev.port} might not be "
-            f"compatible with selected firmware {firmware_type.name}, flash anyway?"
-        )
-        if ok:
-            return info
-        raise typer.Abort()
+        with hide_progress(progress):
+            ok = rich.prompt.Confirm.ask(
+                f"Device type [green]{device_type.name}[/] at "
+                f"[green]{serial_api.dev.port}[/] might not be compatible with "
+                f"selected firmware [green]{firmware_type.name}[/], flash anyway?"
+            )
+            if ok:
+                return info
+            raise typer.Abort()
 
     return info
+
+
+@contextlib.contextmanager
+def hide_progress(progress: rich.progress.Progress):
+    """Temporarily hide progress for confirm messages.
+
+    See https://github.com/Textualize/rich/issues/1535#issuecomment-1745297594
+    """
+    transient = progress.live.transient  # save the old value
+    progress.live.transient = True
+    progress.stop()
+    progress.live.transient = transient  # restore the old value
+    try:
+        yield
+    finally:
+        # make space for the progress to use so it doesn't overwrite any previous lines
+        print("\n" * (len(progress.tasks) - 2))
+        progress.start()
 
 
 @app.command()
@@ -297,45 +333,63 @@ def flash(
         )
         raise typer.Exit(1)
 
-    rich.print("Checking device state...")
-    api_type = firmwareupdate.FirmwareType[firmware_type.name]
-    info = _validate_before_flash(ctx.obj.serial_api, firmware_type=api_type)
+    with rich.progress.Progress(
+        rich.progress.SpinnerColumn(),
+        *rich.progress.Progress.get_default_columns()[:-1],  # no ETA
+    ) as progress:
+        task = progress.add_task(
+            FlashProgress.CHECK_STATE.value, total=len(FlashProgress)
+        )
 
-    if info is None or not restore_networks:
-        networks = None
-    else:
-        networks = [
-            (net["ssid"], net["password"])
-            for net in info.get("networks", [])
-            if net["ssid"] != "PiShock"
-        ]
-        rich.print(f"Saved networks: {', '.join(ssid for ssid, _ in networks)}")
+        api_type = firmwareupdate.FirmwareType[firmware_type.name]
+        info = _validate_before_flash(
+            ctx.obj.serial_api, firmware_type=api_type, progress=progress
+        )
 
-    # FIXME nicer output
-    rich.print("Downloading firmware...")
-    with handle_errors(requests.HTTPError):
-        data = firmwareupdate.download_firmware(api_type)
+        if info is None or not restore_networks:
+            networks = None
+        else:
+            networks = [
+                (net["ssid"], net["password"])
+                for net in info.get("networks", [])
+                if net["ssid"] != "PiShock"
+            ]
+            rich.print(f"Saved networks: {', '.join(ssid for ssid, _ in networks)}")
 
-    rich.print("Truncating firmware...")
-    with handle_errors(firmwareupdate.FirmwareUpdateError):
-        data = firmwareupdate.truncate(data)
+        progress.update(task, advance=1, description=FlashProgress.DOWNLOAD.value)
+        with handle_errors(requests.HTTPError):
+            data = firmwareupdate.download_firmware(api_type)
 
-    rich.print("Flashing firmware...")
-    with handle_errors(
-        firmwareupdate.FirmwareUpdateError, esptool.FatalError, StopIteration, OSError
-    ):
-        firmwareupdate.flash(ctx.obj.serial_api.dev.port, data)
+        progress.update(task, advance=1, description=FlashProgress.TRUNCATE.value)
+        with handle_errors(firmwareupdate.FirmwareUpdateError):
+            data = firmwareupdate.truncate(data)
 
-    rich.print("Waiting for info...")
-    with handle_errors():
-        info = ctx.obj.serial_api.wait_info(timeout=None)
+        progress.update(task, advance=1, description=FlashProgress.FLASH.value)
+        with handle_errors(
+            firmwareupdate.FirmwareUpdateError,
+            esptool.FatalError,
+            StopIteration,
+            OSError,
+        ):
+            firmwareupdate.flash(ctx.obj.serial_api.dev.port, data)
 
-    if networks is not None:
+        progress.update(task, advance=1, description=FlashProgress.WAIT_INFO.value)
         with handle_errors():
-            for ssid, password in networks:
-                rich.print(f"Restoring network: {ssid}...")
-                ctx.obj.serial_api.add_network(ssid, password)
-                rich.print("Waiting for info...")
-                ctx.obj.serial_api.wait_info(timeout=None, debug=True)
-                rich.print("Waiting for reboot...")
-                ctx.obj.serial_api.wait_info(timeout=None, debug=True)
+            info = ctx.obj.serial_api.wait_info(timeout=None)
+
+        progress.update(
+            task, advance=1, description=FlashProgress.RESTORE_NETWORKS.value
+        )
+        if networks:
+            net_task = progress.add_task("Restoring networks", total=len(networks) + 1)
+            with handle_errors():
+                for ssid, password in networks:
+                    progress.update(net_task, advance=1, description=ssid)
+                    rich.print("Adding network...")
+                    ctx.obj.serial_api.add_network(ssid, password)
+                    rich.print("Waiting for info...")
+                    ctx.obj.serial_api.wait_info(timeout=None, debug=True)
+                    rich.print("Waiting for reboot...")
+                    ctx.obj.serial_api.wait_info(timeout=None, debug=True)
+
+        progress.update(task, advance=1, description="Done")
