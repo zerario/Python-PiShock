@@ -129,7 +129,7 @@ def _json_to_rich(data: Dict[str, Any]) -> rich.console.RenderableType:
         return table
     elif isinstance(data, str):
         return data
-    elif isinstance(data, rich.console.RenderableType):
+    elif isinstance(data, rich.console.ConsoleRenderable):
         return data
     else:
         return rich.pretty.Pretty(data)
