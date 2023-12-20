@@ -5,7 +5,7 @@ import io
 import json
 import re
 import pathlib
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, Dict
 
 import pytest
 import rich
@@ -21,7 +21,7 @@ from pishock.zap import httpapi, serialapi
 from pishock.zap.cli import cli
 
 _MatcherType: TypeAlias = Callable[..., Any]
-ConfigDataType: TypeAlias = dict[str, dict[str, Any]]
+ConfigDataType: TypeAlias = Dict[str, Dict[str, Any]]
 
 
 @pytest.fixture(autouse=True)
