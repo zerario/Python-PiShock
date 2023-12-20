@@ -30,7 +30,7 @@ from pishock import firmwareupdate
 app = typer.Typer(no_args_is_help=True)
 
 
-SHOCKER_TYPES = {0: "SmallOne", 1: "Petrainer"}
+SHOCKER_TYPES = {0: "Petrainer", 1: "SmallOne"}
 
 
 def print_serial_ports() -> None:
