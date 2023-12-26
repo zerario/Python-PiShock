@@ -112,7 +112,6 @@ def credentials() -> FakeCredentials:
 
 
 class PiShockPatcher:
-
     """Base class for HTTPPatcher and SerialPatcher."""
 
     def operate(
@@ -135,7 +134,6 @@ class PiShockPatcher:
 
 
 class HTTPPatcher(PiShockPatcher):
-
     """Helper class which fakes the PiShock API using responses.
 
     Each API endpoint has three methods here, e.g. for ApiOperate:
@@ -330,7 +328,6 @@ class HTTPPatcher(PiShockPatcher):
 
 
 class SerialPatcher(PiShockPatcher):
-
     """Patcher for serial interface."""
 
     def __init__(
@@ -385,7 +382,6 @@ class SerialPatcher(PiShockPatcher):
 
 
 class FakeSerial:
-
     """Helper class which fakes the serial port."""
 
     def __init__(self) -> None:

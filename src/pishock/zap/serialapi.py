@@ -56,7 +56,6 @@ def _autodetect_port() -> str:
 
 
 class SerialOperation(enum.Enum):
-
     """The operation to perform for :meth:`SerialAPI.operate`.
 
     Attributes:
@@ -73,7 +72,6 @@ class SerialOperation(enum.Enum):
 
 
 class SerialAPI:
-
     """Low-level access to PiShock serial functionality.
 
     Arguments:

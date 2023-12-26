@@ -117,7 +117,6 @@ class UnknownError(APIError):
 
 
 class PiShockAPI:
-
     """Base entry point for the PiShock API.
 
     Arguments:

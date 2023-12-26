@@ -5,7 +5,6 @@ from typing import Any
 
 
 class Shocker:
-
     """Base class for :class:`pishock.HTTPShocker` and :class:`pishock.SerialShocker`.
 
     Applications which only need access to :meth:`pishock.HTTPShocker.shock()`,
