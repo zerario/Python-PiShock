@@ -21,14 +21,6 @@ class Operation(enum.Enum):
     BEEP = 2
 
 
-class FirmwareType(enum.Enum):
-    V1_LITE = 0
-    # VAULT = 1
-    V1_NEXT = 2
-    V3_NEXT = 3
-    V3_LITE = 4
-
-
 class APIError(Exception):
     """Base class for all errors returned by the API."""
 
@@ -133,9 +125,7 @@ class PiShockAPI:
         api_key: The API key from the `"Account" menu <https://pishock.com/#/account>`_.
     """
 
-    _HEADERS = {"User-Agent": f"{NAME}/{pishock.__version__}"}
-
-    def __init__(self, username: str | None, api_key: str | None) -> None:
+    def __init__(self, username: str, api_key: str) -> None:
         self.username = username
         self.api_key = api_key
 
@@ -153,18 +143,16 @@ class PiShockAPI:
         Raises:
             HTTPError: If the API returns an invalid HTTP status.
         """
-        if self.username is None or self.api_key is None:
-            raise APIError("Username and API key must be set.")
-
         params = {
             "Username": self.username,
             "Apikey": self.api_key,
             **params,
         }
+        headers = {"User-Agent": f"{NAME}/{pishock.__version__}"}
         response = requests.post(
             f"https://do.pishock.com/api/{endpoint}",
             json=params,
-            headers=self._HEADERS,
+            headers=headers,
         )
 
         try:
@@ -238,23 +226,6 @@ class PiShockAPI:
                 return False
             raise
         return True
-
-    def get_latest_firmware(self, firmware_type: FirmwareType) -> bytes:
-        """Get the latest firmware for the given device."""
-        # Doing request manually because no auth is needed, and it's a GET
-        response = requests.get(
-            "https://do.pishock.com/api/GetLatestFirmware",
-            params={"type": firmware_type.value},
-            headers=self._HEADERS,
-        )
-
-        try:
-            response.raise_for_status()
-        except requests.HTTPError as e:
-            raise HTTPError(e) from e
-
-        breakpoint()
-        return b""
 
 
 @dataclasses.dataclass
