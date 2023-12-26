@@ -7,7 +7,11 @@ import pytest
 
 from pishock.zap import serialapi, httpapi, core
 
-from tests.conftest import FakeCredentials, PiShockPatcher  # for type hints
+from tests.conftest import (
+    FakeCredentials,
+    PiShockPatcher,
+    HTTPPatcher,
+)  # for type hints
 
 
 @pytest.fixture(params=["api_shocker", "serial_shocker"])
@@ -39,10 +43,10 @@ def test_api_repr(
 
 
 def test_api_not_found(
-    pishock_api: httpapi.PiShockAPI, patcher: PiShockPatcher
+    pishock_api: httpapi.PiShockAPI, http_patcher: HTTPPatcher
 ) -> None:
     status = http.HTTPStatus.NOT_FOUND
-    patcher.operate_raw(body=status.description, status=status)
+    http_patcher.operate_raw(body=status.description, status=status)
     with pytest.raises(httpapi.HTTPError) as excinfo:
         pishock_api.request("apioperate", {})
 
@@ -50,47 +54,38 @@ def test_api_not_found(
     assert excinfo.value.status_code == status
 
 
-@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker._SUCCESS_MESSAGES)
-def test_vibrate(
-    shocker: core.Shocker, patcher: PiShockPatcher, success_msg: str
-) -> None:
-    patcher.operate(
-        body=success_msg,
-        operation=httpapi.Operation.VIBRATE,
-        is_serial=shocker.IS_SERIAL,
-    )
+def test_vibrate(shocker: core.Shocker, patcher: PiShockPatcher) -> None:
+    patcher.operate(operation=httpapi.Operation.VIBRATE)
     shocker.vibrate(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker._SUCCESS_MESSAGES)
-def test_shock(
-    shocker: core.Shocker, patcher: PiShockPatcher, success_msg: str
-) -> None:
-    patcher.operate(
-        body=success_msg,
-        operation=httpapi.Operation.SHOCK,
-        is_serial=shocker.IS_SERIAL,
-    )
+def test_shock(shocker: core.Shocker, patcher: PiShockPatcher) -> None:
+    patcher.operate(operation=httpapi.Operation.SHOCK)
     shocker.shock(duration=1, intensity=2)
 
 
-@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker._SUCCESS_MESSAGES)
-def test_beep(shocker: core.Shocker, patcher: PiShockPatcher, success_msg: str) -> None:
-    patcher.operate(
-        body=success_msg,
-        operation=httpapi.Operation.BEEP,
-        intensity=None,
-        is_serial=shocker.IS_SERIAL,
-    )
+def test_beep(shocker: core.Shocker, patcher: PiShockPatcher) -> None:
+    patcher.operate(operation=httpapi.Operation.BEEP, intensity=None)
     shocker.beep(duration=1)
+
+
+@pytest.mark.parametrize("success_msg", httpapi.HTTPShocker._SUCCESS_MESSAGES)
+def test_alternative_success_messages(
+    api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher, success_msg: str
+) -> None:
+    http_patcher.operate(
+        body=success_msg,
+        operation=httpapi.Operation.VIBRATE,
+    )
+    api_shocker.vibrate(duration=1, intensity=2)
 
 
 def test_log_name_override(
     pishock_api: httpapi.PiShockAPI,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     credentials: FakeCredentials,
 ) -> None:
-    patcher.operate(name="test")
+    http_patcher.operate(name="test")
     shocker = pishock_api.shocker(credentials.SHARECODE, log_name="test")
     shocker.vibrate(duration=1, intensity=2)
 
@@ -135,7 +130,6 @@ def test_valid_durations(
 ) -> None:
     patcher.operate(
         duration=duration if shocker.IS_SERIAL else api_duration,
-        is_serial=shocker.IS_SERIAL,
     )
     shocker.vibrate(duration=duration, intensity=2)
 
@@ -177,9 +171,9 @@ class TestInvalidIntensity:
 
 class TestOperationsNotAllowed:
     def test_vibrate(
-        self, api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher
+        self, api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher
     ) -> None:
-        patcher.operate(
+        http_patcher.operate(
             body=httpapi.VibrateNotAllowedError.TEXT,
             operation=httpapi.Operation.VIBRATE,
         )
@@ -187,9 +181,9 @@ class TestOperationsNotAllowed:
             api_shocker.vibrate(duration=1, intensity=2)
 
     def test_shock(
-        self, api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher
+        self, api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher
     ) -> None:
-        patcher.operate(
+        http_patcher.operate(
             body=httpapi.ShockNotAllowedError.TEXT,
             operation=httpapi.Operation.SHOCK,
         )
@@ -197,9 +191,9 @@ class TestOperationsNotAllowed:
             api_shocker.shock(duration=1, intensity=2)
 
     def test_beep(
-        self, api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher
+        self, api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher
     ) -> None:
-        patcher.operate(
+        http_patcher.operate(
             body=httpapi.BeepNotAllowedError.TEXT,
             operation=httpapi.Operation.BEEP,
             intensity=None,
@@ -214,15 +208,15 @@ def test_beep_no_intensity(shocker: core.Shocker) -> None:
 
 
 def test_device_in_use(
-    api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher
+    api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher
 ) -> None:
-    patcher.operate(body=httpapi.DeviceInUseError.TEXT)
+    http_patcher.operate(body=httpapi.DeviceInUseError.TEXT)
     with pytest.raises(httpapi.DeviceInUseError):
         api_shocker.vibrate(duration=1, intensity=2)
 
 
-def test_unauthorized(patcher: PiShockPatcher, credentials: FakeCredentials) -> None:
-    patcher.operate(
+def test_unauthorized(http_patcher: HTTPPatcher, credentials: FakeCredentials) -> None:
+    http_patcher.operate(
         body=httpapi.NotAuthorizedError.TEXT,
         apikey="wrong",
         code="wrong",
@@ -234,9 +228,9 @@ def test_unauthorized(patcher: PiShockPatcher, credentials: FakeCredentials) -> 
 
 
 def test_unknown_share_code(
-    pishock_api: httpapi.PiShockAPI, patcher: PiShockPatcher
+    pishock_api: httpapi.PiShockAPI, http_patcher: HTTPPatcher
 ) -> None:
-    patcher.operate(
+    http_patcher.operate(
         body=httpapi.ShareCodeNotFoundError.TEXT,
         code="wrong",
     )
@@ -248,38 +242,38 @@ def test_unknown_share_code(
 def test_unknown_error(
     api_shocker: httpapi.HTTPShocker,
     pishock_api: httpapi.PiShockAPI,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
 ) -> None:
     message = "Failed to frobnicate the zap."
-    patcher.operate(body=message)
+    http_patcher.operate(body=message)
     with pytest.raises(httpapi.UnknownError, match=message):
         api_shocker.vibrate(duration=1, intensity=2)
 
 
 @pytest.mark.parametrize("pause", [True, False])
 def test_pause(
-    api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher, pause: bool
+    api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher, pause: bool
 ) -> None:
-    patcher.info()
-    patcher.pause(pause)
+    http_patcher.info()
+    http_patcher.pause(pause)
     api_shocker.pause(pause)
 
 
 def test_pause_unauthorized(
-    api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher
+    api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher
 ) -> None:
-    patcher.info()
-    patcher.pause(True, body=httpapi.NotAuthorizedError.TEXT)
+    http_patcher.info()
+    http_patcher.pause(True, body=httpapi.NotAuthorizedError.TEXT)
     with pytest.raises(httpapi.NotAuthorizedError):
         api_shocker.pause(True)
 
 
 def test_pause_unknown_error(
-    api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher
+    api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher
 ) -> None:
     message = "Shocker wanna go brrrrr."
-    patcher.info()
-    patcher.pause(True, body=message)
+    http_patcher.info()
+    http_patcher.pause(True, body=message)
     with pytest.raises(httpapi.UnknownError, match=message):
         api_shocker.pause(True)
 
@@ -292,7 +286,6 @@ class TestInfo:
         credentials: FakeCredentials,
     ) -> None:
         patcher.info(
-            is_serial=shocker.IS_SERIAL,
             shocker_id=credentials.SHOCKER_ID,  # FIXME remove after changing default
             client_id=FakeCredentials.CLIENT_ID,  # FIXME remove after changing default
         )
@@ -307,9 +300,11 @@ class TestInfo:
             assert info.max_intensity == 100
             assert info.max_duration == 15
 
-    def test_invalid_body(self, api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher) -> None:
+    def test_invalid_body(
+        self, api_shocker: httpapi.HTTPShocker, http_patcher: HTTPPatcher
+    ) -> None:
         message = "Not JSON lol"
-        patcher.info_raw(body=message, match=patcher.info_matchers())
+        http_patcher.info_raw(body=message, match=http_patcher.info_matchers())
         with pytest.raises(httpapi.UnknownError, match=message):
             api_shocker.info()
 
@@ -324,20 +319,20 @@ class TestInfo:
     def test_http_errors(
         self,
         api_shocker: httpapi.HTTPShocker,
-        patcher: PiShockPatcher,
+        http_patcher: HTTPPatcher,
         status: http.HTTPStatus,
         exception: type[httpapi.APIError],
     ) -> None:
-        patcher.info_raw(status=status)
+        http_patcher.info_raw(status=status)
         with pytest.raises(exception):
             api_shocker.info()
 
 
 class TestGetShockers:
     def test_get_shockers(
-        self, pishock_api: httpapi.PiShockAPI, patcher: PiShockPatcher
+        self, pishock_api: httpapi.PiShockAPI, http_patcher: HTTPPatcher
     ) -> None:
-        patcher.get_shockers()
+        http_patcher.get_shockers()
         shockers = pishock_api.get_shockers(client_id=1000)
         assert shockers == [
             core.BasicShockerInfo(
@@ -355,10 +350,12 @@ class TestGetShockers:
         ]
 
     def test_invalid_body(
-        self, pishock_api: httpapi.PiShockAPI, patcher: PiShockPatcher
+        self, pishock_api: httpapi.PiShockAPI, http_patcher: HTTPPatcher
     ) -> None:
         message = "Not JSON lol"
-        patcher.get_shockers_raw(body=message, match=patcher.get_shockers_matchers())
+        http_patcher.get_shockers_raw(
+            body=message, match=http_patcher.get_shockers_matchers()
+        )
         with pytest.raises(httpapi.UnknownError, match=message):
             pishock_api.get_shockers(client_id=1000)
 
@@ -372,29 +369,29 @@ class TestGetShockers:
     def test_http_errors(
         self,
         pishock_api: httpapi.PiShockAPI,
-        patcher: PiShockPatcher,
+        http_patcher: HTTPPatcher,
         status: http.HTTPStatus,
         exception: type[httpapi.APIError],
     ) -> None:
-        patcher.get_shockers_raw(status=status)
+        http_patcher.get_shockers_raw(status=status)
         with pytest.raises(exception):
             pishock_api.get_shockers(client_id=1000)
 
 
 @pytest.mark.parametrize("valid", [True, False])
 def test_verify_credentials(
-    pishock_api: httpapi.PiShockAPI, patcher: PiShockPatcher, valid: bool
+    pishock_api: httpapi.PiShockAPI, http_patcher: HTTPPatcher, valid: bool
 ) -> None:
-    patcher.verify_credentials(valid)
+    http_patcher.verify_credentials(valid)
     assert pishock_api.verify_credentials() == valid
 
 
 def test_verify_credentials_error(
-    pishock_api: httpapi.PiShockAPI, patcher: PiShockPatcher
+    pishock_api: httpapi.PiShockAPI, http_patcher: HTTPPatcher
 ) -> None:
-    patcher.verify_credentials_raw(
+    http_patcher.verify_credentials_raw(
         status=http.HTTPStatus.INTERNAL_SERVER_ERROR,
-        match=patcher.verify_credentials_matchers(),
+        match=http_patcher.verify_credentials_matchers(),
     )
     with pytest.raises(httpapi.HTTPError):
         pishock_api.verify_credentials()

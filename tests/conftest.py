@@ -5,7 +5,7 @@ import io
 import json
 import re
 import pathlib
-from typing import Any, Callable, Iterator, Dict
+from typing import Any, Callable, Iterator, Dict, cast
 
 import pytest
 import rich
@@ -17,7 +17,7 @@ from responses import RequestsMock, matchers
 from typing_extensions import TypeAlias
 
 import pishock
-from pishock.zap import httpapi, serialapi
+from pishock.zap import httpapi, serialapi, core
 from pishock.zap.cli import cli
 
 _MatcherType: TypeAlias = Callable[..., Any]
@@ -119,6 +119,29 @@ def credentials() -> FakeCredentials:
 
 class PiShockPatcher:
 
+    """Base class for HTTPPatcher and SerialPatcher."""
+
+    def operate(
+        self,
+        *,
+        operation: httpapi.Operation = httpapi.Operation.VIBRATE,
+        duration: int | float = 1,
+        intensity: int | None = 2,
+    ) -> None:
+        raise NotImplementedError
+
+    def info(
+        self,
+        *,
+        paused: bool = False,
+        shocker_id: int = 1001,  # FIXME use FakeCredentials.SHOCKER_ID?
+        client_id: int = 1000,  # FIXME use FakeCredentials.CLIENT_ID?
+    ) -> None:
+        raise NotImplementedError
+
+
+class HTTPPatcher(PiShockPatcher):
+
     """Helper class which fakes the PiShock API using responses.
 
     Each API endpoint has three methods here, e.g. for ApiOperate:
@@ -142,22 +165,8 @@ class PiShockPatcher:
         self,
         *,
         responses: RequestsMock,
-        serial_api: serialapi.SerialAPI,
-        monkeypatch: pytest.Monkeypatch,
     ) -> None:
-        self.serial_api = serial_api
-        self.monkeypatch = monkeypatch
         self.responses = responses
-        self.expected_serial_data: Any = None
-
-    def check_serial(self) -> None:
-        """Check that the serial data matches what we expect."""
-        assert isinstance(self.serial_api.dev, FakeSerial)
-        if self.expected_serial_data is None:
-            assert not self.serial_api.dev.getvalue()
-        else:
-            data = json.loads(self.serial_api.dev.getvalue().decode("utf-8"))
-            assert data == self.expected_serial_data
 
     # ApiOperate
 
@@ -179,6 +188,7 @@ class PiShockPatcher:
 
     def operate(
         self,
+        *,
         body: str = httpapi.HTTPShocker._SUCCESS_MESSAGES[0],
         operation: httpapi.Operation = httpapi.Operation.VIBRATE,
         duration: int | float = 1,
@@ -186,32 +196,18 @@ class PiShockPatcher:
         name: str | None = None,
         apikey: str | None = None,
         code: str | None = None,
-        is_serial: bool = False,
     ) -> None:
-        if is_serial:
-            assert name is None
-            assert apikey is None
-            assert code is None
-            value = {
-                "id": FakeCredentials.SHOCKER_ID,
-                "op": operation.name.lower(),
-                "duration": duration * 1000,
-            }
-            if intensity is not None:
-                value["intensity"] = intensity
-            self.expected_serial_data = {"cmd": "operate", "value": value}
-        else:
-            self.operate_raw(
-                body=body,
-                match=self.operate_matchers(
-                    op=operation.value,
-                    duration=duration,
-                    intensity=intensity,
-                    name=name or self.NAME,
-                    apikey=apikey or FakeCredentials.API_KEY,
-                    code=code or FakeCredentials.SHARECODE,
-                ),
-            )
+        self.operate_raw(
+            body=body,
+            match=self.operate_matchers(
+                op=operation.value,
+                duration=duration,
+                intensity=intensity,
+                name=name or self.NAME,
+                apikey=apikey or FakeCredentials.API_KEY,
+                code=code or FakeCredentials.SHARECODE,
+            ),
+        )
 
     # GetShockerInfo
 
@@ -219,13 +215,11 @@ class PiShockPatcher:
         self, sharecode: str = FakeCredentials.SHARECODE
     ) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.API_KEY,
-                    "Code": sharecode,
-                }
-            ),
+            matchers.json_params_matcher({
+                "Username": FakeCredentials.USERNAME,
+                "Apikey": FakeCredentials.API_KEY,
+                "Code": sharecode,
+            }),
             matchers.header_matcher(self.HEADERS),
         ]
 
@@ -240,47 +234,30 @@ class PiShockPatcher:
         online: bool = True,
         shocker_id: int = 1001,  # FIXME use FakeCredentials.SHOCKER_ID?
         client_id: int = 1000,  # FIXME use FakeCredentials.CLIENT_ID?
-        is_serial: bool = False,
     ) -> None:
-        if is_serial:
-            assert sharecode == FakeCredentials.SHARECODE
-            assert online
-            # FIXME patch on a lower level here?
-            # self.expected_serial_data = {"cmd": "info"}
-            self.monkeypatch.setattr(
-                self.serial_api,
-                "info",
-                lambda: {
-                    "clientId": client_id,
-                    "shockers": [{"id": shocker_id, "paused": paused}],
-                },
-            )
-        else:
-            self.info_raw(
-                json={
-                    "name": "test shocker",
-                    "clientId": client_id,
-                    "id": shocker_id,
-                    "paused": paused,
-                    "online": online,
-                    "maxIntensity": 100,
-                    "maxDuration": 15,
-                },
-                match=self.info_matchers(sharecode=sharecode),
-            )
+        self.info_raw(
+            json={
+                "name": "test shocker",
+                "clientId": client_id,
+                "id": shocker_id,
+                "paused": paused,
+                "online": online,
+                "maxIntensity": 100,
+                "maxDuration": 15,
+            },
+            match=self.info_matchers(sharecode=sharecode),
+        )
 
     # PauseShocker
 
     def pause_matchers(self, pause: bool) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.API_KEY,
-                    "ShockerId": 1001,
-                    "Pause": pause,
-                }
-            ),
+            matchers.json_params_matcher({
+                "Username": FakeCredentials.USERNAME,
+                "Apikey": FakeCredentials.API_KEY,
+                "ShockerId": 1001,
+                "Pause": pause,
+            }),
             matchers.header_matcher(self.HEADERS),
         ]
 
@@ -296,13 +273,11 @@ class PiShockPatcher:
 
     def get_shockers_matchers(self) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher(
-                {
-                    "Username": FakeCredentials.USERNAME,
-                    "Apikey": FakeCredentials.API_KEY,
-                    "ClientId": 1000,
-                }
-            ),
+            matchers.json_params_matcher({
+                "Username": FakeCredentials.USERNAME,
+                "Apikey": FakeCredentials.API_KEY,
+                "ClientId": 1000,
+            }),
             matchers.header_matcher(self.HEADERS),
         ]
 
@@ -328,12 +303,10 @@ class PiShockPatcher:
         username: str = FakeCredentials.USERNAME,
     ) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher(
-                {
-                    "Username": username,
-                    "Apikey": FakeCredentials.API_KEY,
-                }
-            ),
+            matchers.json_params_matcher({
+                "Username": username,
+                "Apikey": FakeCredentials.API_KEY,
+            }),
             matchers.header_matcher(self.HEADERS),
         ]
 
@@ -351,6 +324,63 @@ class PiShockPatcher:
         self.verify_credentials_raw(
             status=http.HTTPStatus.OK if valid else http.HTTPStatus.FORBIDDEN,
             match=self.verify_credentials_matchers(username=username),
+        )
+
+
+class SerialPatcher(PiShockPatcher):
+
+    """Patcher for serial interface."""
+
+    def __init__(
+        self,
+        serial_api: serialapi.SerialAPI,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        self.serial_api = serial_api
+        self.monkeypatch = monkeypatch
+        self.expected_serial_data: Any = None
+
+    def check_serial(self) -> None:
+        """Check that the serial data matches what we expect."""
+        assert isinstance(self.serial_api.dev, FakeSerial)
+        if self.expected_serial_data is None:
+            assert not self.serial_api.dev.getvalue()
+        else:
+            data = json.loads(self.serial_api.dev.getvalue().decode("utf-8"))
+            assert data == self.expected_serial_data
+
+    def operate(
+        self,
+        *,
+        operation: httpapi.Operation = httpapi.Operation.VIBRATE,
+        duration: int | float = 1,
+        intensity: int | None = 2,
+    ) -> None:
+        value = {
+            "id": FakeCredentials.SHOCKER_ID,
+            "op": operation.name.lower(),
+            "duration": duration * 1000,
+        }
+        if intensity is not None:
+            value["intensity"] = intensity
+        self.expected_serial_data = {"cmd": "operate", "value": value}
+
+    def info(
+        self,
+        *,
+        paused: bool = False,
+        shocker_id: int = 1001,  # FIXME use FakeCredentials.SHOCKER_ID?
+        client_id: int = 1000,  # FIXME use FakeCredentials.CLIENT_ID?
+    ) -> None:
+        # FIXME patch on a lower level here?
+        # self.expected_serial_data = {"cmd": "info"}
+        self.monkeypatch.setattr(
+            self.serial_api,
+            "info",
+            lambda: {
+                "clientId": client_id,
+                "shockers": [{"id": shocker_id, "paused": paused}],
+            },
         )
 
 
@@ -378,14 +408,33 @@ def fake_serial() -> FakeSerial:
 
 
 @pytest.fixture
-def patcher(
-    responses: RequestsMock,
-    serial_api: serialapi.SerialAPI,
-    monkeypatch: pytest.MonkeyPatch,
-) -> Iterator[PiShockPatcher]:
-    """Helper to patch the PiShock API using responses."""
-    patcher = PiShockPatcher(
-        responses=responses, serial_api=serial_api, monkeypatch=monkeypatch
-    )
+def http_patcher(responses: RequestsMock) -> HTTPPatcher:
+    return HTTPPatcher(responses=responses)
+
+
+@pytest.fixture
+def serial_patcher(
+    serial_api: serialapi.SerialAPI, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[SerialPatcher]:
+    patcher = SerialPatcher(serial_api=serial_api, monkeypatch=monkeypatch)
     yield patcher
     patcher.check_serial()
+
+
+@pytest.fixture
+def patcher(
+    request: pytest.FixtureRequest,
+    shocker: core.Shocker,
+) -> PiShockPatcher:
+    """Patcher to patch the PiShock HTTP or serial API.
+
+    We do sommething somewhat unorthodox here: We access the 'shocker' fixture
+    (defined in test_zap.py) to decide what kind of patcher to return. This
+    means things are always in sync: If a test gets a HTTP shocker, it gets a HTTP
+    patcher; and if a test gets a serial shocker, it gets a serial patcher.
+    """
+    if isinstance(shocker, httpapi.HTTPShocker):
+        return cast(HTTPPatcher, request.getfixturevalue("http_patcher"))
+    else:
+        assert isinstance(shocker, serialapi.SerialShocker)
+        return cast(SerialPatcher, request.getfixturevalue("serial_patcher"))

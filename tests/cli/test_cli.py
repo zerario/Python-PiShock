@@ -17,6 +17,7 @@ from pishock.zap import httpapi
 from tests.conftest import (
     FakeCredentials,
     PiShockPatcher,
+    HTTPPatcher,
     Runner,
     ConfigDataType,
 )  # for type hints
@@ -33,6 +34,17 @@ def patcher_cli_name(patcher: PiShockPatcher, monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(patcher, "NAME", f"{httpapi.NAME} CLI")
 
 
+@pytest.fixture
+def shocker(
+    pishock_api: httpapi.PiShockAPI, credentials: FakeCredentials
+) -> httpapi.HTTPShocker:
+    """Dummy shocker fixture for "patcher" to decide to patch HTTP only.
+
+    FIXME also let shock/vibrate/beep tests run against serial API!
+    """
+    return pishock_api.shocker(credentials.SHARECODE)
+
+
 class TestInit:
     @pytest.fixture
     def runner_noenv(self, credentials: FakeCredentials) -> Runner:
@@ -45,14 +57,14 @@ class TestInit:
         config_path: pathlib.Path,
         config_data: ConfigDataType,
         runner_noenv: Runner,
-        patcher: PiShockPatcher,
+        http_patcher: HTTPPatcher,
         monkeypatch: pytest.MonkeyPatch,
         credentials: FakeCredentials,
         valid: bool,
     ) -> None:
         answers = iter([credentials.USERNAME, credentials.API_KEY])
         monkeypatch.setattr(rich.prompt.Prompt, "ask", lambda text: next(answers))
-        patcher.verify_credentials(valid)
+        http_patcher.verify_credentials(valid)
 
         result = runner_noenv.run("init")
         assert result.exit_code == (0 if valid else 1)
@@ -71,9 +83,9 @@ class TestInit:
         config_path: pathlib.Path,
         config_data: ConfigDataType,
         runner: Runner,
-        patcher: PiShockPatcher,
+        http_patcher: HTTPPatcher,
     ) -> None:
-        patcher.verify_credentials(True)
+        http_patcher.verify_credentials(True)
         result = runner.run("init")  # credentials given
         assert result.exit_code == 0
         assert result.output == "✅ Credentials saved.\n"
@@ -88,7 +100,7 @@ class TestInit:
         config_path: pathlib.Path,
         config_data: ConfigDataType,
         runner_noenv: Runner,
-        patcher: PiShockPatcher,
+        http_patcher: HTTPPatcher,
         monkeypatch: pytest.MonkeyPatch,
         credentials: FakeCredentials,
         confirmed: bool | str,
@@ -101,7 +113,7 @@ class TestInit:
         if confirmed:
             answers = iter([new_username, credentials.API_KEY])
             monkeypatch.setattr(rich.prompt.Prompt, "ask", lambda text: next(answers))
-            patcher.verify_credentials(True, username=new_username)
+            http_patcher.verify_credentials(True, username=new_username)
 
         with config_path.open("w") as f:
             json.dump(config_data, f)
@@ -151,11 +163,11 @@ class TestInit:
         runner_noenv: Runner,
         config_path: pathlib.Path,
         config_data: ConfigDataType,
-        patcher: PiShockPatcher,
+        http_patcher: HTTPPatcher,
     ) -> None:
         with config_path.open("w") as f:
             json.dump(config_data, f)
-        patcher.verify_credentials(True)
+        http_patcher.verify_credentials(True)
 
         result = runner_noenv.run("verify")
         assert result.exit_code == 0
@@ -167,7 +179,7 @@ class TestInit:
 def test_info(
     runner: Runner,
     golden: GoldenTestFixture,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     online: bool,
     paused: bool,
 ) -> None:
@@ -177,16 +189,17 @@ def test_info(
     if paused:
         key += "_paused"
 
-    patcher.info(online=online, paused=paused)
+    # FIXME run against serial API too
+    http_patcher.info(online=online, paused=paused)
     result = runner.run("info", runner.sharecode)
     assert result.output == golden.out[key]
 
 
 @pytest.mark.golden_test("golden/info.yml")
 def test_info_error(
-    runner: Runner, patcher: PiShockPatcher, golden: GoldenTestFixture
+    runner: Runner, http_patcher: HTTPPatcher, golden: GoldenTestFixture
 ) -> None:
-    patcher.info_raw(body="Not JSON lol")
+    http_patcher.info_raw(body="Not JSON lol")
     result = runner.run("info", runner.sharecode)
     assert result.output == golden.out["output_error"]
     assert result.exit_code == 1
@@ -314,7 +327,7 @@ def test_invalid_inputs(
 @pytest.mark.golden_test("golden/errors.yml")
 def test_errors(
     runner: Runner,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     golden: GoldenTestFixture,
     op: httpapi.Operation,
     name: str,
@@ -323,7 +336,7 @@ def test_errors(
     cmd = op.name.lower()
 
     intensity = None if op == httpapi.Operation.BEEP else 2
-    patcher.operate(body=text, operation=op, intensity=intensity)
+    http_patcher.operate(body=text, operation=op, intensity=intensity)
 
     args = [cmd, runner.sharecode, "-d", "1"]
     if op != httpapi.Operation.BEEP:
@@ -339,10 +352,10 @@ def test_pause_unpause(
     cmd: str,
     paused: bool,
     runner: Runner,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
 ) -> None:
-    patcher.info()
-    patcher.pause(paused)
+    http_patcher.info()
+    http_patcher.pause(paused)
     result = runner.run(cmd, runner.sharecode)
     assert not result.output
 
@@ -360,13 +373,13 @@ def test_pause_error(
     cmd: str,
     paused: bool,
     runner: Runner,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     golden: GoldenTestFixture,
     name: str,
     text: str,
 ) -> None:
-    patcher.info()
-    patcher.pause(paused, body=text)
+    http_patcher.info()
+    http_patcher.pause(paused, body=text)
     result = runner.run(cmd, runner.sharecode)
     assert result.output == golden.out[f"output_{name}"]
     assert result.exit_code == 1
@@ -378,18 +391,18 @@ def test_pause_error(
 )
 def test_shockers(
     runner: Runner,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     golden: GoldenTestFixture,
     outcome: str,
 ) -> None:
     if outcome == "ok":
-        patcher.get_shockers()
+        http_patcher.get_shockers()
     elif outcome == "not_authorized":
-        patcher.get_shockers_raw(status=http.HTTPStatus.FORBIDDEN)
+        http_patcher.get_shockers_raw(status=http.HTTPStatus.FORBIDDEN)
     elif outcome == "http_error":
-        patcher.get_shockers_raw(status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+        http_patcher.get_shockers_raw(status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
     elif outcome == "invalid_data":
-        patcher.get_shockers_raw(body="Not JSON lol")
+        http_patcher.get_shockers_raw(body="Not JSON lol")
 
     result = runner.run("shockers", "1000")
     assert result.output == golden.out[f"output_{outcome}"]
@@ -399,16 +412,18 @@ def test_shockers(
 @pytest.mark.parametrize("outcome", ["ok", "not_authorized", "http_error"])
 def test_verify(
     runner: Runner,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     golden: GoldenTestFixture,
     outcome: str,
 ) -> None:
     if outcome == "ok":
-        patcher.verify_credentials(True)
+        http_patcher.verify_credentials(True)
     elif outcome == "not_authorized":
-        patcher.verify_credentials(False)
+        http_patcher.verify_credentials(False)
     else:
-        patcher.verify_credentials_raw(status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+        http_patcher.verify_credentials_raw(
+            status=http.HTTPStatus.INTERNAL_SERVER_ERROR
+        )
 
     result = runner.run("verify")
     assert result.output == golden.out[f"output_{outcome}"]

@@ -10,7 +10,7 @@ import rich.console
 import rich.prompt
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
-from tests.conftest import PiShockPatcher, Runner, ConfigDataType  # for type hints
+from tests.conftest import HTTPPatcher, Runner, ConfigDataType  # for type hints
 
 
 pytestmark = pytest.mark.skipif(
@@ -44,8 +44,8 @@ has_codes_parametrize = pytest.mark.parametrize(
 )
 
 
-def test_using_saved_code(runner: Runner, patcher: PiShockPatcher) -> None:
-    patcher.info(sharecode="62142069AA1")
+def test_using_saved_code(runner: Runner, http_patcher: HTTPPatcher) -> None:
+    http_patcher.info(sharecode="62142069AA1")
     result = runner.run("info", "test1")
     assert result.exit_code == 0
 
@@ -77,10 +77,10 @@ def test_list_info_empty(
 @pytest.mark.golden_test("golden/sharecodes/list.yml")
 def test_list_info_not_authorized(
     runner: Runner,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     golden: GoldenTestFixture,
 ) -> None:
-    patcher.verify_credentials(False)
+    http_patcher.verify_credentials(False)
     result = runner.run("code", "list", "--info")
     assert result.output == golden.out["output_info_not_authorized"]
     assert result.exit_code == 1
@@ -89,13 +89,13 @@ def test_list_info_not_authorized(
 @pytest.mark.golden_test("golden/sharecodes/list.yml")
 def test_list_info(
     runner: Runner,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     golden: GoldenTestFixture,
 ) -> None:
-    patcher.verify_credentials(True)
-    patcher.info(sharecode="62142069AA1")
-    patcher.info_raw(status=http.HTTPStatus.NOT_FOUND)  # for ...AA2
-    patcher.info(sharecode="62142069AA3")
+    http_patcher.verify_credentials(True)
+    http_patcher.info(sharecode="62142069AA1")
+    http_patcher.info_raw(status=http.HTTPStatus.NOT_FOUND)  # for ...AA2
+    http_patcher.info(sharecode="62142069AA3")
     result = runner.run("code", "list", "--info")
     assert result.output == golden.out["output_info"]
     assert result.exit_code == 0
@@ -120,7 +120,7 @@ def test_list(
 def test_add(
     runner: Runner,
     golden: GoldenTestFixture,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     config_path: pathlib.Path,
     has_codes: bool,
     force: bool,
@@ -128,7 +128,7 @@ def test_add(
     new_code = "62142069AA4"
     force_arg = ["--force"] if force else []
 
-    patcher.info(sharecode=new_code, shocker_id=1004)
+    http_patcher.info(sharecode=new_code, shocker_id=1004)
     result = runner.run("code", "add", "test4", new_code, *force_arg)
 
     suffix = "_force" if force else ""
@@ -159,10 +159,10 @@ def test_add(
 def test_add_code_not_found(
     runner: Runner,
     golden: GoldenTestFixture,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     config_path: pathlib.Path,
 ) -> None:
-    patcher.info_raw(status=http.HTTPStatus.NOT_FOUND)
+    http_patcher.info_raw(status=http.HTTPStatus.NOT_FOUND)
     result = runner.run("code", "add", "test4", "62142069AA4")
     assert result.output == golden.out["output"]
     assert result.exit_code == 1
@@ -178,7 +178,7 @@ def test_add_overwrite(
     config_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     golden: GoldenTestFixture,
-    patcher: PiShockPatcher,
+    http_patcher: HTTPPatcher,
     confirmed: bool | str,
 ) -> None:
     if confirmed != "--force":
@@ -195,7 +195,7 @@ def test_add_overwrite(
     force_arg = ["--force"] if confirmed == "--force" else []
 
     if confirmed:
-        patcher.info(sharecode=new_code)
+        http_patcher.info(sharecode=new_code)
     result = runner.run("code", "add", "test1", new_code, *force_arg)
     assert result.output == golden.out[f"output_overwrite_{suffix}"]
     assert result.exit_code == (0 if confirmed else 1)
