@@ -285,28 +285,33 @@ def test_pause_unknown_error(
 
 
 class TestInfo:
-    def test_info(self, shocker: core.Shocker, patcher: PiShockPatcher) -> None:
-        if shocker.IS_SERIAL:
-            pytest.xfail("TODO: hangs")
-
-        patcher.info()
+    def test_info(
+        self,
+        shocker: core.Shocker,
+        patcher: PiShockPatcher,
+        credentials: FakeCredentials,
+    ) -> None:
+        patcher.info(
+            is_serial=shocker.IS_SERIAL,
+            shocker_id=credentials.SHOCKER_ID,  # FIXME remove after changing default
+            client_id=FakeCredentials.CLIENT_ID,  # FIXME remove after changing default
+        )
         info = shocker.info()
-        assert info.name == "test shocker"
-        assert info.client_id == 1000
-        assert info.shocker_id == 1001
+
+        expected_name = "Serial shocker (FAKE)" if shocker.IS_SERIAL else "test shocker"
+        assert info.name == expected_name
+        assert info.client_id == credentials.CLIENT_ID
+        assert info.shocker_id == credentials.SHOCKER_ID
         assert not info.is_paused
         if isinstance(info, httpapi.DetailedShockerInfo):  # not serial
             assert info.max_intensity == 100
             assert info.max_duration == 15
 
-    def test_invalid_body(self, shocker: core.Shocker, patcher: PiShockPatcher) -> None:
-        if shocker.IS_SERIAL:
-            pytest.xfail("TODO: hangs")
-
+    def test_invalid_body(self, api_shocker: httpapi.HTTPShocker, patcher: PiShockPatcher) -> None:
         message = "Not JSON lol"
         patcher.info_raw(body=message, match=patcher.info_matchers())
         with pytest.raises(httpapi.UnknownError, match=message):
-            shocker.info()
+            api_shocker.info()
 
     @pytest.mark.parametrize(
         "status, exception",
@@ -318,7 +323,7 @@ class TestInfo:
     )
     def test_http_errors(
         self,
-        api_shocker: core.Shocker,
+        api_shocker: httpapi.HTTPShocker,
         patcher: PiShockPatcher,
         status: http.HTTPStatus,
         exception: type[httpapi.APIError],
