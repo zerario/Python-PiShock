@@ -154,6 +154,23 @@ def test_add(
         }
 
 
+@pytest.mark.empty_config
+@pytest.mark.golden_test("golden/sharecodes/add-not-found.yml")
+def test_add_code_not_found(
+    runner: Runner,
+    golden: GoldenTestFixture,
+    patcher: PiShockPatcher,
+    config_path: pathlib.Path,
+) -> None:
+    patcher.info_raw(status=http.HTTPStatus.NOT_FOUND)
+    result = runner.run("code", "add", "test4", "62142069AA4")
+    assert result.output == golden.out["output"]
+    assert result.exit_code == 1
+    with config_path.open("r") as f:
+        data = json.load(f)
+    assert not data["shockers"]
+
+
 @pytest.mark.parametrize("confirmed", [True, False, "--force"])
 @pytest.mark.golden_test("golden/sharecodes/add.yml")
 def test_add_overwrite(
