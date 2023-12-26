@@ -56,6 +56,60 @@ class TestConfig:
             data = json.load(f)
         assert data == config_data
 
+    def test_load_shockers(
+        self,
+        config: cli_utils.Config,
+        config_path: pathlib.Path,
+        config_data: ConfigDataType,
+        credentials: FakeCredentials,
+    ) -> None:
+        config_data["shockers"]["test"] = {
+            "sharecode": credentials.SHARECODE,
+            "shocker_id": credentials.SHOCKER_ID,
+        }
+        with config_path.open("w") as f:
+            json.dump(config_data, f)
+
+        config.load()
+        assert config.shockers == {
+            "test": cli_utils.ShockerInfo(
+                sharecode=credentials.SHARECODE,
+                shocker_id=credentials.SHOCKER_ID,
+            )
+        }
+
+    def test_load_shockers_migrate(
+        self,
+        config: cli_utils.Config,
+        config_path: pathlib.Path,
+        config_data: ConfigDataType,
+        credentials: FakeCredentials,
+    ) -> None:
+        config_data["sharecodes"] = {"test": credentials.SHARECODE}
+        with config_path.open("w") as f:
+            json.dump(config_data, f)
+
+        config.load()
+        assert config.shockers == {
+            "test": cli_utils.ShockerInfo(
+                sharecode=credentials.SHARECODE,
+                shocker_id=None,
+            )
+        }
+
+    def test_load_shockers_empty(
+        self,
+        config: cli_utils.Config,
+        config_path: pathlib.Path,
+        config_data: ConfigDataType,
+    ) -> None:
+        del config_data["shockers"]
+        with config_path.open("w") as f:
+            json.dump(config_data, f)
+
+        config.load()
+        assert config.shockers == {}
+
 
 class TestAppContext:
     @pytest.fixture
