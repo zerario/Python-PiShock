@@ -61,16 +61,10 @@ def serial_api(
     monkeypatch: pytest.MonkeyPatch,
     credentials: FakeCredentials,
 ) -> serialapi.SerialAPI:
+    monkeypatch.setattr(serialapi, "_autodetect_port", lambda: credentials.SERIAL_PORT)
     monkeypatch.setattr(serial, "Serial", lambda port, baudrate, timeout: fake_serial)
     api = serialapi.SerialAPI(credentials.SERIAL_PORT)
-    monkeypatch.setattr(
-        api,
-        "info",
-        lambda: {
-            "clientId": credentials.CLIENT_ID,
-            "shockers": [{"id": credentials.SHOCKER_ID, "paused": False}],
-        },
-    )
+    fake_serial.set_info_data()
     return api
 
 
@@ -99,7 +93,7 @@ class FakeCredentials:
     API_KEY = "PISHOCK-APIKEY"
     SHARECODE = "62169420AAA"
     SERIAL_PORT = "/dev/ttyFAKE"
-    SHOCKER_ID = 1234
+    SHOCKER_ID = 1001
     CLIENT_ID = 621
 
 
@@ -134,7 +128,7 @@ class PiShockPatcher:
         self,
         *,
         paused: bool = False,
-        shocker_id: int = 1001,  # FIXME use FakeCredentials.SHOCKER_ID?
+        shocker_id: int = FakeCredentials.SHOCKER_ID,
         client_id: int = 1000,  # FIXME use FakeCredentials.CLIENT_ID?
     ) -> None:
         raise NotImplementedError
@@ -232,7 +226,7 @@ class HTTPPatcher(PiShockPatcher):
         sharecode: str = FakeCredentials.SHARECODE,
         paused: bool = False,
         online: bool = True,
-        shocker_id: int = 1001,  # FIXME use FakeCredentials.SHOCKER_ID?
+        shocker_id: int = FakeCredentials.SHOCKER_ID,
         client_id: int = 1000,  # FIXME use FakeCredentials.CLIENT_ID?
     ) -> None:
         self.info_raw(
@@ -255,7 +249,7 @@ class HTTPPatcher(PiShockPatcher):
             matchers.json_params_matcher({
                 "Username": FakeCredentials.USERNAME,
                 "Apikey": FakeCredentials.API_KEY,
-                "ShockerId": 1001,
+                "ShockerId": FakeCredentials.SHOCKER_ID,
                 "Pause": pause,
             }),
             matchers.header_matcher(self.HEADERS),
@@ -290,8 +284,16 @@ class HTTPPatcher(PiShockPatcher):
     def get_shockers(self) -> None:
         self.get_shockers_raw(
             json=[
-                {"name": "test shocker", "id": 1001, "paused": False},
-                {"name": "test shocker 2", "id": 1002, "paused": True},
+                {
+                    "name": "test shocker",
+                    "id": FakeCredentials.SHOCKER_ID,
+                    "paused": False,
+                },
+                {
+                    "name": "test shocker 2",
+                    "id": FakeCredentials.SHOCKER_ID + 1,
+                    "paused": True,
+                },
             ],
             match=self.get_shockers_matchers(),
         )
@@ -338,16 +340,18 @@ class SerialPatcher(PiShockPatcher):
     ) -> None:
         self.serial_api = serial_api
         self.monkeypatch = monkeypatch
-        self.expected_serial_data: Any = None
+        self.expected_serial_data: list[dict[str, Any]] = []
+        self.info()  # for initial info call
+
+    @property
+    def fake_dev(self) -> FakeSerial:
+        assert isinstance(self.serial_api.dev, FakeSerial)
+        return self.serial_api.dev
 
     def check_serial(self) -> None:
         """Check that the serial data matches what we expect."""
-        assert isinstance(self.serial_api.dev, FakeSerial)
-        if self.expected_serial_data is None:
-            assert not self.serial_api.dev.getvalue()
-        else:
-            data = json.loads(self.serial_api.dev.getvalue().decode("utf-8"))
-            assert data == self.expected_serial_data
+        lines = self.fake_dev.get_written().decode("ascii").splitlines()
+        assert [json.loads(line) for line in lines] == self.expected_serial_data
 
     def operate(
         self,
@@ -363,24 +367,20 @@ class SerialPatcher(PiShockPatcher):
         }
         if intensity is not None:
             value["intensity"] = intensity
-        self.expected_serial_data = {"cmd": "operate", "value": value}
+        self.expected_serial_data.append({"cmd": "operate", "value": value})
 
     def info(
         self,
         *,
         paused: bool = False,
-        shocker_id: int = 1001,  # FIXME use FakeCredentials.SHOCKER_ID?
+        shocker_id: int = FakeCredentials.SHOCKER_ID,
         client_id: int = 1000,  # FIXME use FakeCredentials.CLIENT_ID?
     ) -> None:
-        # FIXME patch on a lower level here?
-        # self.expected_serial_data = {"cmd": "info"}
-        self.monkeypatch.setattr(
-            self.serial_api,
-            "info",
-            lambda: {
-                "clientId": client_id,
-                "shockers": [{"id": shocker_id, "paused": paused}],
-            },
+        self.expected_serial_data.append({"cmd": "info"})
+        self.fake_dev.set_info_data(
+            client_id=client_id,
+            shocker_id=shocker_id,
+            paused=paused,
         )
 
 
@@ -389,17 +389,41 @@ class FakeSerial:
     """Helper class which fakes the serial port."""
 
     def __init__(self) -> None:
-        self._dev = io.BytesIO()
+        self._written = io.BytesIO()
         self.port = "FAKE"
+        self._next_read: bytes | None = None
+        self._info_data: dict[str, Any] | None = None
+
+    def set_info_data(
+        self,
+        client_id: int = 1000,  # FIXME use FakeCredentials.CLIENT_ID?
+        shocker_id: int = FakeCredentials.SHOCKER_ID,
+        paused: bool = False,
+    ) -> None:
+        self._info_data = {
+            "clientId": client_id,
+            "shockers": [{"id": shocker_id, "paused": paused}],
+        }
 
     def write(self, data: bytes) -> None:
-        self._dev.write(data)
+        self._written.write(data)
+        info_cmd = json.dumps({"cmd": "info"}).encode("ascii") + b"\n"
+        if data == info_cmd:
+            assert self._info_data is not None
+            info_reply = json.dumps(self._info_data)
+            self._next_read = f"TERMINALINFO: {info_reply}".encode("ascii")
+            self._info_data = None
 
     def read(self, size: int) -> bytes:
-        return self._dev.read(size)
+        raise NotImplementedError
 
-    def getvalue(self) -> bytes:
-        return self._dev.getvalue()
+    def readline(self) -> bytes:
+        assert self._next_read is not None
+        assert b"\n" not in self._next_read
+        return self._next_read
+
+    def get_written(self) -> bytes:
+        return self._written.getvalue()
 
 
 @pytest.fixture
@@ -421,6 +445,25 @@ def serial_patcher(
     patcher.check_serial()
 
 
+@pytest.fixture(params=["api_shocker", "serial_shocker"])
+def shocker(request: pytest.FixtureRequest) -> core.Shocker:
+    return cast(core.Shocker, request.getfixturevalue(request.param))
+
+
+@pytest.fixture
+def serial_shocker(
+    serial_api: serialapi.SerialAPI, credentials: FakeCredentials
+) -> serialapi.SerialShocker:
+    return serial_api.shocker(shocker_id=credentials.SHOCKER_ID)
+
+
+@pytest.fixture
+def api_shocker(
+    pishock_api: httpapi.PiShockAPI, credentials: FakeCredentials
+) -> httpapi.HTTPShocker:
+    return pishock_api.shocker(credentials.SHARECODE)
+
+
 @pytest.fixture
 def patcher(
     request: pytest.FixtureRequest,
@@ -429,9 +472,9 @@ def patcher(
     """Patcher to patch the PiShock HTTP or serial API.
 
     We do sommething somewhat unorthodox here: We access the 'shocker' fixture
-    (defined in test_zap.py) to decide what kind of patcher to return. This
-    means things are always in sync: If a test gets a HTTP shocker, it gets a HTTP
-    patcher; and if a test gets a serial shocker, it gets a serial patcher.
+    to decide what kind of patcher to return. This means things are always in
+    sync: If a test gets a HTTP shocker, it gets a HTTP patcher; and if a test
+    gets a serial shocker, it gets a serial patcher.
     """
     if isinstance(shocker, httpapi.HTTPShocker):
         return cast(HTTPPatcher, request.getfixturevalue("http_patcher"))

@@ -12,12 +12,13 @@ import rich.prompt
 import rich.console
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
-from pishock.zap import httpapi
+from pishock.zap import httpapi, core
 
 from tests.conftest import (
     FakeCredentials,
     PiShockPatcher,
     HTTPPatcher,
+    SerialPatcher,
     Runner,
     ConfigDataType,
 )  # for type hints
@@ -29,20 +30,11 @@ pytestmark = pytest.mark.skipif(
 
 
 @pytest.fixture(autouse=True)
-def patcher_cli_name(patcher: PiShockPatcher, monkeypatch: pytest.MonkeyPatch) -> None:
+def patcher_cli_name(
+    http_patcher: HTTPPatcher, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Set up the correct name sent to the API for CLI invocations."""
-    monkeypatch.setattr(patcher, "NAME", f"{httpapi.NAME} CLI")
-
-
-@pytest.fixture
-def shocker(
-    pishock_api: httpapi.PiShockAPI, credentials: FakeCredentials
-) -> httpapi.HTTPShocker:
-    """Dummy shocker fixture for "patcher" to decide to patch HTTP only.
-
-    FIXME also let shock/vibrate/beep tests run against serial API!
-    """
-    return pishock_api.shocker(credentials.SHARECODE)
+    monkeypatch.setattr(http_patcher, "NAME", f"{httpapi.NAME} CLI")
 
 
 class TestInit:
@@ -205,69 +197,104 @@ def test_info_error(
     assert result.exit_code == 1
 
 
-@pytest.mark.parametrize(
-    "duration, api_duration",
-    [(0.3, 300), (1, 1), (2, 2)],
-)
-@pytest.mark.parametrize("keysmash", [True, False])
-@pytest.mark.golden_test("golden/shock.yml")
-def test_shock(
-    runner: Runner,
-    patcher: PiShockPatcher,
-    golden: GoldenTestFixture,
-    monkeypatch: pytest.MonkeyPatch,
-    duration: float,
-    api_duration: int,
-    keysmash: bool,
-) -> None:
-    key = "output"
-    if duration > 1:
-        key += "_long"
-    if keysmash:
-        key += "_keysmash"
+class TestOperations:
+    @pytest.fixture
+    def serial_flag(self, shocker: core.Shocker) -> list[str]:
+        return ["--serial"] if shocker.IS_SERIAL else []
 
-    patcher.operate(duration=api_duration, operation=httpapi.Operation.SHOCK)
-    monkeypatch.setattr(random, "random", lambda: 0.01 if keysmash else 0.2)
-    monkeypatch.setattr(random, "choices", lambda values, k: "asdfg")
+    @pytest.fixture
+    def shocker_arg(self, shocker: core.Shocker, credentials: FakeCredentials) -> str:
+        if shocker.IS_SERIAL:
+            return str(credentials.SHOCKER_ID)
+        return credentials.SHARECODE
 
-    result = runner.run("shock", runner.sharecode, "-d", str(duration), "-i", "2")
-    assert result.output == golden.out[key]
+    @pytest.fixture(autouse=True)
+    def expect_serial_info(self, patcher: PiShockPatcher) -> None:
+        if isinstance(patcher, SerialPatcher):
+            patcher.info()
 
-
-@pytest.mark.golden_test("golden/beep-vibrate.yml")
-@pytest.mark.parametrize(
-    "duration, api_duration",
-    [(0.3, 300), (1, 1)],
-)
-def test_vibrate(
-    runner: Runner,
-    patcher: PiShockPatcher,
-    golden: GoldenTestFixture,
-    duration: float,
-    api_duration: int,
-) -> None:
-    patcher.operate(duration=api_duration, operation=httpapi.Operation.VIBRATE)
-    result = runner.run("vibrate", runner.sharecode, "-d", str(duration), "-i", "2")
-    assert result.output == golden.out["output_vibrate"]
-
-
-@pytest.mark.golden_test("golden/beep-vibrate.yml")
-@pytest.mark.parametrize(
-    "duration, api_duration",
-    [(0.3, 300), (1, 1)],
-)
-def test_beep(
-    runner: Runner,
-    patcher: PiShockPatcher,
-    golden: GoldenTestFixture,
-    duration: float,
-    api_duration: int,
-) -> None:
-    patcher.operate(
-        operation=httpapi.Operation.BEEP, intensity=None, duration=api_duration
+    @pytest.mark.parametrize(
+        "duration, api_duration",
+        [(0.3, 300), (1, 1), (2, 2)],
     )
-    result = runner.run("beep", runner.sharecode, "-d", str(duration))
-    assert result.output == golden.out["output_beep"]
+    @pytest.mark.parametrize("keysmash", [True, False])
+    @pytest.mark.golden_test("golden/shock.yml")
+    def test_shock(
+        self,
+        runner: Runner,
+        patcher: PiShockPatcher,
+        serial_flag: str,
+        shocker_arg: str,
+        golden: GoldenTestFixture,
+        monkeypatch: pytest.MonkeyPatch,
+        duration: float,
+        api_duration: int,
+        keysmash: bool,
+    ) -> None:
+        key = "output"
+        if duration > 1:
+            key += "_long"
+        if keysmash:
+            key += "_keysmash"
+
+        patcher.operate(
+            duration=duration if serial_flag else api_duration,
+            operation=httpapi.Operation.SHOCK,
+        )
+        monkeypatch.setattr(random, "random", lambda: 0.01 if keysmash else 0.2)
+        monkeypatch.setattr(random, "choices", lambda values, k: "asdfg")
+
+        result = runner.run(
+            *serial_flag, "shock", shocker_arg, "-d", str(duration), "-i", "2"
+        )
+        assert result.output == golden.out[key]
+
+    @pytest.mark.golden_test("golden/beep-vibrate.yml")
+    @pytest.mark.parametrize(
+        "duration, api_duration",
+        [(0.3, 300), (1, 1)],
+    )
+    def test_vibrate(
+        self,
+        runner: Runner,
+        patcher: PiShockPatcher,
+        serial_flag: str,
+        shocker_arg: str,
+        golden: GoldenTestFixture,
+        duration: float,
+        api_duration: int,
+    ) -> None:
+        patcher.operate(
+            duration=duration if serial_flag else api_duration,
+            operation=httpapi.Operation.VIBRATE,
+        )
+        result = runner.run(
+            *serial_flag, "vibrate", shocker_arg, "-d", str(duration), "-i", "2"
+        )
+        assert result.output == golden.out["output_vibrate"]
+
+    @pytest.mark.golden_test("golden/beep-vibrate.yml")
+    @pytest.mark.parametrize(
+        "duration, api_duration",
+        [(0.3, 300), (1, 1)],
+    )
+    def test_beep(
+        self,
+        runner: Runner,
+        patcher: PiShockPatcher,
+        serial_flag: str,
+        shocker_arg: str,
+        golden: GoldenTestFixture,
+        duration: float,
+        api_duration: int,
+    ) -> None:
+        patcher.operate(
+            operation=httpapi.Operation.BEEP,
+            intensity=None,
+            duration=duration if serial_flag else api_duration,
+        )
+        result = runner.run(*serial_flag, "beep", shocker_arg, "-d", str(duration))
+        assert result.output == golden.out["output_beep"]
 
 
 @pytest.mark.parametrize(

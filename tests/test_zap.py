@@ -1,36 +1,16 @@
 from __future__ import annotations
 
 import http
-from typing import cast
 
 import pytest
 
-from pishock.zap import serialapi, httpapi, core
+from pishock.zap import httpapi, core
 
 from tests.conftest import (
     FakeCredentials,
     PiShockPatcher,
     HTTPPatcher,
 )  # for type hints
-
-
-@pytest.fixture(params=["api_shocker", "serial_shocker"])
-def shocker(request: pytest.FixtureRequest) -> core.Shocker:
-    return cast(core.Shocker, request.getfixturevalue(request.param))
-
-
-@pytest.fixture
-def serial_shocker(
-    serial_api: serialapi.SerialAPI, credentials: FakeCredentials
-) -> serialapi.SerialShocker:
-    return serial_api.shocker(shocker_id=credentials.SHOCKER_ID)
-
-
-@pytest.fixture
-def api_shocker(
-    pishock_api: httpapi.PiShockAPI, credentials: FakeCredentials
-) -> httpapi.HTTPShocker:
-    return pishock_api.shocker(credentials.SHARECODE)
 
 
 def test_api_repr(
