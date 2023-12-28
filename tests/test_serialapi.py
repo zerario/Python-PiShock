@@ -133,6 +133,30 @@ def test_info(serial_api: serialapi.SerialAPI, credentials: FakeCredentials) -> 
     }
 
 
+@pytest.mark.parametrize("debug", [True, False])
+def test_wait_info(serial_api: serialapi.SerialAPI, fake_serial: FakeSerial, debug: bool, capsys: pytest.CaptureFixture) -> None:
+    fake_serial.next_read = [b"not terminalinfo", b"TERMINALINFO: {}"]
+    info = serial_api.wait_info(debug=debug)
+    assert info == {}
+
+    out, _err = capsys.readouterr()
+    assert out == ("not terminalinfo" if debug else "")
+
+
+def test_wait_info_timeout(
+    serial_api: serialapi.SerialAPI, fake_serial: FakeSerial
+) -> None:
+    fake_serial.next_read = [b"not terminalinfo", b"TERMINALINFO: {}"]
+    with pytest.raises(
+        TimeoutError,
+        match=re.escape(
+            "No info received within timeout. "
+            "Make sure the given device is indeed a PiShock."
+        ),
+    ):
+        serial_api.wait_info(timeout=1)
+
+
 def test_unknown_shocker(
     serial_api: serialapi.SerialAPI, credentials: FakeCredentials
 ) -> None:
@@ -168,10 +192,12 @@ def test_restart(serial_api: serialapi.SerialAPI, fake_serial: FakeSerial) -> No
 
 
 def test_monitor(serial_api: serialapi.SerialAPI, fake_serial: FakeSerial) -> None:
-    data = b"Hello World"
+    data = [b"Hello", b"World"]
     fake_serial.next_read = data
     gen = serial_api.monitor()
-    assert next(gen) == data
+    # raises due to us patching in a list instead of using an actual blocking device
+    with pytest.raises(IndexError, match="pop from empty list"):
+        assert list(gen) == data
 
 
 def test_shocker_end(
