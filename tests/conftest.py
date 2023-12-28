@@ -387,7 +387,7 @@ class FakeSerial:
     def __init__(self) -> None:
         self._written = io.BytesIO()
         self.port = "FAKE"
-        self._next_read: bytes | None = None
+        self.next_read: bytes | None = None
         self._info_data: dict[str, Any] | None = None
 
     def set_info_data(
@@ -407,16 +407,16 @@ class FakeSerial:
         if data == info_cmd:
             assert self._info_data is not None
             info_reply = json.dumps(self._info_data)
-            self._next_read = f"TERMINALINFO: {info_reply}".encode("ascii")
+            self.next_read = f"TERMINALINFO: {info_reply}".encode("ascii")
             self._info_data = None
 
     def read(self, size: int) -> bytes:
         raise NotImplementedError
 
     def readline(self) -> bytes:
-        assert self._next_read is not None
-        assert b"\n" not in self._next_read
-        return self._next_read
+        assert self.next_read is not None
+        assert b"\n" not in self.next_read
+        return self.next_read
 
     def get_written(self) -> bytes:
         return self._written.getvalue()

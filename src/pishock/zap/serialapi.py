@@ -7,6 +7,7 @@ from typing import Any, Iterator
 
 import serial  # type: ignore[import-untyped]
 import serial.tools.list_ports  # type: ignore[import-untyped]
+import serial.tools.list_ports_common  # type: ignore[import-untyped]
 
 from pishock.zap import core
 
@@ -32,7 +33,7 @@ class ShockerNotFoundError(Exception):
     """Raised if a shocker ID is not found."""
 
 
-def is_maybe_pishock(info: serial.tools.list_ports.ListPortInfo) -> bool:
+def is_maybe_pishock(info: serial.tools.list_ports_common.ListPortInfo) -> bool:
     """Check if the given port might be a PiShock."""
     return (info.vid, info.pid) in USB_IDS
 
