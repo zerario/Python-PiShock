@@ -7,7 +7,8 @@ import pytest
 import serial  # type: ignore[import-untyped]
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
 
-from tests.conftest import FakeSerial, FakeCredentials  # for type annotations
+# for type annotations
+from tests.conftest import FakeSerial, FakeCredentials, SerialPatcher
 from pishock.zap import serialapi
 
 
@@ -121,12 +122,16 @@ def test_build_cmd(
 
 
 def test_send_cmd(serial_api: serialapi.SerialAPI, fake_serial: FakeSerial) -> None:
-    serial_api._send_cmd("info")
-    assert fake_serial.get_written() == b'{"cmd": "info"}\n'
+    serial_api._send_cmd("restart")
+    assert fake_serial.get_written() == b'{"cmd": "restart"}\n'
 
 
-def test_info(serial_api: serialapi.SerialAPI, credentials: FakeCredentials) -> None:
-    # FIXME where is the info setting coming from here?
+def test_info(
+    serial_patcher: SerialPatcher,
+    serial_api: serialapi.SerialAPI,
+    credentials: FakeCredentials,
+) -> None:
+    serial_patcher.info()
     assert serial_api.info() == {
         "clientId": 1000,  # FIXME use credentials.CLIENT_ID?
         "shockers": [{"id": credentials.SHOCKER_ID, "paused": False}],
@@ -134,7 +139,12 @@ def test_info(serial_api: serialapi.SerialAPI, credentials: FakeCredentials) -> 
 
 
 @pytest.mark.parametrize("debug", [True, False])
-def test_wait_info(serial_api: serialapi.SerialAPI, fake_serial: FakeSerial, debug: bool, capsys: pytest.CaptureFixture) -> None:
+def test_wait_info(
+    serial_api: serialapi.SerialAPI,
+    fake_serial: FakeSerial,
+    debug: bool,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     fake_serial.next_read = [b"not terminalinfo", b"TERMINALINFO: {}"]
     info = serial_api.wait_info(debug=debug)
     assert info == {}
@@ -158,8 +168,11 @@ def test_wait_info_timeout(
 
 
 def test_unknown_shocker(
-    serial_api: serialapi.SerialAPI, credentials: FakeCredentials
+    serial_patcher: SerialPatcher,
+    serial_api: serialapi.SerialAPI,
+    credentials: FakeCredentials,
 ) -> None:
+    serial_patcher.info()
     with pytest.raises(
         serialapi.ShockerNotFoundError,
         match=r"Shocker 1002 not found, available: 1001",
@@ -201,11 +214,10 @@ def test_monitor(serial_api: serialapi.SerialAPI, fake_serial: FakeSerial) -> No
 
 
 def test_shocker_end(
-    serial_shocker: serialapi.SerialShocker, fake_serial: FakeSerial
+    serial_shocker: serialapi.SerialShocker,
+    serial_patcher: SerialPatcher,
 ) -> None:
-    serial_shocker.end()
-    data = (
-        b'{"cmd": "info"}\n'
-        b'{"cmd": "operate", "value": {"id": 1001, "op": "end", "duration": 0}}\n'
+    serial_patcher.operate(
+        operation=serialapi.SerialOperation.END, duration=0, intensity=None
     )
-    assert fake_serial.get_written() == data
+    serial_shocker.end()

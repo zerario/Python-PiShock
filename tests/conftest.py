@@ -63,9 +63,7 @@ def serial_api(
 ) -> serialapi.SerialAPI:
     monkeypatch.setattr(serialapi, "_autodetect_port", lambda: credentials.SERIAL_PORT)
     monkeypatch.setattr(serial, "Serial", lambda port, baudrate, timeout: fake_serial)
-    api = serialapi.SerialAPI(credentials.SERIAL_PORT)
-    fake_serial.set_info_data()
-    return api
+    return serialapi.SerialAPI(credentials.SERIAL_PORT)
 
 
 class Runner:
@@ -338,7 +336,6 @@ class SerialPatcher(PiShockPatcher):
         self.serial_api = serial_api
         self.monkeypatch = monkeypatch
         self.expected_serial_data: list[dict[str, Any]] = []
-        self.info()  # for initial info call
 
     @property
     def fake_dev(self) -> FakeSerial:
@@ -353,7 +350,9 @@ class SerialPatcher(PiShockPatcher):
     def operate(
         self,
         *,
-        operation: httpapi.Operation = httpapi.Operation.VIBRATE,
+        operation: (
+            httpapi.Operation | serialapi.SerialOperation
+        ) = httpapi.Operation.VIBRATE,
         duration: int | float = 1,
         intensity: int | None = 2,
     ) -> None:
@@ -388,7 +387,7 @@ class FakeSerial:
         self._written = io.BytesIO()
         self.port = "FAKE"
         self.next_read: list[bytes] = []
-        self._info_data: dict[str, Any] | None = None
+        self._info_data: list[dict[str, Any]] = []
 
     def set_info_data(
         self,
@@ -396,19 +395,17 @@ class FakeSerial:
         shocker_id: int = FakeCredentials.SHOCKER_ID,
         paused: bool = False,
     ) -> None:
-        self._info_data = {
+        self._info_data.append({
             "clientId": client_id,
             "shockers": [{"id": shocker_id, "paused": paused}],
-        }
+        })
 
     def write(self, data: bytes) -> None:
         self._written.write(data)
         info_cmd = json.dumps({"cmd": "info"}).encode("ascii") + b"\n"
         if data == info_cmd:
-            assert self._info_data is not None
-            info_reply = json.dumps(self._info_data)
+            info_reply = json.dumps(self._info_data.pop(0))
             self.next_read.append(f"TERMINALINFO: {info_reply}".encode("ascii"))
-            self._info_data = None
 
     def read(self, size: int) -> bytes:
         raise NotImplementedError
@@ -446,8 +443,11 @@ def shocker(request: pytest.FixtureRequest) -> core.Shocker:
 
 @pytest.fixture
 def serial_shocker(
-    serial_api: serialapi.SerialAPI, credentials: FakeCredentials
+    serial_api: serialapi.SerialAPI,
+    serial_patcher: SerialPatcher,
+    credentials: FakeCredentials,
 ) -> serialapi.SerialShocker:
+    serial_patcher.info()  # for initial info call
     return serial_api.shocker(shocker_id=credentials.SHOCKER_ID)
 
 

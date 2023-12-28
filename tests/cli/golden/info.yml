@@ -36,3 +36,17 @@ output_offline: |
   └───────────────┴──────────────┘
 output_error: |
   Error: Not JSON lol (UnknownError)
+output_paused_serial: |
+  ┌────────────┬───────────────────────┐
+  │ Name       │ Serial shocker (FAKE) │
+  │ PiShock ID │ 1000                  │
+  │ Shocker ID │ 1001                  │
+  │ Paused     │ ⏸                     │
+  └────────────┴───────────────────────┘
+output_serial: |
+  ┌────────────┬───────────────────────┐
+  │ Name       │ Serial shocker (FAKE) │
+  │ PiShock ID │ 1000                  │
+  │ Shocker ID │ 1001                  │
+  │ Paused     │ ▶                     │
+  └────────────┴───────────────────────┘

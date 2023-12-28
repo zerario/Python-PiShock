@@ -171,19 +171,33 @@ class TestInit:
 def test_info(
     runner: Runner,
     golden: GoldenTestFixture,
-    http_patcher: HTTPPatcher,
+    patcher: PiShockPatcher,
     online: bool,
+    credentials: FakeCredentials,
     paused: bool,
 ) -> None:
+    if isinstance(patcher, HTTPPatcher):
+        patcher.info(online=online, paused=paused)
+        shocker_arg = credentials.SHARECODE
+        serial_flag = []
+    elif not online:
+        pytest.skip("Serial API does not support offline status")
+        assert False  # for mypy
+    else:
+        patcher.info(paused=paused)  # for initial get_shocker()
+        patcher.info(paused=paused)
+        shocker_arg = str(credentials.SHOCKER_ID)
+        serial_flag = ["--serial"]
+
     key = "output"
     if not online:
         key += "_offline"
     if paused:
         key += "_paused"
+    if isinstance(patcher, SerialPatcher):
+        key += "_serial"
 
-    # FIXME run against serial API too
-    http_patcher.info(online=online, paused=paused)
-    result = runner.run("info", runner.sharecode)
+    result = runner.run(*serial_flag, "info", shocker_arg)
     assert result.output == golden.out[key]
 
 
