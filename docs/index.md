@@ -9,9 +9,10 @@
 :maxdepth: 2
 :caption: "Contents:"
 
+api
+cli
 reference
 ```
-
 
 
 # Indices and tables

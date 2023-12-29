@@ -25,6 +25,7 @@ flat ``pishock`` namespace.
    :members:
 ```
 
+(http-api-errors)=
 ### API Errors
 
 ```{eval-rst}
@@ -74,6 +75,7 @@ serial commands to the PiShock.
    :no-index:
 
 .. autoclass:: SerialAutodetectError
+.. autoclass:: ShockerNotFoundError
 .. autoclass:: SerialOperation
 .. autoclass:: SerialAPI
    :members:
