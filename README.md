@@ -6,13 +6,13 @@ The *bestest* Python PiShock API wrapper and CLI!
 
 > *If you have no idea what [PiShock](https://pishock.com/#/?campaign=zerario) is: I'm left wondering how you found this, but it's an ecosystem around using dog shock collars on humans (clearly the better way to use them!).*
 
-- Pythonic, **easy-to-use API**.
-- Beautiful **command-line interface** to send shocks/vibrates/beeps, manage share codes, keep someone on their toes with **random shocks**, interfacing with the PiShock over **USB/serial**, updating firmware, and more!
+- Pythonic, [**easy-to-use API**](https://python-pishock.readthedocs.io/en/latest/api.html).
+- Beautiful [**command-line interface**](https://python-pishock.readthedocs.io/en/latest/cli.html) to [send shocks/vibrates/beeps](https://python-pishock.readthedocs.io/en/latest/cli.html#basic-usage), [manage share codes](https://python-pishock.readthedocs.io/en/latest/cli.html#managing-share-codes), keep someone on their toes with [**random shocks**](https://python-pishock.readthedocs.io/en/latest/cli.html#random-mode), interfacing with the PiShock [over **USB/serial**](https://python-pishock.readthedocs.io/en/latest/cli.html#serial-usage), [upgrading firmware](https://python-pishock.readthedocs.io/en/latest/cli.html#firmware-upgrade), and more!
 - **Ticks the boxes**: Support for **mini-shocks**, getting **shocker info**, and various other undocumented API features. If it's possible to do, this project probably supports it.
 - **Local shocking**: Drop-in support for the **USB serial API** instead of HTTP.
 - **Battle-tested**: I accidentally shocked my balls while developing so you don't have to (I *wish* this was a joke).
 - **High-quality, modern** codebase: Type annotations in [Mypy strict mode](https://mypy.readthedocs.io/en/stable/), Linting/Formatting via [Ruff](https://docs.astral.sh/ruff/), Automated tests with [pytest](https://docs.pytest.org/).
-- **Made with love**: Decent test coverage, CI, nice documentation, …. — I love zappies and I love going the extra mile!
+- **Made with love**: Decent test coverage, [CI](https://github.com/zerario/Python-PiShock/actions), [nice documentation](https://python-pishock.readthedocs.io/), …. — I love zappies and I love going the extra mile!
 - **Almost official**: While this is not an official pishock.com product, I'm the same person who developed the code running on your PiShock that's sending out the shocks.
 - **Runs anywhere**: Tested on CPython 3.8 to 3.12, on Windows, macOS and Linux. Possibly CircuitPython soon?
 
