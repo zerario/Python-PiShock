@@ -49,6 +49,7 @@ $ pishock beep my-shocker -d 1
 🔊
 ```
 
+(managing-share-codes)=
 ## Managing share codes
 
 The CLI stores a list of known share codes in its config. When you add a new
