@@ -29,7 +29,7 @@ $ pishock init
 🔑 PiShock API key (https://pishock.com/#/account): 964f1513-c76a-48cc-82d4-41e757d4eb04
 ✅ Credentials saved.
 
-$ pishock code-add my-shocker ABCDEF12345
+$ pishock code add my-shocker ABCDEF12345
 ✅  my-shocker    ABCDEF12345
 
 $ pishock vibrate my-shocker --duration 1 --intensity 20
