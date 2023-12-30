@@ -319,9 +319,7 @@ VibrateIntensityArg: TypeAlias = Annotated[
     ),
 ]
 
-ShockArg: TypeAlias = Annotated[
-    bool, typer.Option(help="Send shocks.")
-]
+ShockArg: TypeAlias = Annotated[bool, typer.Option(help="Send shocks.")]
 
 VibrateArg: TypeAlias = Annotated[
     bool,
