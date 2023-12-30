@@ -67,7 +67,7 @@ IntensityOpt: TypeAlias = Annotated[
 def handle_errors(*args: Type[Exception]) -> Iterator[None]:
     try:
         yield
-    except (httpapi.APIError, serial.SerialException, *args) as e:
+    except (httpapi.APIError, serial.SerialException, TimeoutError, *args) as e:
         cli_utils.print_exception(e)
         raise typer.Exit(1)
 
