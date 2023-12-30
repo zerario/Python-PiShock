@@ -214,8 +214,8 @@ class SerialAPI:
         Arguments:
             shocker_id: The shocker ID, as displayed under the
               cogwheels on the `PiShock website <https://pishock.com/#/control>`_, or
-              available via :meth:`pishock.APIShocker.info()` or
-              :meth:`pishock.SerialAPI.info()`.
+              available via :meth:`pishock.zap.httpapi.HTTPShocker.info()` or
+              :meth:`SerialAPI.info()`.
         """
         return SerialShocker(api=self, shocker_id=shocker_id)
 
@@ -232,7 +232,7 @@ class SerialAPI:
         non-existing shocker ID.
 
         You should not need to use this directly, use :meth:`shocker` to get
-        access to the higher-level :class:`pishock.zap.SerialShocker` instead.
+        access to the higher-level :class:`SerialShocker` instead.
         """
         if intensity is not None and not 0 <= intensity <= 100:
             raise ValueError(
@@ -266,7 +266,7 @@ class SerialShocker(core.Shocker):
     """Represents a single shocker accessed via serial port.
 
     Normally, there should be no need to instanciate this manually, use
-    :meth:`pishock.SerialAPI.shocker()` instead.
+    :meth:`SerialAPI.shocker()` instead.
 
     Arguments:
         api: The :class:`SerialAPI` instance to use.

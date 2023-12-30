@@ -231,12 +231,13 @@ class PiShockAPI:
 class DetailedShockerInfo(core.BasicShockerInfo):
     """Detailed information about a shocker.
 
-    Used by :meth:`pishock.HTTPShocker.info()`. Calling
-    :meth:`pishock.PiShockAPI.get_shockers()` or
-    :meth:`pishock.SerialShocker.info()` returns a
-    :class:`pishock.BasicShockerInfo` instance instead.
+    Used by :meth:`HTTPShocker.info()`. Calling
+    :meth:`PiShockAPI.get_shockers()` or
+    :meth:`pishock.zap.serialapi.SerialShocker.info()` returns a
+    :class:`pishock.zap.core.BasicShockerInfo` instance instead.
 
-    This class extends :class:`pishock.BasicShockerInfo` with the following attributes:
+    This class extends :class:`pishock.zap.core.BasicShockerInfo` with the
+    following attributes:
 
     Attributes:
         max_intensity: The maximum intensity (0-100) the shocker can be set to.
@@ -262,7 +263,7 @@ class HTTPShocker(core.Shocker):
     """Represents a single shocker / share code using the HTTP API.
 
     Normally, there should be no need to instanciate this manually, use
-    :meth:`pishock.PiShockAPI.shocker()` instead.
+    :meth:`PiShockAPI.shocker()` instead.
     """
 
     IS_SERIAL = False

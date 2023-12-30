@@ -1,4 +1,4 @@
-# Using the Python API
+# Python API
 
 ## Overview
 
