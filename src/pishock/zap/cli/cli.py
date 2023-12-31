@@ -382,7 +382,7 @@ def init_pishock_api(
 
         if is_init:
             return cli_utils.AppContext(
-                config=cli_utils.Config(), pishock_api=None, serial_api=None
+                config=config, pishock_api=None, serial_api=None
             )
 
         if config.username is None or config.api_key is None:
