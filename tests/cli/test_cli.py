@@ -10,6 +10,7 @@ import pytest
 import rich
 import rich.prompt
 import rich.console
+import serial.tools.list_ports
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
 from pishock.zap import httpapi, core, serialapi
@@ -514,3 +515,27 @@ def test_serial_shocker_with_sharecode(
     serial_patcher.info()  # actual info call
     result = runner.run("--serial", "info", credentials.SHARECODE)
     assert result.output == golden.out["output_serial_with_sharecode"]
+
+
+@pytest.mark.golden_test("golden/misc.yml")
+def test_serial_autodetect_error(
+    runner: Runner,
+    golden: GoldenTestFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    credentials: FakeCredentials,
+) -> None:
+    monkeypatch.setattr(serial.tools.list_ports, "comports", lambda: [])
+    result = runner.run("--serial", "info", credentials.SHARECODE)
+    assert result.output == golden.out["output_serial_error"]
+    assert result.exit_code == 1
+
+
+@pytest.mark.golden_test("golden/misc.yml")
+def test_port_without_serial(
+    runner: Runner,
+    golden: GoldenTestFixture,
+    credentials: FakeCredentials,
+) -> None:
+    result = runner.run("--port", credentials.SERIAL_PORT, "info", credentials.SHARECODE)
+    assert result.output == golden.out["output_serial_port_without_serial"]
+    assert result.exit_code == 1

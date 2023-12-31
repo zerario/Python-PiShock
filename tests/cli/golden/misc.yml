@@ -10,3 +10,18 @@ output_serial_with_sharecode: |
   │ Shocker ID │ 1001                  │
   │ Paused     │ ▶                     │
   └────────────┴───────────────────────┘
+output_serial_error: |
+  Error: No PiShock found via port autodetection. (SerialAutodetectError)
+
+                               Available serial ports                             
+  ┏━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━┓
+  ┃        ┃           ┃         ┃         ┃ USB Serial ┃ USB       ┃ USB        ┃
+  ┃ Device ┃ Descript… ┃ USB VID ┃ USB PID ┃ Number     ┃ Manufact… ┃ Product    ┃
+  ┡━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━┩
+  └────────┴───────────┴─────────┴─────────┴────────────┴───────────┴────────────┘
+
+  Use --port option to specify a serial port.
+  Note: If you see your PiShock greyed out above, please report this as a bug: 
+  https://github.com/zerario/Python-PiShock/issues/new
+output_serial_port_without_serial: |
+  Error: --port option only valid with --serial or serial subcommand.
