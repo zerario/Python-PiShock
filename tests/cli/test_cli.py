@@ -13,6 +13,7 @@ import rich.console
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
 from pishock.zap import httpapi, core
+from pishock.zap.cli import cli
 
 from tests.conftest import (
     FakeCredentials,
@@ -142,9 +143,9 @@ class TestInit:
         suffix: str,
     ) -> None:
         if has_key:
-            monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
+            monkeypatch.setenv(cli.API_KEY_ENV_VAR, credentials.API_KEY)
         if has_user:
-            monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
+            monkeypatch.setenv(cli.API_USER_ENV_VAR, credentials.USERNAME)
 
         result = runner_noenv.run("verify")
         assert result.output == golden.out[f"output_{suffix}"]

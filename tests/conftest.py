@@ -81,8 +81,8 @@ class Runner:
 def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Runner:
     rich.reconfigure(width=80)
     monkeypatch.setenv("COLUMNS", "80")  # for future console instances
-    monkeypatch.setenv("PISHOCK_API_USER", credentials.USERNAME)
-    monkeypatch.setenv("PISHOCK_API_KEY", credentials.API_KEY)
+    monkeypatch.setenv(cli.API_USER_ENV_VAR, credentials.USERNAME)
+    monkeypatch.setenv(cli.API_KEY_ENV_VAR, credentials.API_KEY)
     return Runner(credentials.SHARECODE)
 
 

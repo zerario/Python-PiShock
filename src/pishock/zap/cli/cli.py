@@ -22,6 +22,9 @@ app = typer.Typer()
 app.add_typer(cli_serial.app, name="serial", help="Serial interface commands")
 app.add_typer(cli_code.app, name="code", help="Manage share codes")
 
+API_USER_ENV_VAR = "PISHOCK_API_USER"
+API_KEY_ENV_VAR = "PISHOCK_API_KEY"
+
 
 # TODO:
 # - Accept multiple share codes for commands
@@ -382,7 +385,7 @@ def init_pishock_api(
             rich.print(
                 "[red]No API credentials found.[/] To fix this, do either of:\n\n"
                 f"- Run [green]{cmd} init[/] to create a new config file\n"
-                "- Set [green]PISHOCK_API_USER[/] and [green]PISHOCK_API_KEY[/] "
+                f"- Set [green]{API_USER_ENV_VAR}[/] and [green]{API_KEY_ENV_VAR}[/] "
                 "environment variables\n"
                 "- Pass [green]--username[/] and [green]--api-key[/] options"
             )
@@ -403,14 +406,14 @@ def main(
         Optional[str],
         typer.Option(
             help="Username for the PiShock account.",
-            envvar="PISHOCK_API_USER",
+            envvar=API_USER_ENV_VAR,
         ),
     ] = None,
     api_key: Annotated[
         Optional[str],
         typer.Option(
             help="API key for the PiShock account.",
-            envvar="PISHOCK_API_KEY",
+            envvar=API_KEY_ENV_VAR,
         ),
     ] = None,
     serial: Annotated[
