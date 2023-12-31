@@ -10,7 +10,7 @@ import pytest
 import rich
 import rich.prompt
 import rich.console
-import serial.tools.list_ports
+import serial.tools.list_ports  # type: ignore[import-untyped]
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
 from pishock.zap import httpapi, core, serialapi
