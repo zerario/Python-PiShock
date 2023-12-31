@@ -3,6 +3,7 @@ import difflib
 import pathlib
 import random
 import sys
+import os
 from typing import Iterator, List, Optional, Type
 
 import serial  # type: ignore[import-untyped]
@@ -114,7 +115,11 @@ def get_shocker(app_ctx: cli_utils.AppContext, shocker: str) -> core.Shocker:
         if shocker_id is None:
             assert sharecode is not None
             rich.print("[yellow]Warning:[/] Doing HTTP API call to resolve share code.")
-            temp_ctx = init_pishock_api(username=None, api_key=None, is_init=False)
+            temp_ctx = init_pishock_api(
+                username=os.environ.get(API_USER_ENV_VAR),
+                api_key=os.environ.get(API_KEY_ENV_VAR),
+                is_init=False,
+            )
             temp_api = temp_ctx.ensure_pishock_api()
             with handle_errors():
                 shocker_id = temp_api.shocker(sharecode).info().shocker_id
