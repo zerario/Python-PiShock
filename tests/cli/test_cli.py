@@ -470,3 +470,26 @@ def test_verify(
     result = runner.run("verify")
     assert result.output == golden.out[f"output_{outcome}"]
     assert result.exit_code == (0 if outcome == "ok" else 1)
+
+
+@pytest.mark.golden_test("golden/misc.yml")
+def test_http_shocker_with_id(
+    runner: Runner, golden: GoldenTestFixture, credentials: FakeCredentials
+) -> None:
+    result = runner.run("info", str(credentials.SHOCKER_ID))
+    assert result.output == golden.out["output_http_with_id"]
+
+
+@pytest.mark.golden_test("golden/misc.yml")
+def test_serial_shocker_with_sharecode(
+    runner: Runner,
+    golden: GoldenTestFixture,
+    http_patcher: HTTPPatcher,
+    serial_patcher: SerialPatcher,
+    credentials: FakeCredentials,
+) -> None:
+    http_patcher.info()  # to resolve share code
+    serial_patcher.info()  # for initial get_shocker()
+    serial_patcher.info()  # actual info call
+    result = runner.run("--serial", "info", credentials.SHARECODE)
+    assert result.output == golden.out["output_serial_with_sharecode"]

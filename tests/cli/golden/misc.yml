@@ -1,0 +1,12 @@
+output_http_with_id: |
+  Error: Shocker IDs are only valid with serial API.
+output_serial_with_sharecode: |
+  Warning: Doing HTTP API call to resolve share code.
+     Hint: Use --serial with shocker ID 1001 instead of share code, or use code 
+  add to save the share code with its shocker ID.
+  ┌────────────┬───────────────────────┐
+  │ Name       │ Serial shocker (FAKE) │
+  │ PiShock ID │ 1000                  │
+  │ Shocker ID │ 1001                  │
+  │ Paused     │ ▶                     │
+  └────────────┴───────────────────────┘
