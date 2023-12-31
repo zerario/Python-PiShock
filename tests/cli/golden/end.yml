@@ -1,0 +1,4 @@
+output_serial: |
+  ❌
+output_http: |
+  Error: This command is only available with the serial API.

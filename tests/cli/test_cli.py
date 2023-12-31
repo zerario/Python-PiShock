@@ -12,7 +12,7 @@ import rich.prompt
 import rich.console
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
-from pishock.zap import httpapi, core
+from pishock.zap import httpapi, core, serialapi
 from pishock.zap.cli import cli
 
 from tests.conftest import (
@@ -310,6 +310,27 @@ class TestOperations:
         )
         result = runner.run(*serial_flag, "beep", shocker_arg, "-d", str(duration))
         assert result.output == golden.out["output_beep"]
+
+    @pytest.mark.golden_test("golden/end.yml")
+    def test_end(
+        self,
+        runner: Runner,
+        patcher: PiShockPatcher,
+        serial_flag: str,
+        shocker_arg: str,
+        credentials: FakeCredentials,
+        golden: GoldenTestFixture,
+    ) -> None:
+        if isinstance(patcher, SerialPatcher):
+            patcher.operate(
+                operation=serialapi.SerialOperation.END,
+                intensity=None,
+                duration=0,
+            )
+        result = runner.run(*serial_flag, "end", shocker_arg)
+        suffix = "serial" if serial_flag else "http"
+        assert result.output == golden.out[f"output_{suffix}"]
+        assert result.exit_code == (0 if serial_flag else 1)
 
 
 @pytest.mark.parametrize(
