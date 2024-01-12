@@ -118,13 +118,16 @@ shocker = api.shocker(shocker_id)
 Once you did so, you will be able to call {meth}`Shocker.vibrate()`,
 {meth}`Shocker.shock()` and {meth}`Shocker.beep()` on them for the basic
 operations:
- and {meth}`removing <serialapi.SerialAPI.remove_network()`
+
 ```python
 shocker.vibrate(duration=1, intensity=10)
 ```
 
-Both classes also support calling {meth}`Shocker.info()` to get info
-about a shocker, though note that the {class}`SerialShocker <serialapi.SerialShocker>` will only provide
+A {class}`HTTPShocker` also supports {meth}`HTTPShocker.pause()` in order to
+pause/unpause the shocker.
+
+Finally, both classes support calling {meth}`Shocker.info()` to get info
+about a shocker. However, note that the {class}`SerialShocker <serialapi.SerialShocker>` will only provide
 {class}`BasicShockerInfo <core.BasicShockerInfo>`, while the HTTP API provides
 {class}`DetailedShockerInfo <httpapi.DetailedShockerInfo>` (which adds
 {attr}`max_intensity <httpapi.DetailedShockerInfo.max_intensity>` and
