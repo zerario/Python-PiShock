@@ -21,6 +21,12 @@ def config(config_path: pathlib.Path) -> cli_utils.Config:
     return cfg
 
 
+@pytest.fixture(autouse=True)
+def dumb_term(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ensure no terminal escape codes are used in output."""
+    monkeypatch.setenv("TERM", "dumb")
+
+
 class TestConfig:
     def test_load_does_not_exist(self, config: cli_utils.Config) -> None:
         config.load()
