@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "pishock"
 version = "1.0.1"
-description = ""
+description = "The bestest Python PiShock API wrapper and CLI!"
 authors = ["Zerario <derg@zerario.dev>"]
 readme = "README.md"
 packages = [{include = "pishock", from = "src"}]
