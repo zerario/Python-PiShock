@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pishock"
-version = "1.0.2"
+version = "1.0.3"
 description = "The bestest Python PiShock API wrapper and CLI!"
 authors = ["Zerario <derg@zerario.dev>"]
 readme = "README.md"

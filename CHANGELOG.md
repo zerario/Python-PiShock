@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.3 (unreleased)
+## v1.0.3 (2024-01-12)
 
 - Calling `.info()` on a `SerialShocker` now includes its shocker ID in the returned `name`.
 - Just like `HTTPShocker`, `SerialShocker` now implements `__str__`, returning a string like `Serial shocker 1234 (/dev/ttyUSB0)`
