@@ -41,9 +41,11 @@ def patcher_cli_name(
 
 class TestInit:
     @pytest.fixture
-    def runner_noenv(self, credentials: FakeCredentials) -> Runner:
-        """Runner with no env variables set."""
-        return Runner(credentials.SHARECODE)
+    def runner_noenv(self, runner: Runner, monkeypatch: pytest.MonkeyPatch) -> Runner:
+        """Runner with no auth env variables set."""
+        monkeypatch.delenv(cli.API_USER_ENV_VAR)
+        monkeypatch.delenv(cli.API_KEY_ENV_VAR)
+        return runner
 
     @pytest.mark.parametrize("valid", [True, False])
     def test_init(
