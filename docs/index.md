@@ -12,6 +12,7 @@
 api
 cli
 reference
+changelog
 ```
 
 

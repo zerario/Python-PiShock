@@ -21,3 +21,9 @@ pishock = "pishock.zap.cli.cli:app"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.urls]
+Documentation = "https://python-pishock.readthedocs.io/"
+Repository = "https://github.com/zerario/Python-PiShock"
+Issues = "https://github.com/zerario/Python-PiShock/issues"
+Changelog = "https://python-pishock.readthedocs.io/en/latest/changelog.html"
