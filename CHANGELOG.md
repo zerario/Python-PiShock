@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.0.1 (unreleased)
+## v1.0.1 (2024-01-12)
 
 - Packaging / documentation improvements only, no code changes.
 
