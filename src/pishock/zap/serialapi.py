@@ -283,6 +283,9 @@ class SerialShocker(core.Shocker):
         self.api = api
         self.info()  # make sure the shocker exists
 
+    def __str__(self) -> str:
+        return f"Serial shocker {self.shocker_id} ({self.api.dev.port})"
+
     def shock(self, *, duration: int | float, intensity: int) -> None:
         """Send a shock with the given duration (seconds, >0) and intensity (0-100).
 
@@ -346,7 +349,7 @@ class SerialShocker(core.Shocker):
             )
 
         return core.BasicShockerInfo(
-            name=f"Serial shocker ({self.api.dev.port})",
+            name=str(self),
             client_id=data["clientId"],
             shocker_id=self.shocker_id,
             is_paused=shockers[self.shocker_id]["paused"],

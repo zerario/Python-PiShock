@@ -4,12 +4,12 @@ output_serial_with_sharecode: |
   Warning: Doing HTTP API call to resolve share code.
      Hint: Use --serial with shocker ID 1001 instead of share code, or use code 
   add to save the share code with its shocker ID.
-  ┌────────────┬───────────────────────┐
-  │ Name       │ Serial shocker (FAKE) │
-  │ PiShock ID │ 1000                  │
-  │ Shocker ID │ 1001                  │
-  │ Paused     │ ▶                     │
-  └────────────┴───────────────────────┘
+  ┌────────────┬────────────────────────────┐
+  │ Name       │ Serial shocker 1001 (FAKE) │
+  │ PiShock ID │ 1000                       │
+  │ Shocker ID │ 1001                       │
+  │ Paused     │ ▶                          │
+  └────────────┴────────────────────────────┘
 output_serial_error: |
   Error: No PiShock found via port autodetection. (SerialAutodetectError)
 

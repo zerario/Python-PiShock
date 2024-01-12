@@ -271,7 +271,11 @@ class TestInfo:
         )
         info = shocker.info()
 
-        expected_name = "Serial shocker (FAKE)" if shocker.IS_SERIAL else "test shocker"
+        if shocker.IS_SERIAL:
+            expected_name = f"Serial shocker {credentials.SHOCKER_ID} (FAKE)"
+        else:
+            expected_name = "test shocker"
+
         assert info.name == expected_name
         assert info.client_id == credentials.CLIENT_ID
         assert info.shocker_id == credentials.SHOCKER_ID
