@@ -1,6 +1,6 @@
 # PiShock for Python
 
-![Python PiShock Logo](docs/_static/logo.png)
+![Python PiShock Logo](https://raw.githubusercontent.com/zerario/Python-PiShock/main/docs/_static/logo.png)
 
 The *bestest* Python PiShock API wrapper and CLI!
 
