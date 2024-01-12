@@ -187,7 +187,7 @@ class RandomShocker:
             time.sleep(pause)
 
     def _tick(self) -> None:
-        if random.randint(0, 100) <= self.spam_settings.possibility:
+        if random.randint(1, 100) <= self.spam_settings.possibility:
             self._spam()
             return
 
