@@ -79,8 +79,9 @@ class Runner:
 
 @pytest.fixture
 def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Runner:
-    rich.reconfigure(width=80)
+    rich.reconfigure(width=80, no_color=True)
     monkeypatch.setenv("COLUMNS", "80")  # for future console instances
+    monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setenv(cli.API_USER_ENV_VAR, credentials.USERNAME)
     monkeypatch.setenv(cli.API_KEY_ENV_VAR, credentials.API_KEY)
     return Runner(credentials.SHARECODE)
