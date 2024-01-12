@@ -123,8 +123,8 @@ operations:
 shocker.vibrate(duration=1, intensity=10)
 ```
 
-A {class}`HTTPShocker` also supports {meth}`HTTPShocker.pause()` in order to
-pause/unpause the shocker.
+A {class}`HTTPShocker <httpapi.HTTPShocker>` also supports {meth}`.pause()
+<httpapi.HTTPShocker.pause()>` in order to pause/unpause the shocker.
 
 Finally, both classes support calling {meth}`Shocker.info()` to get info
 about a shocker. However, note that the {class}`SerialShocker <serialapi.SerialShocker>` will only provide
