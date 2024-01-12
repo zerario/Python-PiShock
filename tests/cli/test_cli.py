@@ -536,6 +536,8 @@ def test_port_without_serial(
     golden: GoldenTestFixture,
     credentials: FakeCredentials,
 ) -> None:
-    result = runner.run("--port", credentials.SERIAL_PORT, "info", credentials.SHARECODE)
+    result = runner.run(
+        "--port", credentials.SERIAL_PORT, "info", credentials.SHARECODE
+    )
     assert result.output == golden.out["output_serial_port_without_serial"]
     assert result.exit_code == 1

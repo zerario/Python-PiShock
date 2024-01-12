@@ -4,9 +4,6 @@ import pytest
 import rich.console
 from serial.tools.list_ports_common import ListPortInfo  # type: ignore[import-untyped]
 
-from tests.conftest import (
-    Runner,
-)  # for type hints
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 from pishock.zap.cli import cli_serial
 
