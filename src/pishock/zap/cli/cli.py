@@ -272,6 +272,10 @@ def random_mode(
     """Send operations to random shockers."""
     if not shock and not vibrate:
         raise typer.BadParameter("Must enable at least one of --shock or --vibrate.")
+
+    if spam_possibility != 0 and not shock:
+        raise typer.BadParameter("Spam mode is unsupported with --no-shock.")
+
     spam_settings = cli_random.SpamSettings(
         possibility=spam_possibility,
         operations=spam_operations,
