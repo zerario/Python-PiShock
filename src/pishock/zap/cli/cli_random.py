@@ -163,6 +163,7 @@ class RandomShocker:
         )
         with self._handle_errors():
             shocker.shock(duration=duration, intensity=intensity)
+        time.sleep(duration)
 
     def _vibrate(self, shocker: core.Shocker) -> None:
         duration = (self.vibrate_duration or self.duration).pick()
@@ -173,6 +174,7 @@ class RandomShocker:
         )
         with self._handle_errors():
             shocker.vibrate(duration=duration, intensity=intensity)
+        time.sleep(duration)
 
     def run(self) -> None:
         while (
