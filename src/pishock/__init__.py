@@ -6,6 +6,7 @@ from .zap.core import (
 )
 
 from pishock.zap.httpapi import (
+    PiShockAPI as PiShockAPI,
     HTTPShocker as HTTPShocker,
     APIError as APIError,
     ShareCodeAlreadyUsedError as ShareCodeAlreadyUsedError,

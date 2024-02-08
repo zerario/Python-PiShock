@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.4 (unreleased)
+
+- Add missing export of `pishock.httpapi.PiShockAPI` as `pishock.PiShockAPI`
+
 ## v1.0.3 (2024-01-12)
 
 - Calling `.info()` on a `SerialShocker` now includes its shocker ID in the returned `name`.
