@@ -1,7 +1,9 @@
 # Changelog
 
-## v1.0.4 (unreleased)
+## v1.1.0 (unreleased)
 
+- New random mode features:
+    - Add `--init-delay`, waiting a random delay before the first operation.
 - Add missing export of `pishock.httpapi.PiShockAPI` as `pishock.PiShockAPI`
 
 ## v1.0.3 (2024-01-12)

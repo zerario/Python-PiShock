@@ -100,6 +100,7 @@ class RandomShocker:
         duration: utils.Range,
         intensity: utils.Range,
         pause: utils.Range,
+        init_delay: utils.Range,
         spam_settings: SpamSettings,
         max_runtime: Optional[int],
         vibrate_duration: Optional[utils.Range],
@@ -111,6 +112,7 @@ class RandomShocker:
         self.duration = duration
         self.intensity = intensity
         self.pause = pause
+        self.init_delay = init_delay
         self.spam_settings = spam_settings
         self.max_runtime = max_runtime
         self.vibrate_duration = vibrate_duration
@@ -177,6 +179,11 @@ class RandomShocker:
         time.sleep(duration)
 
     def run(self) -> None:
+        if self.init_delay:
+            delay = self.init_delay.pick()
+            self._log(f":zzz: [blue]Initial delay[/] of [green]{delay}[/] seconds.")
+            time.sleep(delay)
+
         while (
             self.max_runtime is None
             or (time.monotonic() - self.start_time) < self.max_runtime
@@ -234,6 +241,15 @@ PauseArg: TypeAlias = Annotated[
         "-p",
         "--pause",
         help="Delay between operations in seconds, as a single value or min-max range.",
+        click_type=RangeParser(min=0),
+    ),
+]
+
+InitDelayArg: TypeAlias = Annotated[
+    utils.Range,
+    typer.Option(
+        "--init-delay",
+        help="Initial delay before the first operation.",
         click_type=RangeParser(min=0),
     ),
 ]

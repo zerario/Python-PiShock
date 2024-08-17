@@ -138,7 +138,9 @@ By default, only shocks are sent. To also send random vibrations, add
 `--intensity`). To only send vibrations, add `--no-shock`.
 
 A `--max-runtime` can be given (e.g. `--max-runtime 1h`) to automatically
-terminate the script after the given duration.
+terminate the script after the given duration. With an `--initial-delay`
+(`min-max` range, in seconds), the tool sleeps before the first operation,
+and that initial delay will not be part of the maximium runtime.
 
 For some extra fun, a `--spam-possibility` in percent can be given. For every
 random operation, there is the given possibility of entering "spam mode", where
