@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.0 (unreleased)
+## v1.1.0 (2024-08-17)
 
 - New random mode features:
     - Add `--init-delay`, waiting a random delay before the first operation.
