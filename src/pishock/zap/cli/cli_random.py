@@ -3,7 +3,7 @@ import dataclasses
 import random
 import re
 import time
-from typing import Iterator, List, Optional, Union
+from typing import Iterator, List, Optional, Union, Callable
 
 import click
 import rich
@@ -17,15 +17,18 @@ from pishock.zap.cli import cli_utils as utils
 class RangeParser(click.ParamType):
     name = "Range"
 
-    def __init__(self, min: int, max: Optional[int] = None) -> None:
+    def __init__(
+        self, min: int, max: Optional[int] = None, converter: Callable[[str], int] = int
+    ) -> None:
         self.min = min
         self.max = max
+        self.converter = converter
 
     def _parse_single(self, s: str) -> int:
         try:
-            n = int(s)
-        except ValueError:
-            self.fail(f"Value must be an integer: {s}")
+            n = self.converter(s)
+        except (ValueError, typer.BadParameter):
+            self.fail(f"Value must be a {self.converter.__name__}: {s}")
 
         if self.max is None and n < self.min:
             self.fail(f"Value must be at least {self.min}: {n}")
@@ -102,7 +105,7 @@ class RandomShocker:
         pause: utils.Range,
         init_delay: utils.Range,
         spam_settings: SpamSettings,
-        max_runtime: Optional[int],
+        max_runtime: Optional[utils.Range],
         vibrate_duration: Optional[utils.Range],
         vibrate_intensity: Optional[utils.Range],
         shock: bool,
@@ -184,9 +187,12 @@ class RandomShocker:
             self._log(f":zzz: [blue]Initial delay[/] of [green]{delay}[/] seconds.")
             time.sleep(delay)
 
+        max_runtime = self.max_runtime.pick() if self.max_runtime else None
+        self._log(f":clock1: [blue]Max runtime[/] is [green]{max_runtime}[/] seconds.")
+
         while (
             self.max_runtime is None
-            or (time.monotonic() - self.start_time) < self.max_runtime
+            or (time.monotonic() - self.start_time) < max_runtime
         ):
             self._tick()
             pause = self.pause.pick()
@@ -240,8 +246,10 @@ PauseArg: TypeAlias = Annotated[
     typer.Option(
         "-p",
         "--pause",
-        help="Delay between operations in seconds, as a single value or min-max range.",
-        click_type=RangeParser(min=0),
+        help="Delay between operations, in seconds or a string like "
+             "1h2m3s (with h/m being optional). With a min-max range of such values, "
+             "picked randomly.",
+        click_type=RangeParser(min=0, converter=parse_duration),
     ),
 ]
 
@@ -249,8 +257,10 @@ InitDelayArg: TypeAlias = Annotated[
     utils.Range,
     typer.Option(
         "--init-delay",
-        help="Initial delay before the first operation.",
-        click_type=RangeParser(min=0),
+        help="Initial delay before the first operation, in seconds or a string like "
+             "1h2m3s (with h/m being optional). With a min-max range of such values, "
+             "picked randomly.",
+        click_type=RangeParser(min=0, converter=parse_duration),
     ),
 ]
 
@@ -274,11 +284,10 @@ SpamOperationsArg: TypeAlias = Annotated[
 SpamPauseArg: TypeAlias = Annotated[
     utils.Range,
     typer.Option(
-        help=(
-            "Delay between spam operations in seconds, as a single value or min-max "
-            "range."
-        ),
-        click_type=RangeParser(min=0),
+        help="Delay between spam operations, in seconds or a string like "
+             "1h2m3s (with h/m being optional). With a min-max range of such values, "
+             "picked randomly.",
+        click_type=RangeParser(min=0, converter=parse_duration),
     ),
 ]
 
@@ -309,9 +318,9 @@ MaxRuntimeArg: TypeAlias = Annotated[
     typer.Option(
         help=(
             "Maximum runtime in seconds or a string like 1h2m3s (with h/m being "
-            "optional)."
+            "optional). With a min-max range of such values, picked randomly."
         ),
-        parser=parse_duration,
+        click_type=RangeParser(min=0, converter=parse_duration),
     ),
 ]
 

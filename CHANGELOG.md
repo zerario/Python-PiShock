@@ -4,6 +4,10 @@
 
 - New random mode features:
     - Add `--init-delay`, waiting a random delay before the first operation.
+    - `--pause` and `--spam-pause` now understand `h` / `m` / `s` suffixes like
+      `--max-duration` already did.
+    - `--max-duration` now also understands a `min-max` range to pick a random
+      max duration.
 - Add missing export of `pishock.httpapi.PiShockAPI` as `pishock.PiShockAPI`
 
 ## v1.0.3 (2024-01-12)
