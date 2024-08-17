@@ -27,7 +27,7 @@ class RangeParser(click.ParamType):
     def _parse_single(self, s: str) -> int:
         try:
             n = self.converter(s)
-        except (ValueError, typer.BadParameter):
+        except ValueError:
             self.fail(f"Value must be a {self.converter.__name__}: {s}")
 
         if self.max is None and n < self.min:
@@ -75,7 +75,7 @@ def parse_duration(duration: str) -> int:
         duration,
     )
     if not match or not match.group(0):
-        raise typer.BadParameter(
+        raise ValueError(
             f"Invalid duration: {duration} - " "expected XhYmZs or a number of seconds"
         )
     seconds_string = match.group("seconds") if match.group("seconds") else "0"
@@ -190,10 +190,7 @@ class RandomShocker:
         max_runtime = self.max_runtime.pick() if self.max_runtime else None
         self._log(f":clock1: [blue]Max runtime[/] is [green]{max_runtime}[/] seconds.")
 
-        while (
-            self.max_runtime is None
-            or (time.monotonic() - self.start_time) < max_runtime
-        ):
+        while max_runtime is None or (time.monotonic() - self.start_time) < max_runtime:
             self._tick()
             pause = self.pause.pick()
             self._log(f":zzz: [blue]Sleeping[/] for [green]{pause}[/] seconds.")
@@ -247,8 +244,8 @@ PauseArg: TypeAlias = Annotated[
         "-p",
         "--pause",
         help="Delay between operations, in seconds or a string like "
-             "1h2m3s (with h/m being optional). With a min-max range of such values, "
-             "picked randomly.",
+        "1h2m3s (with h/m being optional). With a min-max range of such values, "
+        "picked randomly.",
         click_type=RangeParser(min=0, converter=parse_duration),
     ),
 ]
@@ -258,8 +255,8 @@ InitDelayArg: TypeAlias = Annotated[
     typer.Option(
         "--init-delay",
         help="Initial delay before the first operation, in seconds or a string like "
-             "1h2m3s (with h/m being optional). With a min-max range of such values, "
-             "picked randomly.",
+        "1h2m3s (with h/m being optional). With a min-max range of such values, "
+        "picked randomly.",
         click_type=RangeParser(min=0, converter=parse_duration),
     ),
 ]
@@ -285,8 +282,8 @@ SpamPauseArg: TypeAlias = Annotated[
     utils.Range,
     typer.Option(
         help="Delay between spam operations, in seconds or a string like "
-             "1h2m3s (with h/m being optional). With a min-max range of such values, "
-             "picked randomly.",
+        "1h2m3s (with h/m being optional). With a min-max range of such values, "
+        "picked randomly.",
         click_type=RangeParser(min=0, converter=parse_duration),
     ),
 ]
@@ -314,7 +311,7 @@ SpamIntensityArg: TypeAlias = Annotated[
 ]
 
 MaxRuntimeArg: TypeAlias = Annotated[
-    Optional[int],
+    Optional[utils.Range],
     typer.Option(
         help=(
             "Maximum runtime in seconds or a string like 1h2m3s (with h/m being "
