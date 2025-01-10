@@ -1,5 +1,6 @@
 import contextlib
 import difflib
+import json
 import pathlib
 import random
 import sys
@@ -15,7 +16,7 @@ import typer
 from typing_extensions import Annotated, TypeAlias
 
 from pishock.zap import serialapi, core, httpapi
-from pishock.zap.cli import cli_random, cli_serial, cli_utils, cli_code
+from pishock.zap.cli import cli_random, cli_serial, cli_utils, cli_code, cli_session
 
 """Command-line interface for PiShock."""
 
@@ -55,6 +56,12 @@ SerialShockerArg: TypeAlias = Annotated[
         metavar="ID",
     ),
 ]
+SessionFileArg: TypeAlias = Annotated[
+    str,
+    typer.Argument(
+        help="A path to a JSON file containing the session format"
+    )
+]
 DurationOpt: TypeAlias = Annotated[
     float,
     typer.Option("-d", "--duration", min=0, help="Duration in seconds."),
@@ -65,7 +72,6 @@ IntensityOpt: TypeAlias = Annotated[
         "-i", "--intensity", min=0, max=100, help="Intensity in percent (0-100)."
     ),
 ]
-
 
 @contextlib.contextmanager
 def handle_errors(*args: Type[Exception]) -> Iterator[None]:
@@ -300,6 +306,24 @@ def random_mode(
     )
     random_shocker.run()
 
+@app.command(name="session")
+def session_mode(
+    ctx: typer.Context,
+    json_file: SessionFileArg) -> None: 
+    """Use a session workflow to have haptic/shock/beep operations change over time"""
+    if not json_file:
+        raise typer.BadParameter("Must provide a session file in JSON format")
+
+    with open(json_file, 'r', encoding="UTF-8") as file:
+        data = json.load(file)
+        shocker_objs = [get_shocker(ctx.obj, shocker) for shocker in data.get("shocker_names", None)]
+
+        session = cli_session.Session(
+            shockers=shocker_objs,
+            data=data
+        )
+
+        session.run()
 
 @app.command(rich_help_panel="API credentials")
 def verify(ctx: typer.Context) -> None:
