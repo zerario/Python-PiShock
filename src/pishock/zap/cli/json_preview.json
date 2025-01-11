@@ -1,41 +1,46 @@
 {
     "shocker_names": ["shocker-1", "shocker-2"],
-    "init_delay": "1s-2s",
-    "count_in_mode": "foo",
-    "max_runtime": "1h",  
+    "max_runtime": "1h",
     "events": [
         {
             "time": "0",
             "sync_mode": "random-shocker",
-            "breaks": {
-                "duration": "1-10"
-            },
+            "break_duration": "1-10",
             "vibrate": {
                 "intensity": "20-60",
                 "duration": "1-6"
             },
             "shock": {
-                "chance": 15,
+                "possibility": 15,
                 "intensity": "3-8",
                 "duration": "1-6"
             },
             "spam": {
-                "chance": 1,
-                "shocks": "10-20",
+                "possibility": 1,
+                "operations": "10-20",
                 "intensity": "3-5",
                 "duration": "1-2",
                 "delay": 0.3
             },
             "beep": {
-                "chance": "10",
+                "possibility": 10,
                 "duration": "1-6"
             }
         },
         {
-            "time": "10m",
+            "time": "30",
             "sync_mode": "dealers-choice",
             "shock": {
-                "chance": 15,
+                "possibility": 15,
+                "intensity": "30-55",
+                "duration": "4-8"
+            }
+        },
+        {
+            "time": "60s",
+            "sync_mode": "sync",
+            "shock": {
+                "possibility": 15,
                 "intensity": "30-55",
                 "duration": "4-8"
             }

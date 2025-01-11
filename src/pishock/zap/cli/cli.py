@@ -312,16 +312,18 @@ def session_mode(
     json_file: SessionFileArg) -> None: 
     """Use a session workflow to have haptic/shock/beep operations change over time"""
     if not json_file:
-        raise typer.BadParameter("Must provide a session file in JSON format")
+        raise typer.BadParameter("Must provide a session file path in JSON format")
 
     with open(json_file, 'r', encoding="UTF-8") as file:
         data = json.load(file)
-        shocker_objs = [get_shocker(ctx.obj, shocker) for shocker in data.get("shocker_names", None)]
+        shocker_objs = [get_shocker(ctx.obj, shocker) for shocker in data.get("shocker_names")]
 
         session = cli_session.Session(
             shockers=shocker_objs,
             data=data
         )
+
+        session.validate_events()
 
         session.run()
 
