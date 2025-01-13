@@ -4,7 +4,7 @@
     "events": [
         {
             "time": "0",
-            "sync_mode": "random-shocker",
+            "sync_mode": "round-robin",
             "break_duration": "1-10",
             "vibrate": {
                 "intensity": "20-60",
@@ -32,7 +32,7 @@
             "sync_mode": "dealers-choice",
             "shock": {
                 "possibility": 15,
-                "intensity": "30-55",
+                "intensity": "6-9",
                 "duration": "4-8"
             }
         },
@@ -41,8 +41,8 @@
             "sync_mode": "sync",
             "shock": {
                 "possibility": 15,
-                "intensity": "30-55",
-                "duration": "4-8"
+                "intensity": "1-2",
+                "duration": "12-15"
             }
         }
     ]
