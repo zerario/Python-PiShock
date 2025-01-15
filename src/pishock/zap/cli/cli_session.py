@@ -1,5 +1,4 @@
-"""
-Session mode allows you to tailor automation of a longer session.
+"""Session mode allows you to tailor automation of a longer session.
 You can ramp up and down the intensity or use built-in randomizers
 to choose between ranges of durations, intensity and how the shockers
 interact over a given timeframe using JSON
@@ -10,6 +9,7 @@ from functools import reduce
 import math
 import random
 import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Iterator, List, Optional
 from typing_extensions import TypeAlias
 import rich
@@ -17,23 +17,27 @@ from pishock.zap import httpapi, core
 from pishock.zap.cli import cli_utils as utils
 
 JSON: TypeAlias = dict[str, "JSON"] | list["JSON"] | str | int | float | bool | None
+
 allowed_sync_modes = [
     "random-shocker",
     "round-robin",
     "sync",
     "dealers-choice"
 ]
+
 class ProgamModes(Enum):
+    """States for each tick"""
     SHOCK = 1
     VIBRATE = 2
     BEEP = 3
     SPAM = 4
 
-DURATION_BETWEEN_EVENTS = 0.3
+MINIMUM_DURATION_BETWEEN_EVENTS = 0.3
 DEFAULT_JSON_BREAK_DURATION = "1-10"
 DEFAULT_VIBRATION_DURATION_RANGE = "1-5"
 DEFAULT_VIBRATION_INTENSITY_RANGE = "0-100"
 DEFAULT_SYNC_MODE = "random-shocker"
+MAX_THREADS = 8 # max supported shockers to sync
 
 class Session():
     """Session state handler"""
@@ -49,9 +53,10 @@ class Session():
         self.count_in_mode = None
         self.start_time = time.monotonic()
         self.sync_mode = "random-shocker"
+        self.spam_cooldown = 0
+        self.spam_cooldown_timer = time.monotonic()
         self.default_vibration_intensity = self._parse_duration(DEFAULT_VIBRATION_INTENSITY_RANGE)
         self.default_vibration_duration = self._parse_duration(DEFAULT_VIBRATION_DURATION_RANGE)
-
 
     def _log(self, message: str) -> None:
         rich.print(message)
@@ -107,55 +112,62 @@ class Session():
             case "random-shocker":
                 return [random.choice(self.shockers)]
 
-    def _shock(self, duration: int, intensity: int) -> None:
-        """Shock the user"""
-        shockers = self._get_shockers_for_event()
+    def _shock(self, shocker: core.Shocker, duration: int, intensity: int) -> None:
+        """Wrap shock API with error handling and logging"""
+        self._log(
+            f":zap: [yellow]Shocking[/] [green]{shocker}[/] for [green]{duration}s[/] "
+            f"at [green]{intensity}%[/]."
+        )
+        with self._handle_errors():
+            shocker.shock(duration=duration, intensity=intensity)
 
-        for shocker in shockers:
-            self._log(
-                f":zap: [yellow]Shocking[/] [green]{shocker.info().name}[/] for [green]{duration}s[/] "
-                f"at [green]{intensity}%[/]"
-            )
-            #with self._handle_errors():
-            #    shocker.shock(duration=duration, intensity=intensity)
+    def _vibrate(self, shocker: core.Shocker, duration: int, intensity: int) -> None:
+        """Wrap vibrate API with error handling and logging"""
+        self._log(
+            f":vibration_mode: [cyan]Vibrating[/] [green]{shocker}[/] for "
+            f"[green]{duration}s[/] at [green]{intensity}%[/]."
+        )
 
-    def _vibrate(self, duration: int, intensity: int) -> None:
-        """Vibrate the user"""
-        shockers = self._get_shockers_for_event()
+        with self._handle_errors():
+            shocker.vibrate(duration=duration, intensity=intensity)
 
-        for shocker in shockers:
-            self._log(
-                f":vibration_mode: [cyan]Vibrating[/] [green]{shocker.info().name}[/] for "
-                f"[green]{duration}s[/] at [green]{intensity}%[/]"
-            )
-            #with self._handle_errors():
-            #    shocker.vibrate(duration=duration, intensity=intensity)
+    def _beep(self, shocker: core.Shocker, duration: int) -> None:
+        """Wrap beep API with error handling and logging"""
+        self._log(
+            f":bell: [cyan]Beeping[/] [green]{shocker}[/] for "
+            f"[green]{duration}s[/]"
+        )
+        with self._handle_errors():
+            shocker.beep(duration=duration)
 
-    def _beep(self, duration: int) -> None:
-        """Emit a loud beep"""
-        shockers = self._get_shockers_for_event()
-
-        for shocker in shockers:
-            self._log(
-                f":bell: [cyan]Beeping[/] [green]{shocker.info().name}[/] for "
-                f"[green]{duration}s[/]"
-            )
-            #with self._handle_errors():
-            #    shocker.beep(duration=duration)
-
-    def spam(self, event: dict) -> None:
+    def _spam(self, spam_event: dict, shockers: List[core.Shocker], executor: ThreadPoolExecutor) -> None:
         """Send consecutive shocks to the user"""
+        self._log("[red bold]Spamming.[/]")
+
+        operations = spam_event.get("operations")
+        intensity = spam_event.get("intensity")
+        duration = spam_event.get("duration")
+        delay = spam_event.get("delay")
+
+        for _ in range(operations.pick()):
+            d = duration.pick()
+            i = intensity.pick()
+
+            for shocker in shockers:
+                executor.submit(self._shock, shocker, d, i)
+
+            time.sleep(d + delay + MINIMUM_DURATION_BETWEEN_EVENTS)
 
     def _execute_count_in(self) -> None:
-        """Alert user that the session is about to start using beep or haptics"""
+        """Alert user that the session is about to start using beep or vibration"""
         if self.count_in_mode == "vibrate":
             for _ in range(3):
-                self._vibrate(1, 100)
-                time.sleep(1)
+                self._vibrate(self.shockers[0], 1, 100)
+                time.sleep(MINIMUM_DURATION_BETWEEN_EVENTS)
         else:
             for _ in range(3):
-                self._beep(1)
-                time.sleep(1)
+                self._beep(self.shockers[0], 1)
+                time.sleep(MINIMUM_DURATION_BETWEEN_EVENTS)
 
     def _parse_duration(self, val: str) -> utils.Range:
         """Parse json duration ranges to a Range"""
@@ -256,6 +268,9 @@ class Session():
         if spam + shock + beep + vibrate > 100:
             raise ValueError(f"the JSON field: root.events.evt.possibility exceeds 100%: {event}")
 
+        if time.monotonic() < self.spam_cooldown_timer:
+            spam = 0
+
         modes = [ProgamModes.SPAM]*spam\
             + [ProgamModes.SHOCK]*shock\
             + [ProgamModes.BEEP]*beep\
@@ -276,23 +291,52 @@ class Session():
         event_choice = random.choice(self._get_possibility_map(event))
         break_duration = event["break_duration"]
         self.sync_mode = event["sync_mode"]
+        shockers = self._get_shockers_for_event()
+        with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+            match event_choice:
+                case(ProgamModes.SHOCK):
+                    duration = event["shock"]["duration"].pick()
+                    intensity = event["shock"]["intensity"].pick()
+                    for shocker in shockers:
+                        executor.submit(self._shock,
+                                        shocker,
+                                        duration,
+                                        intensity)
 
-        match event_choice:
-            case(ProgamModes.SHOCK):
-                self._shock(event["shock"]["duration"].pick(), event["shock"]["intensity"].pick())
-            case(ProgamModes.SPAM):
-                print("spam")
-            case(ProgamModes.VIBRATE):
-                if event.get("vibrate") is not None:
-                    self._vibrate(event["vibrate"]["duration"].pick(), event["vibrate"]["intensity"].pick())
-                else:
-                    self._vibrate(self.default_vibration_duration.pick(), self.default_vibration_intensity.pick())
 
-            case(ProgamModes.BEEP):
-                self._beep(event["beep"]["duration"].pick())
+                    time.sleep(duration)
 
-        #time.sleep(break_duration.pick() + DURATION_BETWEEN_EVENTS)
-        time.sleep(0.1)
+                case(ProgamModes.SPAM):
+                    self.spam_cooldown_timer = time.monotonic() + self.spam_cooldown
+                    self._spam(event["spam"], shockers, executor)
+
+                case(ProgamModes.VIBRATE):
+                    duration = self.default_vibration_duration.pick()
+                    intensity = self.default_vibration_intensity.pick()
+
+                    if event.get("vibrate") is not None:
+                        duration = event["vibrate"]["duration"].pick()
+                        intensity = event["vibrate"]["intensity"].pick()
+
+                    for shocker in shockers:
+                        executor.submit(self._vibrate,
+                                        shocker,
+                                        duration,
+                                        intensity)
+
+                    time.sleep(duration)
+
+                case(ProgamModes.BEEP):
+                    duration = event["shock"]["duration"].pick()
+
+                    for shocker in shockers:
+                        executor.submit(self._beep,
+                                        shocker,
+                                        duration)
+
+                    time.sleep(duration)
+
+        time.sleep(break_duration.pick() + MINIMUM_DURATION_BETWEEN_EVENTS)
 
     def run(self):
         """entry point for the session command"""
@@ -317,6 +361,10 @@ class Session():
         if self.data.get("max_runtime"):
             self.max_runtime = self._parse_duration(self.data.get("max_runtime", 0)).pick()
             self._log(f":clock1: [blue]Max runtime[/] is [green]{self.max_runtime}[/] seconds")
+
+        if self.data.get("spam_cooldown"):
+            self.spam_cooldown = self._parse_duration(self.data.get("spam_cooldown", 0)).pick()
+            self._log(f":clock1: [blue]Spam Cooldown[/] is [green]{self.spam_cooldown}[/] seconds")
 
         while self.max_runtime is None or (time.monotonic() - self.start_time) < self.max_runtime:
             self._tick()

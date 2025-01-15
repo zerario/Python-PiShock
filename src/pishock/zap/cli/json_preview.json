@@ -1,10 +1,11 @@
 {
     "shocker_names": ["shocker-1", "shocker-2"],
     "max_runtime": "1h",
+    "spam_cooldown": "2m",
     "events": [
         {
             "time": "0",
-            "sync_mode": "round-robin",
+            "sync_mode": "sync",
             "break_duration": "1-10",
             "vibrate": {
                 "intensity": "20-60",
@@ -16,7 +17,7 @@
                 "duration": "1-6"
             },
             "spam": {
-                "possibility": 1,
+                "possibility": 75,
                 "operations": "10-20",
                 "intensity": "3-5",
                 "duration": "1-2",
@@ -38,11 +39,18 @@
         },
         {
             "time": "60s",
-            "sync_mode": "sync",
+            "sync_mode": "random-shocker",
             "shock": {
-                "possibility": 15,
+                "possibility": 5,
                 "intensity": "1-2",
                 "duration": "12-15"
+            },
+            "spam": {
+                "possibility": 30,
+                "operations": "10-20",
+                "intensity": "1-2",
+                "duration": "12-15",
+                "delay": 0.3
             }
         }
     ]
