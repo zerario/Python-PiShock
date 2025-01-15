@@ -3,3 +3,6 @@ __pycache__/
 /.tox
 /docs/_build/
 /dist
+# Nix flake build artefacts
+result
+result-*
