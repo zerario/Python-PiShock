@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.0 (2025-01-14)
+- Add session mode to CLI. Control a session declaratively with a JSON file as input
+- Updated docs for session mode usage
+
 ## v1.1.0 (2024-08-17)
 
 - New random mode features:

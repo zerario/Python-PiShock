@@ -159,6 +159,81 @@ can be used to customize the behavior (default values are shown):
 - `--spam-intensity`: Intensity for spam shocks (by default, the given
   `--intensity` is used)
 
+## Session mode
+
+To schedule shock, spam, vibrate and beep events over a session, the session
+command takes a json file as input allowing automation of multiple shockers for
+completely handsfree use.
+
+```console
+$ pishock session examples/session.json
+✔ Validating events
+✔ Event list is valid
+▶ Session started
+🟩  Count in mode is set to beep
+🔔 Beeping shocker1 for 1s
+🔔 Beeping shocker1 for 1s
+🔔 Beeping shocker1 for 1s
+🕐 Max runtime is 3600 seconds
+🕐 Spam Cooldown is 120 seconds
+⚡ Shocking shocker1 for 9s at 82%
+⚡ Shocking shocker2 for 14s at 55%
+```
+
+Following similar field names to the random mode, the JSON format is as follows:
+
+```json
+{
+  "shocker_names": ["shocker-1", "shocker-2"], # cli shocker names
+  "max_runtime": "1h", # automatically end the session (default 1h inclusive of init_delay)
+  "init_delay": "2m", # delay the start of the script
+  "spam_cooldown": "2m", # limit how much you can be spammed
+  "count_in_mode": "beep", # if specified, the script will count down to session start
+  "events": [ # a list of events. add as many breakpoints as needed
+    {
+      "time": "0", # a time in seconds for when the session changes
+      "sync_mode": "sync", # random-shocker, sync, round-robin, dealers-choice
+      "break_duration": "1-10", # add spaces between shocker operations
+      "vibrate": { # by default, the program will vibe randomly between events
+        "intensity": "20-60", # intensity out of 100
+        "duration": "1-6" # duration in seconds (1-15)
+      },
+      "shock": {
+        "possibility": 15,
+        "intensity": "3-8",
+        "duration": "1-6"
+      },
+      "spam": {
+        "possibility": 1,
+        "operations": "10-20",
+        "intensity": "3-5",
+        "duration": "1-2",
+        "delay": 0.3
+      },
+      "beep": {
+        "possibility": 5,
+        "duration": "1-6"
+      }
+    },
+    {
+      "time": "60s", # the session will change after the specified time
+      "sync_mode": "random-shocker", # change the way your shockers are chosen with each step
+      "vibrate": {
+        "possibility": 5,
+        "intensity": "70-90",
+        "duration": "3-6"
+      }
+      "shock": {
+        "possibility": 5,
+        "intensity": "1-2",
+        "duration": "12-15"
+      }
+  },
+  ... # define as many events as needed
+  ]
+}
+```
+
 ## Serial usage
 
 When a PiShock is attached via USB, the commands `shock`, `vibrate`, `beep` and

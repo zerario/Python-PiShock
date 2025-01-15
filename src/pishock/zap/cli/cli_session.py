@@ -33,6 +33,7 @@ class ProgamModes(Enum):
     SPAM = 4
 
 MINIMUM_DURATION_BETWEEN_EVENTS = 0.3
+DEFAULT_MAX_RUNTIME = "1h"
 DEFAULT_JSON_BREAK_DURATION = "1-10"
 DEFAULT_VIBRATION_DURATION_RANGE = "1-5"
 DEFAULT_VIBRATION_INTENSITY_RANGE = "0-100"
@@ -327,7 +328,7 @@ class Session():
                     time.sleep(duration)
 
                 case(ProgamModes.BEEP):
-                    duration = event["shock"]["duration"].pick()
+                    duration = event["beep"]["duration"].pick()
 
                     for shocker in shockers:
                         executor.submit(self._beep,
@@ -348,18 +349,18 @@ class Session():
 
         self.count_in_mode = self.data.get("count_in_mode")
         if self.count_in_mode is not None:
-            self._log(f":green_square: [blue]Count in Mode[/] is set to [green]{self.count_in_mode}[/]")
+            self._log(f":green_square: [blue]Count in mode[/] is set to [green]{self.count_in_mode}[/]")
 
         if self.data.get("init_delay"):
             self.init_delay = self._parse_duration(self.data.get("init_delay", 0)).pick()
             self._log(f":zzz: [blue]Initial delay[/] of [green]{self.init_delay}[/] seconds")
-            #time.sleep(self.init_delay)
+            time.sleep(self.init_delay)
 
         if self.count_in_mode is not None:
             self._execute_count_in()
 
         if self.data.get("max_runtime"):
-            self.max_runtime = self._parse_duration(self.data.get("max_runtime", 0)).pick()
+            self.max_runtime = self._parse_duration(self.data.get("max_runtime", DEFAULT_MAX_RUNTIME)).pick()
             self._log(f":clock1: [blue]Max runtime[/] is [green]{self.max_runtime}[/] seconds")
 
         if self.data.get("spam_cooldown"):
@@ -369,7 +370,7 @@ class Session():
         while self.max_runtime is None or (time.monotonic() - self.start_time) < self.max_runtime:
             self._tick()
 
-        self._log(f":checkered_flag: [white]Session ended at[/] [green]{math.ceil(time.monotonic()-self.start_time)}[/] seconds (excluding initial delay)")
+        self._log(f":checkered_flag: [white]Session ended at[/] [green]{math.ceil(time.monotonic()-self.start_time)}[/] seconds")
 
     def validate_events(self):
         """Check the events list can be parsed beginning to end and output the plan"""
