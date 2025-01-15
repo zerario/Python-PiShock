@@ -182,21 +182,21 @@ $ pishock session examples/session.json
 
 Following similar field names to the random mode, the JSON format is as follows:
 
-```json
+```js
 {
-  "shocker_names": ["shocker-1", "shocker-2"], # cli shocker names
-  "max_runtime": "1h", # automatically end the session (default 1h inclusive of init_delay)
-  "init_delay": "2m", # delay the start of the script
-  "spam_cooldown": "2m", # limit how much you can be spammed
-  "count_in_mode": "beep", # if specified, the script will count down to session start
-  "events": [ # a list of events. add as many breakpoints as needed
+  "shocker_names": ["shocker-1", "shocker-2"], // cli shocker names
+  "max_runtime": "1h", // automatically end the session (default 1h inclusive of init_delay)
+  "init_delay": "2m", // delay the start of the script
+  "spam_cooldown": "2m", // limit how much you can be spammed
+  "count_in_mode": "beep", // if specified, the script will count down to session start
+  "events": [ // a list of events. add as many breakpoints as needed
     {
-      "time": "0", # a time in seconds for when the session changes
-      "sync_mode": "sync", # random-shocker, sync, round-robin, dealers-choice
-      "break_duration": "1-10", # add spaces between shocker operations
-      "vibrate": { # by default, the program will vibe randomly between events
-        "intensity": "20-60", # intensity out of 100
-        "duration": "1-6" # duration in seconds (1-15)
+      "time": "0", // a time in seconds for when the session changes
+      "sync_mode": "sync", // random-shocker, sync, round-robin, dealers-choice
+      "break_duration": "1-10", // add spaces between shocker operations
+      "vibrate": { // by default, the program will vibe randomly between events
+        "intensity": "20-60", // intensity out of 100
+        "duration": "1-6" // duration in seconds (1-15)
       },
       "shock": {
         "possibility": 15,
@@ -216,8 +216,8 @@ Following similar field names to the random mode, the JSON format is as follows:
       }
     },
     {
-      "time": "60s", # the session will change after the specified time
-      "sync_mode": "random-shocker", # change the way your shockers are chosen with each step
+      "time": "60s", // the session will change after the specified time
+      "sync_mode": "random-shocker", // change the way your shockers are chosen with each step
       "vibrate": {
         "possibility": 5,
         "intensity": "70-90",
@@ -229,7 +229,7 @@ Following similar field names to the random mode, the JSON format is as follows:
         "duration": "12-15"
       }
   },
-  ... # define as many events as needed
+  ... // define as many events as needed
   ]
 }
 ```
