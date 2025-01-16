@@ -199,16 +199,16 @@ Following similar field names to the random mode, the JSON format is as follows:
         "duration": "1-6" // duration in seconds (1-15)
       },
       "shock": {
-        "possibility": 15,
+        "possibility": 15, // the percent chance of this event happening
         "intensity": "3-8",
         "duration": "1-6"
       },
       "spam": {
         "possibility": 1,
-        "operations": "10-20",
+        "operations": "10-20", // how many times to send the shocks consecutively
         "intensity": "3-5",
         "duration": "1-2",
-        "delay": 0.3
+        "delay": 0.3 // delay in seconds between spammed shocks
       },
       "beep": {
         "possibility": 5,
