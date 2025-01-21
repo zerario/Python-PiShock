@@ -1,91 +1,13 @@
 import contextlib
 import dataclasses
 import random
-import re
 import time
-from typing import Iterator, List, Optional, Union, Callable
-
-import click
+from typing import Iterator, List, Optional
 import rich
 import typer
 from typing_extensions import Annotated, TypeAlias
-
 from pishock.zap import httpapi, core
 from pishock.zap.cli import cli_utils as utils
-
-
-class RangeParser(click.ParamType):
-    name = "Range"
-
-    def __init__(
-        self, min: int, max: Optional[int] = None, converter: Callable[[str], int] = int
-    ) -> None:
-        self.min = min
-        self.max = max
-        self.converter = converter
-
-    def _parse_single(self, s: str) -> int:
-        try:
-            n = self.converter(s)
-        except ValueError:
-            self.fail(f"Value must be a {self.converter.__name__}: {s}")
-
-        if self.max is None and n < self.min:
-            self.fail(f"Value must be at least {self.min}: {n}")
-        if self.max is not None and not (self.min <= n <= self.max):
-            self.fail(f"Value must be between {self.min} and {self.max}: {n}")
-
-        return n
-
-    def convert(
-        self,
-        value: Union[str, utils.Range],
-        param: Optional[click.Parameter],
-        ctx: Optional[click.Context],
-    ) -> utils.Range:
-        if isinstance(value, utils.Range):  # default value
-            return value
-
-        if "-" not in value:
-            n = self._parse_single(value)
-            return utils.Range(n, n)
-
-        if value.count("-") > 1:
-            self.fail("Range must be in the form min-max.")
-
-        a_str, b_str = value.split("-")
-        a = self._parse_single(a_str)
-        b = self._parse_single(b_str)
-
-        try:
-            return utils.Range(a, b)
-        except ValueError as e:
-            self.fail(str(e))
-
-
-def parse_duration(duration: str) -> int:
-    """Parse duration in format XhYmZs into second duration."""
-    if duration.isdigit():
-        return int(duration)
-
-    match = re.fullmatch(
-        r"(?P<hours>[0-9]+(\.[0-9])?h)?\s*"
-        r"(?P<minutes>[0-9]+(\.[0-9])?m)?\s*"
-        r"(?P<seconds>[0-9]+(\.[0-9])?s)?",
-        duration,
-    )
-    if not match or not match.group(0):
-        raise ValueError(
-            f"Invalid duration: {duration} - " "expected XhYmZs or a number of seconds"
-        )
-    seconds_string = match.group("seconds") if match.group("seconds") else "0"
-    seconds = float(seconds_string.rstrip("s"))
-    minutes_string = match.group("minutes") if match.group("minutes") else "0"
-    minutes = float(minutes_string.rstrip("m"))
-    hours_string = match.group("hours") if match.group("hours") else "0"
-    hours = float(hours_string.rstrip("h"))
-    return int(seconds + minutes * 60 + hours * 3600)
-
 
 @dataclasses.dataclass
 class SpamSettings:
@@ -221,7 +143,7 @@ DurationArg: TypeAlias = Annotated[
             "Duration in seconds, as a single value or a min-max range (0-15 "
             "respectively)."
         ),
-        click_type=RangeParser(min=0, max=15),
+        click_type=utils.RangeParser(min=0, max=15),
     ),
 ]
 
@@ -234,7 +156,7 @@ IntensityArg: TypeAlias = Annotated[
             "Intensity in percent, as a single value or min-max range (0-100 "
             "respectively)."
         ),
-        click_type=RangeParser(min=0, max=100),
+        click_type=utils.RangeParser(min=0, max=100),
     ),
 ]
 
@@ -246,7 +168,7 @@ PauseArg: TypeAlias = Annotated[
         help="Delay between operations, in seconds or a string like "
         "1h2m3s (with h/m being optional). With a min-max range of such values, "
         "picked randomly.",
-        click_type=RangeParser(min=0, converter=parse_duration),
+        click_type=utils.RangeParser(min=0, converter=utils.parse_duration),
     ),
 ]
 
@@ -257,7 +179,7 @@ InitDelayArg: TypeAlias = Annotated[
         help="Initial delay before the first operation, in seconds or a string like "
         "1h2m3s (with h/m being optional). With a min-max range of such values, "
         "picked randomly.",
-        click_type=RangeParser(min=0, converter=parse_duration),
+        click_type=utils.RangeParser(min=0, converter=utils.parse_duration),
     ),
 ]
 
@@ -274,7 +196,7 @@ SpamOperationsArg: TypeAlias = Annotated[
     utils.Range,
     typer.Option(
         help="Number of operations to spam, as a single value or min-max range.",
-        click_type=RangeParser(min=1),
+        click_type=utils.RangeParser(min=1),
     ),
 ]
 
@@ -284,7 +206,7 @@ SpamPauseArg: TypeAlias = Annotated[
         help="Delay between spam operations, in seconds or a string like "
         "1h2m3s (with h/m being optional). With a min-max range of such values, "
         "picked randomly.",
-        click_type=RangeParser(min=0, converter=parse_duration),
+        click_type=utils.RangeParser(min=0, converter=utils.parse_duration),
     ),
 ]
 
@@ -295,7 +217,7 @@ SpamDurationArg: TypeAlias = Annotated[
             "Duration of spam operations in seconds, as a single value or min-max "
             "range."
         ),
-        click_type=RangeParser(min=0, max=15),
+        click_type=utils.RangeParser(min=0, max=15),
     ),
 ]
 
@@ -306,7 +228,7 @@ SpamIntensityArg: TypeAlias = Annotated[
             "Intensity of spam operations in percent, as a single value or min-max "
             "range. If not given, normal intensity is used."
         ),
-        click_type=RangeParser(min=0, max=100),
+        click_type=utils.RangeParser(min=0, max=100),
     ),
 ]
 
@@ -317,7 +239,7 @@ MaxRuntimeArg: TypeAlias = Annotated[
             "Maximum runtime in seconds or a string like 1h2m3s (with h/m being "
             "optional). With a min-max range of such values, picked randomly."
         ),
-        click_type=RangeParser(min=0, converter=parse_duration),
+        click_type=utils.RangeParser(min=0, converter=utils.parse_duration),
     ),
 ]
 
@@ -328,7 +250,7 @@ VibrateDurationArg: TypeAlias = Annotated[
             "Duration for vibration in seconds, as a single value or a min-max "
             "range (0-15 respectively). If not given, --duration is used."
         ),
-        click_type=RangeParser(min=0, max=15),
+        click_type=utils.RangeParser(min=0, max=15),
     ),
 ]
 
@@ -339,7 +261,7 @@ VibrateIntensityArg: TypeAlias = Annotated[
             "Intensity in percent, as a single value or min-max range (0-100 "
             "respectively). If not given, --intensity is used."
         ),
-        click_type=RangeParser(min=0, max=100),
+        click_type=utils.RangeParser(min=0, max=100),
     ),
 ]
 

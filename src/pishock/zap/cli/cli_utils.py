@@ -5,9 +5,10 @@ import dataclasses
 import random
 import pathlib
 import json
-from typing import Any
+from typing import Any, Optional, Union, Callable
 
 import platformdirs
+import click
 import rich
 import typer
 
@@ -122,3 +123,77 @@ def bool_emoji(value: bool) -> str:
 
 def paused_emoji(is_paused: bool) -> str:
     return ":double_vertical_bar:" if is_paused else ":arrow_forward:"
+
+class RangeParser(click.ParamType):
+    name = "Range"
+
+    def __init__(
+        self, min: int, max: Optional[int] = None, converter: Callable[[str], int] = int
+    ) -> None:
+        self.min = min
+        self.max = max
+        self.converter = converter
+
+    def _parse_single(self, s: str) -> int:
+        try:
+            n = self.converter(s)
+        except ValueError:
+            self.fail(f"Value must be a {self.converter.__name__}: {s}")
+
+        if self.max is None and n < self.min:
+            self.fail(f"Value must be at least {self.min}: {n}")
+        if self.max is not None and not (self.min <= n <= self.max):
+            self.fail(f"Value must be between {self.min} and {self.max}: {n}")
+
+        return n
+
+    def convert(
+        self,
+        value: Union[str, Range],
+        param: Optional[click.Parameter],
+        ctx: Optional[click.Context],
+    ) -> Range:
+        if isinstance(value, Range):  # default value
+            return value
+
+        if "-" not in value:
+            n = self._parse_single(value)
+            return Range(n, n)
+
+        if value.count("-") > 1:
+            self.fail("Range must be in the form min-max.")
+
+        a_str, b_str = value.split("-")
+        a = self._parse_single(a_str)
+        b = self._parse_single(b_str)
+
+        try:
+            return Range(a, b)
+        except ValueError as e:
+            self.fail(str(e))
+
+def parse_duration(duration: str) -> int:
+    """Parse duration in format XhYmZs into second duration."""
+    if duration.isdigit():
+        return int(duration)
+
+    match = re.fullmatch(
+        r"(?P<hours>[0-9]+(\.[0-9])?h)?\s*"
+        r"(?P<minutes>[0-9]+(\.[0-9])?m)?\s*"
+        r"(?P<seconds>[0-9]+(\.[0-9])?s)?",
+        duration,
+    )
+
+    if not match or not match.group(0):
+        raise ValueError(
+            f"Invalid duration: {duration} - expected XhYmZs or a number of seconds"
+        )
+
+    seconds_string = match.group("seconds") if match.group("seconds") else "0"
+    seconds = float(seconds_string.rstrip("s"))
+    minutes_string = match.group("minutes") if match.group("minutes") else "0"
+    minutes = float(minutes_string.rstrip("m"))
+    hours_string = match.group("hours") if match.group("hours") else "0"
+    hours = float(hours_string.rstrip("h"))
+
+    return int(seconds + minutes * 60 + hours * 3600)
