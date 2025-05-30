@@ -1,29 +1,30 @@
-[tool.poetry]
+[project]
 name = "pishock"
 version = "1.1.0"
 description = "The bestest Python PiShock API wrapper and CLI!"
-authors = ["Zerario <derg@zerario.dev>"]
 readme = "README.md"
-packages = [{include = "pishock", from = "src"}]
+requires-python = ">=3.9,<3.15"
+authors = [
+    { name = "Zerario", email = "derg@zerario.dev" },
+]
+dependencies = [
+    "requests>=2.32.3,<3.0.0",
+    "typer>=0.16.0,<0.17.0",
+    "rich>=14.0.0,<15.0.0",
+    "typing-extensions>=4.13.2,<5.0.0",
+    "platformdirs>=4.3.8,<5.0.0",
+    "pyserial>=3.5,<4.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.9, <3.15"
-requests = "^2.32.3"
-typer = "^0.16.0"
-rich = "^14.0.0"
-typing-extensions = "^4.13.2"
-platformdirs = "^4.3.8"
-pyserial = "^3.5"
-
-[tool.poetry.scripts]
-pishock = "pishock.zap.cli.cli:app"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.urls]
+[project.urls]
 Documentation = "https://python-pishock.readthedocs.io/"
 Repository = "https://github.com/zerario/Python-PiShock"
 Issues = "https://github.com/zerario/Python-PiShock/issues"
 Changelog = "https://python-pishock.readthedocs.io/en/latest/changelog.html"
+
+[project.scripts]
+pishock = "pishock.zap.cli.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
