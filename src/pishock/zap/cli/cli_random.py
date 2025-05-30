@@ -76,7 +76,7 @@ def parse_duration(duration: str) -> int:
     )
     if not match or not match.group(0):
         raise ValueError(
-            f"Invalid duration: {duration} - " "expected XhYmZs or a number of seconds"
+            f"Invalid duration: {duration} - expected XhYmZs or a number of seconds"
         )
     seconds_string = match.group("seconds") if match.group("seconds") else "0"
     seconds = float(seconds_string.rstrip("s"))
