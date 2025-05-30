@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.2.0 (unreleased)
+## v1.2.0 (2025-05-30)
 
 - Declare support for Python 3.13 and 3.14 (no code changes required)
 - Drop support for Python 3.8

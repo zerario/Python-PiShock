@@ -1,6 +1,6 @@
 [project]
 name = "pishock"
-version = "1.1.0"
+version = "1.2.0"
 description = "The bestest Python PiShock API wrapper and CLI!"
 readme = "README.md"
 requires-python = ">=3.9,<3.15"
