@@ -2,7 +2,9 @@
 
 ## Setup
 
-First, run `pishock init` to supply your PiShock.com username and [API key](https://pishock.com/#/account):
+Install via `pip install pishock` or use the [Nix flake](https://github.com/sirris-bat/pishock-flake).
+
+Then run `pishock init` to supply your PiShock.com username and [API key](https://pishock.com/#/account):
 
 ```console
 $ pishock init
