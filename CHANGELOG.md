@@ -3,6 +3,7 @@
 ## v1.2.0 (2025-05-30)
 
 - Declare support for Python 3.13 and 3.14 (no code changes required)
+- Drop support for Python 3.8
 
 ## v1.1.0 (2024-08-17)
 
