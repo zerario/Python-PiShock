@@ -4,6 +4,7 @@
 
 - Declare support for Python 3.13 and 3.14 (no code changes required)
 - Drop support for Python 3.8
+- Upgrade all locked dependencies
 
 ## v1.1.0 (2024-08-17)
 
