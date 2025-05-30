@@ -1,12 +1,12 @@
 output_vibrate_-1_2: |
-  Usage: main vibrate [OPTIONS] NAME/SHARECODE/ID
-  Try 'main vibrate --help' for help.
+  Usage: root vibrate [OPTIONS] NAME/SHARECODE/ID
+  Try 'root vibrate --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-d' / '--duration': -1.0 is not in the range x>=0.        │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_vibrate_a_2: |
-  Usage: main vibrate [OPTIONS] NAME/SHARECODE/ID
-  Try 'main vibrate --help' for help.
+  Usage: root vibrate [OPTIONS] NAME/SHARECODE/ID
+  Try 'root vibrate --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-d' / '--duration': 'a' is not a valid float range.       │
   ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -15,26 +15,26 @@ output_vibrate_16_2: |
 output_vibrate_0.05_2: |
   Error: float duration needs to be between 0.1 and 1.5, not 0.05 (ValueError)
 output_vibrate_1_-1: |
-  Usage: main vibrate [OPTIONS] NAME/SHARECODE/ID
-  Try 'main vibrate --help' for help.
+  Usage: root vibrate [OPTIONS] NAME/SHARECODE/ID
+  Try 'root vibrate --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-i' / '--intensity': -1 is not in the range 0<=x<=100.    │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_vibrate_1_101: |
-  Usage: main vibrate [OPTIONS] NAME/SHARECODE/ID
-  Try 'main vibrate --help' for help.
+  Usage: root vibrate [OPTIONS] NAME/SHARECODE/ID
+  Try 'root vibrate --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-i' / '--intensity': 101 is not in the range 0<=x<=100.   │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_shock_-1_2: |
-  Usage: main shock [OPTIONS] NAME/SHARECODE/ID
-  Try 'main shock --help' for help.
+  Usage: root shock [OPTIONS] NAME/SHARECODE/ID
+  Try 'root shock --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-d' / '--duration': -1.0 is not in the range x>=0.        │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_shock_a_2: |
-  Usage: main shock [OPTIONS] NAME/SHARECODE/ID
-  Try 'main shock --help' for help.
+  Usage: root shock [OPTIONS] NAME/SHARECODE/ID
+  Try 'root shock --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-d' / '--duration': 'a' is not a valid float range.       │
   ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -43,26 +43,26 @@ output_shock_16_2: |
 output_shock_0.05_2: |
   Error: float duration needs to be between 0.1 and 1.5, not 0.05 (ValueError)
 output_shock_1_-1: |
-  Usage: main shock [OPTIONS] NAME/SHARECODE/ID
-  Try 'main shock --help' for help.
+  Usage: root shock [OPTIONS] NAME/SHARECODE/ID
+  Try 'root shock --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-i' / '--intensity': -1 is not in the range 0<=x<=100.    │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_shock_1_101: |
-  Usage: main shock [OPTIONS] NAME/SHARECODE/ID
-  Try 'main shock --help' for help.
+  Usage: root shock [OPTIONS] NAME/SHARECODE/ID
+  Try 'root shock --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-i' / '--intensity': 101 is not in the range 0<=x<=100.   │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_beep_-1_None: |
-  Usage: main beep [OPTIONS] NAME/SHARECODE/ID
-  Try 'main beep --help' for help.
+  Usage: root beep [OPTIONS] NAME/SHARECODE/ID
+  Try 'root beep --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-d' / '--duration': -1.0 is not in the range x>=0.        │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_beep_a_None: |
-  Usage: main beep [OPTIONS] NAME/SHARECODE/ID
-  Try 'main beep --help' for help.
+  Usage: root beep [OPTIONS] NAME/SHARECODE/ID
+  Try 'root beep --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-d' / '--duration': 'a' is not a valid float range.       │
   ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -71,20 +71,20 @@ output_beep_16_None: |
 output_beep_0.05_None: |
   Error: float duration needs to be between 0.1 and 1.5, not 0.05 (ValueError)
 output_beep_1_2: |
-  Usage: main beep [OPTIONS] NAME/SHARECODE/ID
-  Try 'main beep --help' for help.
+  Usage: root beep [OPTIONS] NAME/SHARECODE/ID
+  Try 'root beep --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ No such option: -i                                                           │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_vibrate_1_10.5: |
-  Usage: main vibrate [OPTIONS] NAME/SHARECODE/ID
-  Try 'main vibrate --help' for help.
+  Usage: root vibrate [OPTIONS] NAME/SHARECODE/ID
+  Try 'root vibrate --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-i' / '--intensity': '10.5' is not a valid integer range. │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_shock_1_10.5: |
-  Usage: main shock [OPTIONS] NAME/SHARECODE/ID
-  Try 'main shock --help' for help.
+  Usage: root shock [OPTIONS] NAME/SHARECODE/ID
+  Try 'root shock --help' for help.
   ╭─ Error ──────────────────────────────────────────────────────────────────────╮
   │ Invalid value for '-i' / '--intensity': '10.5' is not a valid integer range. │
   ╰──────────────────────────────────────────────────────────────────────────────╯

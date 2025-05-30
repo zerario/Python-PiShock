@@ -57,12 +57,19 @@ SerialShockerArg: TypeAlias = Annotated[
 ]
 DurationOpt: TypeAlias = Annotated[
     float,
-    typer.Option("-d", "--duration", min=0, help="Duration in seconds."),
+    typer.Option(
+        "-d", "--duration", min=0, help="Duration in seconds.", show_envvar=False
+    ),
 ]
 IntensityOpt: TypeAlias = Annotated[
     int,
     typer.Option(
-        "-i", "--intensity", min=0, max=100, help="Intensity in percent (0-100)."
+        "-i",
+        "--intensity",
+        min=0,
+        max=100,
+        help="Intensity in percent (0-100).",
+        show_envvar=False,
     ),
 ]
 
