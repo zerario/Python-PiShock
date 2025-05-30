@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.0 (2025-05-30)
+
+- Declare support for Python 3.13 and 3.14 (no code changes required)
+
 ## v1.1.0 (2024-08-17)
 
 - New random mode features:
