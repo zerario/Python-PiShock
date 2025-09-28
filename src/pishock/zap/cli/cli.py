@@ -1,14 +1,15 @@
 import contextlib
 import difflib
+import functools
 import pathlib
 import random
 import sys
 import os
 from typing import Iterator, List, Optional, Type
 
+from click.core import Context as TyperContext
 import serial  # type: ignore[import-untyped]
 import rich
-import rich.progress
 import rich.prompt
 import rich.table
 import typer
@@ -19,7 +20,9 @@ from pishock.zap.cli import cli_random, cli_serial, cli_utils, cli_code
 
 """Command-line interface for PiShock."""
 
-app = typer.Typer()
+app = typer.Typer(
+    no_args_is_help=True
+)
 app.add_typer(cli_serial.app, name="serial", help="Serial interface commands")
 app.add_typer(cli_code.app, name="code", help="Manage share codes")
 
@@ -72,6 +75,59 @@ IntensityOpt: TypeAlias = Annotated[
         show_envvar=False,
     ),
 ]
+
+
+def require_args(*arg_names):
+    """Decorator to validate required arguments and show help if missing."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # Get the bound arguments
+            import inspect
+            sig = inspect.signature(func)
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+
+            # Check for None values in required args
+            missing = []
+            for arg_name in arg_names:
+                if bound.arguments.get(arg_name) is None:
+                    missing.append(arg_name)
+
+            def isContext(arg) -> bool:
+                # Weird types shenanigans...
+                if isinstance(arg, TyperContext):
+                    return True
+                if isinstance(arg, typer.Context):
+                    return True
+                return False
+
+            if missing:
+                # Get the current context to access the command
+                ctx = None
+                for arg in args:
+                    print(arg)
+                    if isContext(arg):
+                        ctx = arg
+                        break
+                if not ctx:
+                    for v in kwargs.values():
+                        if isContext(v):
+                            rich.print(v.get_help())
+
+                rich.print(
+                    "[red]Error:[/] Missing required argument(s): "
+                    f"{', '.join(missing)}"
+                )
+                if ctx:
+                    rich.print()
+                    rich.print(ctx.get_help())
+
+                raise typer.Exit(1)
+
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 @contextlib.contextmanager
@@ -145,6 +201,7 @@ def print_emoji(name: str, duration: float) -> None:
 
 
 @app.command(rich_help_panel="Actions")
+@require_args("shocker", "duration", "intensity")
 def shock(
     ctx: typer.Context,
     shocker: ShockerArg,
@@ -162,6 +219,7 @@ def shock(
 
 
 @app.command(rich_help_panel="Actions")
+@require_args("shocker", "duration", "intensity")
 def vibrate(
     ctx: typer.Context,
     shocker: ShockerArg,
@@ -176,6 +234,7 @@ def vibrate(
 
 
 @app.command(rich_help_panel="Actions")
+@require_args("shocker", "duration")
 def beep(ctx: typer.Context, shocker: ShockerArg, duration: DurationOpt) -> None:
     """Send a beep to the given share code."""
     shocker_obj = get_shocker(ctx.obj, shocker)
@@ -185,6 +244,7 @@ def beep(ctx: typer.Context, shocker: ShockerArg, duration: DurationOpt) -> None
 
 
 @app.command(rich_help_panel="Actions")
+@require_args("shocker")
 def end(ctx: typer.Context, shocker: SerialShockerArg) -> None:
     """End the currently running operation, if any."""
     ctx.obj.ensure_serial_api()
@@ -196,6 +256,7 @@ def end(ctx: typer.Context, shocker: SerialShockerArg) -> None:
 
 
 @app.command(rich_help_panel="Shockers")
+@require_args("shocker")
 def info(ctx: typer.Context, shocker: ShockerArg) -> None:
     """Get information about the given shocker."""
     shocker_obj = get_shocker(ctx.obj, shocker)
@@ -222,6 +283,7 @@ def info(ctx: typer.Context, shocker: ShockerArg) -> None:
 
 
 @app.command(rich_help_panel="Shockers")
+@require_args("shocker")
 def pause(ctx: typer.Context, shocker: HttpShockerArg) -> None:
     """Pause the given shocker."""
     ctx.obj.ensure_pishock_api()
@@ -232,6 +294,7 @@ def pause(ctx: typer.Context, shocker: HttpShockerArg) -> None:
 
 
 @app.command(rich_help_panel="Shockers")
+@require_args("shocker")
 def unpause(ctx: typer.Context, shocker: HttpShockerArg) -> None:
     """Unpause the given shocker."""
     ctx.obj.ensure_pishock_api()
@@ -242,6 +305,7 @@ def unpause(ctx: typer.Context, shocker: HttpShockerArg) -> None:
 
 
 @app.command(rich_help_panel="Shockers")
+@require_args("client_id")
 def shockers(
     ctx: typer.Context,
     client_id: Annotated[int, typer.Argument(help="PiShock client ID.")],
