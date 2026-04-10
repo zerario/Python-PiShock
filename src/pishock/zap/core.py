@@ -67,3 +67,58 @@ class BasicShockerInfo:
             shocker_id=data["id"],
             is_paused=data["paused"],
         )
+    
+@dataclasses.dataclass
+class ApiV3ShockerInfo(BasicShockerInfo):
+    """Basic information about a shocker.
+
+    Used by :meth:`PiShockAPI.get_shockers() <pishock.zap.httpapi.PiShockAPI.get_shockers()>` and
+    :meth:`SerialShocker.info() <pishock.zap.serialapi.SerialShocker.info()>`. Calling
+    :meth:`HTTPShocker.info() <pishock.zap.httpapi.HTTPShocker.info()>` returns a
+    :class:`httpapi.DetailedShockerInfo
+    <pishock.zap.httpapi.DetailedShockerInfo>` instance instead.
+
+    Attributes:
+        hub_id: The id of the PiShock hub this shocker is connected to
+        shocker_id: The id of this shocker
+        name: The name this shocker is identified by in the UI
+        isV3: Whether the device has been flashed to v3
+        can_beep: If the shocker supports beeps
+        can_vibrate: If the shocker supports vibrations
+        can_shock: If the shocker supports shocks
+        can_pause: If the shocker supports pausing
+        max_duration: The maximum duration supported by this shocker
+        max_intensity: The maximum intensity supported by this shocker
+    """
+
+    hub_id: int
+    shocker_id: int
+    name: str
+    isV3: bool
+    can_beep: bool
+    can_vibrate: bool
+    can_shock: bool
+    can_pause: bool
+    max_duration: int
+    max_intensity: int
+
+    @classmethod
+    def from_get_shockers_api_dict(
+        cls, data: dict[str, Any]
+    ) -> ApiV3ShockerInfo:
+        is_paused = data.get("IsPaused", False)
+
+        return cls(
+            client_id=data["HubId"],
+            is_paused=is_paused,
+            hub_id=data["HubId"],
+            shocker_id=data["ShockerId"],
+            name=data["Name"],
+            isV3=data["IsV3"],
+            can_beep=data["CanBeep"],
+            can_vibrate=data["CanVibrate"],
+            can_shock=data["CanShock"],
+            can_pause=data["CanPause"],
+            max_duration=data["MaxDuration"],
+            max_intensity=data["MaxIntensity"]
+        )

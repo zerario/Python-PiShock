@@ -44,8 +44,8 @@ ShockerArg: TypeAlias = Annotated[
 HttpShockerArg: TypeAlias = Annotated[
     str,
     typer.Argument(
-        help="Saved name or share code for the shocker (HTTP only).",
-        metavar="NAME/SHARECODE",
+        help="Saved name or shocker ID for the shocker (HTTP only).",
+        metavar="NAME/SHOCKER_ID",
     ),
 ]
 SerialShockerArg: TypeAlias = Annotated[
@@ -95,10 +95,6 @@ def get_shocker(app_ctx: cli_utils.AppContext, shocker: str) -> core.Shocker:
         shocker_id = info.shocker_id
         sharecode = info.sharecode
     elif cli_utils.SHOCKER_ID_REGEX.match(shocker):
-        if app_ctx.serial_api is None:
-            cli_utils.print_error("Shocker IDs are only valid with serial API.")
-            raise typer.Exit(1)
-
         shocker_id = int(shocker)
     elif cli_utils.SHARE_CODE_REGEX.match(shocker):
         sharecode = shocker
@@ -113,9 +109,8 @@ def get_shocker(app_ctx: cli_utils.AppContext, shocker: str) -> core.Shocker:
         raise typer.Exit(1)
 
     if app_ctx.pishock_api is not None:
-        assert sharecode is not None
         return app_ctx.pishock_api.shocker(
-            sharecode, name=name, log_name=f"{httpapi.NAME} CLI"
+            shocker_id, name=name, log_name=f"{httpapi.NAME} CLI"
         )
     else:
         assert app_ctx.serial_api is not None
@@ -211,7 +206,7 @@ def info(ctx: typer.Context, shocker: ShockerArg) -> None:
     table.add_row("Shocker ID", str(info.shocker_id))
 
     pause = cli_utils.paused_emoji(info.is_paused)
-    if isinstance(info, httpapi.DetailedShockerInfo):
+    if isinstance(info, core.ApiV3ShockerInfo):
         table.add_row("Paused", pause)
         table.add_row("Max intensity", f"{info.max_intensity}%")
         table.add_row("Max duration", f"{info.max_duration}s")
@@ -248,7 +243,11 @@ def shockers(
 ) -> None:
     """Get a list of all shockers for the given client (PiShock) ID."""
     with handle_errors():
-        shockers = ctx.obj.ensure_pishock_api().get_shockers(client_id)
+        api = ctx.obj.ensure_pishock_api()
+        if isinstance(api, httpapi.PiShockAPI):
+            shockers = api.get_shockers()
+        else:
+            shockers = api.get_shockers(client_id)
 
     for shocker in shockers:
         emoji = cli_utils.paused_emoji(shocker.is_paused)

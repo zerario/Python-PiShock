@@ -42,7 +42,7 @@ def list_sharecodes_info(app_ctx: cli_utils.AppContext) -> None:
         sorted(app_ctx.config.shockers.items()), description="Gathering info..."
     ):
         try:
-            api_info = pishock_api.shocker(info.sharecode).info()
+            api_info = pishock_api.shocker(info.shocker_id).info()
         except httpapi.APIError as e:
             table.add_row(name, info.sharecode, f"[red]{e}[/]")
             continue

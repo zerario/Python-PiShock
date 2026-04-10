@@ -1,7 +1,8 @@
 output_ok: |
   ✅ Credentials are valid.
 output_not_authorized: |
-  ❌ Credentials are invalid.
+  Error: 401 Client Error: Unauthorized for url: 
+  https://api.pishock.com/Account/621 (HTTPError)
 output_http_error: |
   Error: 500 Server Error: Internal Server Error for url: 
-  https://do.pishock.com/api/VerifyApiCredentials (HTTPError)
+  https://api.pishock.com/Account/621 (HTTPError)

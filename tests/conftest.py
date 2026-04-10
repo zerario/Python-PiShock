@@ -49,11 +49,15 @@ def config_data(credentials: FakeCredentials) -> ConfigDataType:
 
 
 @pytest.fixture
-def pishock_api(credentials: FakeCredentials) -> httpapi.PiShockAPI:
+def pishock_api(
+    credentials: FakeCredentials,
+    http_patcher: HTTPPatcher,
+) -> httpapi.PiShockAPI:
+    http_patcher.account()
     return httpapi.PiShockAPI(
-        username=credentials.USERNAME, api_key=credentials.API_KEY
+        username=credentials.USERNAME,
+        api_key=credentials.API_KEY,
     )
-
 
 @pytest.fixture
 def serial_api(
@@ -67,9 +71,9 @@ def serial_api(
 
 
 class Runner:
-    def __init__(self, sharecode: str) -> None:
+    def __init__(self, shocker_id: str) -> None:
         self._runner = typer.testing.CliRunner()
-        self.sharecode = sharecode  # for ease of access
+        self.shocker_id = str(shocker_id)  # for ease of access
 
     def run(self, *args: str) -> click.testing.Result:
         result = self._runner.invoke(cli.app, args, catch_exceptions=False)
@@ -85,7 +89,7 @@ def runner(monkeypatch: pytest.MonkeyPatch, credentials: FakeCredentials) -> Run
     monkeypatch.setenv("TERM", "dumb")
     monkeypatch.setenv(cli.API_USER_ENV_VAR, credentials.USERNAME)
     monkeypatch.setenv(cli.API_KEY_ENV_VAR, credentials.API_KEY)
-    return Runner(credentials.SHARECODE)
+    return Runner(credentials.SHOCKER_ID)
 
 
 class FakeCredentials:
@@ -98,7 +102,12 @@ class FakeCredentials:
 
 
 class APIURLs:
-    BASE = "https://do.pishock.com/api"
+    BASE = "https://api.pishock.com"
+    ## V3
+    ACCOUNT = f"{BASE}/Account"
+    SHOCKERS = f"{BASE}/Shockers"
+
+    ## Deprecated
     OPERATE = f"{BASE}/apioperate"
     PAUSE = f"{BASE}/PauseShocker"
     SHOCKER_INFO = f"{BASE}/GetShockerInfo"
@@ -113,6 +122,16 @@ def credentials() -> FakeCredentials:
 
 class PiShockPatcher:
     """Base class for HTTPPatcher and SerialPatcher."""
+
+    def account(
+            self,
+            *,
+            user_id: int = FakeCredentials.CLIENT_ID,
+            username: str = FakeCredentials.USERNAME,
+            email_addresses: list[dict[str, Any]] | None = None,
+            oauth_links: list[dict[str, Any]] | None = None,
+    ) -> None:
+        raise NotImplementedError
 
     def operate(
         self,
@@ -150,6 +169,8 @@ class HTTPPatcher(PiShockPatcher):
     HEADERS: dict[str, str | re.Pattern[str]] = {
         "User-Agent": f"{httpapi.NAME}/{pishock.__version__}",
         "Content-Type": "application/json",
+        "X-PiShock-Api-Key": FakeCredentials.API_KEY,
+        "X-PiShock-UserId": FakeCredentials.USERNAME,
     }
     NAME = httpapi.NAME
 
@@ -160,85 +181,251 @@ class HTTPPatcher(PiShockPatcher):
     ) -> None:
         self.responses = responses
 
-    # ApiOperate
+    # Account
+    def account_raw(self, **kwargs: Any) -> None:
+        self.responses.get(APIURLs.ACCOUNT, **kwargs)
 
-    def operate_matchers(self, **kwargs: Any) -> list[_MatcherType]:
+    def account(
+        self,
+        *,
+        user_id: int = FakeCredentials.CLIENT_ID,
+        username: str = FakeCredentials.USERNAME,
+        email_addresses: list[dict[str, Any]] | None = None,
+        oauth_links: list[dict[str, Any]] | None = None,
+    ) -> None:
+        if email_addresses is None:
+            email_addresses = [
+                {
+                    "EmailAddress": "noreply@pishock.com",
+                    "Confirmed": True,
+                }
+            ]
+        if oauth_links is None:
+            oauth_links = [
+                {
+                    "Type": "string",
+                    "Linked": True,
+                }
+            ]
+
+        self.account_raw(
+            json={
+                "UserId": user_id,
+                "Username": username,
+                "EmailAddresses": email_addresses,
+                "OAuthLinks": oauth_links,
+            },
+            match=[matchers.header_matcher(self.HEADERS)],
+        )
+
+    def account_id_matchers(self) -> list[_MatcherType]:
+        return [matchers.header_matcher(self.HEADERS)]
+
+    def account_id_raw(self, account_id: int, **kwargs: Any) -> None:
+        self.responses.get(f"{APIURLs.ACCOUNT}/{account_id}", **kwargs)
+
+    def account_id(
+        self,
+        account_id: int,
+        *,
+        user_id: int = FakeCredentials.CLIENT_ID,
+        username: str = FakeCredentials.USERNAME,
+    ) -> None:
+        self.account_id_raw(
+            account_id,
+            json={
+                "UserId": user_id,
+                "Username": username,
+            },
+            match=[matchers.header_matcher(self.HEADERS)],
+        )
+
+    # Shockers
+
+    def shockers_matchers(self) -> list[_MatcherType]:
+        return [matchers.header_matcher(self.HEADERS)]
+
+    def shockers_raw(self, **kwargs: Any) -> None:
+        self.responses.get(APIURLs.SHOCKERS, **kwargs)
+
+    def shockers(
+        self,
+        shockers: list[dict[str, Any]] | None = None,
+    ) -> None:
+        if shockers is None:
+            shockers = [
+                {
+                    "HubId": 1000,
+                    "ShockerId": FakeCredentials.SHOCKER_ID,
+                    "Name": "test shocker",
+                    "IsV3": True,
+                    "CanBeep": True,
+                    "CanVibrate": True,
+                    "CanShock": True,
+                    "CanPause": False,
+                    "MaxDuration": 15,
+                    "MaxIntensity": 100,
+                },
+                {
+                    "HubId": 1000,
+                    "ShockerId": 1002,
+                    "Name": "test shocker 2",
+                    "IsV3": True,
+                    "CanBeep": True,
+                    "CanVibrate": True,
+                    "CanShock": True,
+                    "CanPause": False,
+                    "MaxDuration": 15,
+                    "MaxIntensity": 100,
+                }
+            ]
+
+        self.shockers_raw(
+            json=shockers,
+            match=self.shockers_matchers(),
+        )
+
+    def shocker_matchers(self) -> list[_MatcherType]:
+        return [matchers.header_matcher(self.HEADERS)]
+
+    def shocker_raw(self, shocker_id: int, **kwargs: Any) -> None:
+        self.responses.get(f"{APIURLs.SHOCKERS}/{shocker_id}", **kwargs)
+
+    def shocker(
+        self,
+        shocker_id: int,
+        *,
+        shocker_data: dict[str, Any] | None = None,
+    ) -> None:
+        if shocker_data is None:
+            shocker_data = {
+                "HubId": 0,
+                "ShockerId": shocker_id,
+                "Name": "test shocker",
+                "IsV3": True,
+                "CanBeep": True,
+                "CanVibrate": True,
+                "CanShock": True,
+                "CanPause": False,
+                "MaxDuration": 15,
+                "MaxIntensity": 100,
+            }
+
+        self.shocker_raw(
+            shocker_id,
+            json=shocker_data,
+            match=self.shocker_matchers(),
+        )
+
+    def shocker_post_raw(self, shocker_id: int, **kwargs: Any) -> None:
+        self.responses.post(f"{APIURLs.SHOCKERS}/{shocker_id}", **kwargs)
+
+    def shocker_post(
+        self,
+        shocker_id: int,
+        *,
+        status: http.HTTPStatus = http.HTTPStatus.NO_CONTENT,
+    ) -> None:
+        self.shocker_post_raw(
+            shocker_id,
+            status=status,
+            match=self.shocker_matchers(),
+        )
+
+    def operate_matchers(
+            self,
+            *,
+            operation: httpapi.Operation,
+            duration: int | float,
+            intensity: int | None,
+            name: str | None = None,
+            **kwargs: Any,
+    ) -> list[_MatcherType]:
         data = {
-            "Username": FakeCredentials.USERNAME,
+            "AgentName": httpapi.NAME,
+            "Operation": operation.value,
+            "Duration": int(duration * 1000),
+            "Intensity": intensity,
+            "IntensityAsPercentage": False,
         }
+
         for k, v in kwargs.items():
-            k = k.capitalize()
             if v is not None:
                 data[k] = v
+
         return [
             matchers.json_params_matcher(data),
             matchers.header_matcher(self.HEADERS),
         ]
 
-    def operate_raw(self, **kwargs: Any) -> None:
-        self.responses.post(APIURLs.OPERATE, **kwargs)
-
-    def operate(
-        self,
-        *,
-        body: str = httpapi.HTTPShocker._SUCCESS_MESSAGES[0],
-        operation: httpapi.Operation = httpapi.Operation.VIBRATE,
-        duration: int | float = 1,
-        intensity: int | None = 2,
-        name: str | None = None,
-        apikey: str | None = None,
-        code: str | None = None,
-    ) -> None:
-        self.operate_raw(
-            body=body,
-            match=self.operate_matchers(
-                op=operation.value,
-                duration=duration,
-                intensity=intensity,
-                name=name or self.NAME,
-                apikey=apikey or FakeCredentials.API_KEY,
-                code=code or FakeCredentials.SHARECODE,
-            ),
+    def operate_raw(self, shocker_id: int = FakeCredentials.SHOCKER_ID, **kwargs: Any) -> None:
+        kwargs.pop("body", None)
+        self.responses.post(
+            f"{APIURLs.SHOCKERS}/{shocker_id}",
+            **kwargs,
         )
 
-    # GetShockerInfo
+    def operate(
+            self,
+            *,
+            body: str = httpapi.HTTPShocker._SUCCESS_MESSAGES[0],
+            operation: httpapi.Operation = httpapi.Operation.VIBRATE,
+            duration: int | float = 1,
+            intensity: int | None = 2,
+            name: str | None = None,
+            apikey: str | None = None,
+            code: int | None = None,
+    ) -> None:
+        expected_intensity = 0 if intensity is None else intensity
+        self.operate_raw(
+            body=body,
+            match=[
+                matchers.json_params_matcher({
+                    "AgentName": httpapi.NAME,
+                    "Operation": operation.value,
+                    "Duration": max(16, int(duration * 1000)),
+                    "Intensity": expected_intensity,
+                    "IntensityAsPercentage": False,
+                    "MinimumDuration": 0,
+                    "MinimumIntensity": 0,
+                }),
+                matchers.header_matcher(self.HEADERS),
+            ],
+            status=http.HTTPStatus.NO_CONTENT,
+        )
 
-    def info_matchers(
-        self, sharecode: str = FakeCredentials.SHARECODE
-    ) -> list[_MatcherType]:
+    def info_raw(self, shocker_id: int = FakeCredentials.SHOCKER_ID, **kwargs: Any) -> None:
+        self.responses.get(f"{APIURLs.SHOCKERS}/{shocker_id}", **kwargs)
+
+    def info_matchers(self, shocker_id: int = FakeCredentials.SHOCKER_ID) -> list[_MatcherType]:
         return [
-            matchers.json_params_matcher({
-                "Username": FakeCredentials.USERNAME,
-                "Apikey": FakeCredentials.API_KEY,
-                "Code": sharecode,
-            }),
             matchers.header_matcher(self.HEADERS),
         ]
-
-    def info_raw(self, **kwargs: Any) -> None:
-        self.responses.post(APIURLs.SHOCKER_INFO, **kwargs)
 
     def info(
         self,
         *,
-        sharecode: str = FakeCredentials.SHARECODE,
         paused: bool = False,
-        online: bool = True,
         shocker_id: int = FakeCredentials.SHOCKER_ID,
         client_id: int = 1000,  # FIXME use FakeCredentials.CLIENT_ID?
     ) -> None:
-        self.info_raw(
-            json={
-                "name": "test shocker",
-                "clientId": client_id,
-                "id": shocker_id,
-                "paused": paused,
-                "online": online,
-                "maxIntensity": 100,
-                "maxDuration": 15,
+        self.shocker(
+            shocker_id=shocker_id,
+            shocker_data={
+                "HubId": client_id,
+                "ShockerId": shocker_id,
+                "Name": "test shocker",
+                "IsPaused": paused,
+                "IsV3": True,
+                "CanBeep": True,
+                "CanVibrate": True,
+                "CanShock": True,
+                "CanPause": paused,
+                "MaxDuration": 15,
+                "MaxIntensity": 100,
             },
-            match=self.info_matchers(sharecode=sharecode),
         )
+
 
     # PauseShocker
 
@@ -294,36 +481,6 @@ class HTTPPatcher(PiShockPatcher):
                 },
             ],
             match=self.get_shockers_matchers(),
-        )
-
-    # VerifyApiCredentials
-
-    def verify_credentials_matchers(
-        self,
-        username: str = FakeCredentials.USERNAME,
-    ) -> list[_MatcherType]:
-        return [
-            matchers.json_params_matcher({
-                "Username": username,
-                "Apikey": FakeCredentials.API_KEY,
-            }),
-            matchers.header_matcher(self.HEADERS),
-        ]
-
-    def verify_credentials_raw(self, **kwargs: Any) -> None:
-        self.responses.post(
-            APIURLs.VERIFY_CREDENTIALS,
-            **kwargs,
-        )
-
-    def verify_credentials(
-        self,
-        valid: bool,
-        username: str = FakeCredentials.USERNAME,
-    ) -> None:
-        self.verify_credentials_raw(
-            status=http.HTTPStatus.OK if valid else http.HTTPStatus.FORBIDDEN,
-            match=self.verify_credentials_matchers(username=username),
         )
 
 
@@ -425,8 +582,9 @@ def fake_serial() -> FakeSerial:
 
 
 @pytest.fixture
-def http_patcher(responses: RequestsMock) -> HTTPPatcher:
-    return HTTPPatcher(responses=responses)
+def http_patcher() -> Iterator[HTTPPatcher]:
+    with RequestsMock(assert_all_requests_are_fired=False) as responses:
+        yield HTTPPatcher(responses=responses)
 
 
 @pytest.fixture
@@ -457,7 +615,7 @@ def serial_shocker(
 def api_shocker(
     pishock_api: httpapi.PiShockAPI, credentials: FakeCredentials
 ) -> httpapi.HTTPShocker:
-    return pishock_api.shocker(credentials.SHARECODE)
+    return pishock_api.shocker(shocker_id=str(credentials.SHOCKER_ID))
 
 
 @pytest.fixture

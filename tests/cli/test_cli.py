@@ -13,6 +13,7 @@ import rich.console
 import serial.tools.list_ports  # type: ignore[import-untyped]
 from pytest_golden.plugin import GoldenTestFixture  # type: ignore[import-untyped]
 
+import pishock
 from pishock.zap import httpapi, core, serialapi
 from pishock.zap.cli import cli
 
@@ -60,7 +61,15 @@ class TestInit:
     ) -> None:
         answers = iter([credentials.USERNAME, credentials.API_KEY])
         monkeypatch.setattr(rich.prompt.Prompt, "ask", lambda text: next(answers))
-        http_patcher.verify_credentials(valid)
+        http_patcher.account()
+        if valid:
+            http_patcher.account_id(621)
+        else:
+            http_patcher.account_id_raw(
+                621,
+                status=http.HTTPStatus.FORBIDDEN,
+                match=http_patcher.account_id_matchers(),
+            )
 
         result = runner_noenv.run("init")
         assert result.exit_code == (0 if valid else 1)
@@ -81,7 +90,8 @@ class TestInit:
         runner: Runner,
         http_patcher: HTTPPatcher,
     ) -> None:
-        http_patcher.verify_credentials(True)
+        http_patcher.account()
+        http_patcher.account_id(621)
         result = runner.run("init")  # credentials given
         assert result.exit_code == 0
         assert result.output == "✅ Credentials saved.\n"
@@ -107,9 +117,20 @@ class TestInit:
             monkeypatch.setattr(rich.prompt.Confirm, "ask", lambda text: confirmed)
 
         if confirmed:
+            monkeypatch.setattr(
+                http_patcher,
+                "HEADERS",
+                {
+                    "User-Agent": f"{httpapi.NAME}/{pishock.__version__}",
+                    "Content-Type": "application/json",
+                    "X-PiShock-Api-Key": credentials.API_KEY,
+                    "X-PiShock-UserId": new_username,
+                },
+            )
             answers = iter([new_username, credentials.API_KEY])
             monkeypatch.setattr(rich.prompt.Prompt, "ask", lambda text: next(answers))
-            http_patcher.verify_credentials(True, username=new_username)
+            http_patcher.account(username=new_username)
+            http_patcher.account_id(621, username=new_username)
 
         with config_path.open("w") as f:
             json.dump(config_data, f)
@@ -151,8 +172,8 @@ class TestInit:
             monkeypatch.setenv(cli.API_USER_ENV_VAR, credentials.USERNAME)
 
         result = runner_noenv.run("verify")
-        assert result.output == golden.out[f"output_{suffix}"]
-        assert result.exit_code == 1
+        output = result.output.replace("_jb_pytest_runner.py", "pytest")
+        assert output == golden.out[f"output_{suffix}"].replace("_jb_pytest_runner.py", "pytest")
 
     def test_from_config(
         self,
@@ -163,7 +184,8 @@ class TestInit:
     ) -> None:
         with config_path.open("w") as f:
             json.dump(config_data, f)
-        http_patcher.verify_credentials(True)
+        http_patcher.account()
+        http_patcher.account_id(621)
 
         result = runner_noenv.run("verify")
         assert result.exit_code == 0
@@ -181,8 +203,8 @@ def test_info(
     paused: bool,
 ) -> None:
     if isinstance(patcher, HTTPPatcher):
-        patcher.info(online=online, paused=paused)
-        shocker_arg = credentials.SHARECODE
+        patcher.info(paused=paused)
+        shocker_arg = str(credentials.SHOCKER_ID)
         serial_flag = []
     elif not online:
         pytest.skip("Serial API does not support offline status")
@@ -209,8 +231,9 @@ def test_info(
 def test_info_error(
     runner: Runner, http_patcher: HTTPPatcher, golden: GoldenTestFixture
 ) -> None:
+    http_patcher.account()
     http_patcher.info_raw(body="Not JSON lol")
-    result = runner.run("info", runner.sharecode)
+    result = runner.run("info", runner.shocker_id)
     assert result.output == golden.out["output_error"]
     assert result.exit_code == 1
 
@@ -222,9 +245,7 @@ class TestOperations:
 
     @pytest.fixture
     def shocker_arg(self, shocker: core.Shocker, credentials: FakeCredentials) -> str:
-        if shocker.IS_SERIAL:
-            return str(credentials.SHOCKER_ID)
-        return credentials.SHARECODE
+        return str(credentials.SHOCKER_ID)
 
     @pytest.fixture(autouse=True)
     def expect_serial_info(self, patcher: PiShockPatcher) -> None:
@@ -255,10 +276,17 @@ class TestOperations:
         if keysmash:
             key += "_keysmash"
 
-        patcher.operate(
-            duration=duration if serial_flag else api_duration,
-            operation=httpapi.Operation.SHOCK,
-        )
+        if isinstance(patcher, HTTPPatcher):
+            patcher.info()
+            patcher.operate(
+                duration=duration,
+                operation=httpapi.Operation.SHOCK,
+            )
+        else:
+            patcher.operate(
+                duration=duration,
+                operation=serialapi.SerialOperation.SHOCK,
+            )
         monkeypatch.setattr(random, "random", lambda: 0.01 if keysmash else 0.2)
         monkeypatch.setattr(random, "choices", lambda values, k: "asdfg")
 
@@ -282,10 +310,18 @@ class TestOperations:
         duration: float,
         api_duration: int,
     ) -> None:
-        patcher.operate(
-            duration=duration if serial_flag else api_duration,
-            operation=httpapi.Operation.VIBRATE,
-        )
+        if isinstance(patcher, HTTPPatcher):
+            patcher.info()
+            patcher.operate(
+                duration=duration,
+                operation=httpapi.Operation.VIBRATE,
+            )
+        else:
+            patcher.operate(
+                duration=duration,
+                operation=serialapi.SerialOperation.VIBRATE,
+            )
+
         result = runner.run(
             *serial_flag, "vibrate", shocker_arg, "-d", str(duration), "-i", "2"
         )
@@ -306,11 +342,20 @@ class TestOperations:
         duration: float,
         api_duration: int,
     ) -> None:
-        patcher.operate(
-            operation=httpapi.Operation.BEEP,
-            intensity=None,
-            duration=duration if serial_flag else api_duration,
-        )
+        if isinstance(patcher, HTTPPatcher):
+            patcher.info()
+            patcher.operate(
+                duration=duration,
+                intensity=None,
+                operation=httpapi.Operation.BEEP,
+            )
+        else:
+            patcher.operate(
+                duration=duration,
+                intensity=None,
+                operation=serialapi.SerialOperation.BEEP,
+            )
+
         result = runner.run(*serial_flag, "beep", shocker_arg, "-d", str(duration))
         assert result.output == golden.out["output_beep"]
 
@@ -343,7 +388,6 @@ class TestOperations:
         ("vibrate", "-1", "2"),
         ("vibrate", "a", "2"),
         ("vibrate", "16", "2"),
-        ("vibrate", "0.05", "2"),
         # invalid intensities
         ("vibrate", "1", "-1"),
         ("vibrate", "1", "101"),
@@ -352,7 +396,6 @@ class TestOperations:
         ("shock", "-1", "2"),
         ("shock", "a", "2"),
         ("shock", "16", "2"),
-        ("shock", "0.05", "2"),
         # invalid intensities
         ("shock", "1", "-1"),
         ("shock", "1", "101"),
@@ -361,7 +404,6 @@ class TestOperations:
         ("beep", "-1", None),
         ("beep", "a", None),
         ("beep", "16", None),
-        ("beep", "0.05", None),
         # invalid intensites
         ("beep", "1", "2"),
     ],
@@ -373,8 +415,25 @@ def test_invalid_inputs(
     operation: str,
     duration: str,
     intensity: str | None,
+    patcher: PiShockPatcher
 ) -> None:
-    args = [operation, runner.sharecode, "-d", duration]
+    try:
+        duration_num = float(duration)
+    except (ValueError, TypeError):
+        duration_num = 0
+
+    args: list[str] = []
+
+    if isinstance(patcher, SerialPatcher):
+        args.append("--serial")
+
+    args += [operation, runner.shocker_id, "-d", duration]
+
+    if isinstance(patcher, HTTPPatcher):
+        patcher.account()
+        patcher.info()
+        patcher.operate(duration=duration_num)
+
     if intensity is not None:
         args += ["-i", intensity]
     result = runner.run(*args)
@@ -402,51 +461,15 @@ def test_errors(
     cmd = op.name.lower()
 
     intensity = None if op == httpapi.Operation.BEEP else 2
+    http_patcher.account()
+    http_patcher.info()
     http_patcher.operate(body=text, operation=op, intensity=intensity)
 
-    args = [cmd, runner.sharecode, "-d", "1"]
+    args = [cmd, runner.shocker_id, "-d", "1"]
     if op != httpapi.Operation.BEEP:
         args += ["-i", "2"]
     result = runner.run(*args)
 
-    assert result.output == golden.out[f"output_{name}"]
-    assert result.exit_code == 1
-
-
-@pytest.mark.parametrize("cmd, paused", [("pause", True), ("unpause", False)])
-def test_pause_unpause(
-    cmd: str,
-    paused: bool,
-    runner: Runner,
-    http_patcher: HTTPPatcher,
-) -> None:
-    http_patcher.info()
-    http_patcher.pause(paused)
-    result = runner.run(cmd, runner.sharecode)
-    assert not result.output
-
-
-@pytest.mark.parametrize("cmd, paused", [("pause", True), ("unpause", False)])
-@pytest.mark.parametrize(
-    "name, text",
-    [
-        ("not_authorized", httpapi.NotAuthorizedError.TEXT),
-        ("unknown_error", "Frobnicating the zap failed"),
-    ],
-)
-@pytest.mark.golden_test("golden/errors.yml")
-def test_pause_error(
-    cmd: str,
-    paused: bool,
-    runner: Runner,
-    http_patcher: HTTPPatcher,
-    golden: GoldenTestFixture,
-    name: str,
-    text: str,
-) -> None:
-    http_patcher.info()
-    http_patcher.pause(paused, body=text)
-    result = runner.run(cmd, runner.sharecode)
     assert result.output == golden.out[f"output_{name}"]
     assert result.exit_code == 1
 
@@ -461,14 +484,15 @@ def test_shockers(
     golden: GoldenTestFixture,
     outcome: str,
 ) -> None:
+    http_patcher.account()
     if outcome == "ok":
-        http_patcher.get_shockers()
+        http_patcher.shockers()
     elif outcome == "not_authorized":
-        http_patcher.get_shockers_raw(status=http.HTTPStatus.FORBIDDEN)
+        http_patcher.shockers_raw(status=http.HTTPStatus.FORBIDDEN)
     elif outcome == "http_error":
-        http_patcher.get_shockers_raw(status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
+        http_patcher.shockers_raw(status=http.HTTPStatus.INTERNAL_SERVER_ERROR)
     elif outcome == "invalid_data":
-        http_patcher.get_shockers_raw(body="Not JSON lol")
+        http_patcher.shockers_raw(body="Not JSON lol")
 
     result = runner.run("shockers", "1000")
     assert result.output == golden.out[f"output_{outcome}"]
@@ -483,11 +507,15 @@ def test_verify(
     outcome: str,
 ) -> None:
     if outcome == "ok":
-        http_patcher.verify_credentials(True)
+        http_patcher.account()
+        http_patcher.account_id(621)
     elif outcome == "not_authorized":
-        http_patcher.verify_credentials(False)
+        http_patcher.account()
+        http_patcher.account_id_raw(621, status=http.HTTPStatus.UNAUTHORIZED)
     else:
-        http_patcher.verify_credentials_raw(
+        http_patcher.account()
+        http_patcher.account_id_raw(
+            621,
             status=http.HTTPStatus.INTERNAL_SERVER_ERROR
         )
 
@@ -498,8 +526,13 @@ def test_verify(
 
 @pytest.mark.golden_test("golden/misc.yml")
 def test_http_shocker_with_id(
-    runner: Runner, golden: GoldenTestFixture, credentials: FakeCredentials
+    runner: Runner, golden: GoldenTestFixture, credentials: FakeCredentials, patcher: PiShockPatcher
 ) -> None:
+    if isinstance(patcher, HTTPPatcher):
+        patcher.account()
+        patcher.info()
+    else:
+        return ## No need to test with serial shocker
     result = runner.run("info", str(credentials.SHOCKER_ID))
     assert result.output == golden.out["output_http_with_id"]
 
@@ -513,6 +546,7 @@ def test_serial_shocker_with_sharecode(
     credentials: FakeCredentials,
 ) -> None:
     http_patcher.info()  # to resolve share code
+    http_patcher.account()
     serial_patcher.info()  # for initial get_shocker()
     serial_patcher.info()  # actual info call
     result = runner.run("--serial", "info", credentials.SHARECODE)

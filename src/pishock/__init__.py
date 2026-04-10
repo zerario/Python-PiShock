@@ -9,8 +9,6 @@ from pishock.zap.httpapi import (
     PiShockAPI as PiShockAPI,
     HTTPShocker as HTTPShocker,
     APIError as APIError,
-    ShareCodeAlreadyUsedError as ShareCodeAlreadyUsedError,
-    ShareCodeNotFoundError as ShareCodeNotFoundError,
     NotAuthorizedError as NotAuthorizedError,
     ShockerPausedError as ShockerPausedError,
     DeviceNotConnectedError as DeviceNotConnectedError,

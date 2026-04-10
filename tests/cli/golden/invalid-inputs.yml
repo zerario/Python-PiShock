@@ -11,9 +11,7 @@ output_vibrate_a_2: |
   │ Invalid value for '-d' / '--duration': 'a' is not a valid float range.       │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_vibrate_16_2: |
-  Error: duration needs to be between 0 and 15, not 16.0 (ValueError)
-output_vibrate_0.05_2: |
-  Error: float duration needs to be between 0.1 and 1.5, not 0.05 (ValueError)
+  Error: duration cannot exceed 15 (ValueError)
 output_vibrate_1_-1: |
   Usage: root vibrate [OPTIONS] NAME/SHARECODE/ID
   Try 'root vibrate --help' for help.
@@ -39,9 +37,7 @@ output_shock_a_2: |
   │ Invalid value for '-d' / '--duration': 'a' is not a valid float range.       │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_shock_16_2: |
-  Error: duration needs to be between 0 and 15, not 16.0 (ValueError)
-output_shock_0.05_2: |
-  Error: float duration needs to be between 0.1 and 1.5, not 0.05 (ValueError)
+  Error: duration cannot exceed 15 (ValueError)
 output_shock_1_-1: |
   Usage: root shock [OPTIONS] NAME/SHARECODE/ID
   Try 'root shock --help' for help.
@@ -67,9 +63,7 @@ output_beep_a_None: |
   │ Invalid value for '-d' / '--duration': 'a' is not a valid float range.       │
   ╰──────────────────────────────────────────────────────────────────────────────╯
 output_beep_16_None: |
-  Error: duration needs to be between 0 and 15, not 16.0 (ValueError)
-output_beep_0.05_None: |
-  Error: float duration needs to be between 0.1 and 1.5, not 0.05 (ValueError)
+  Error: duration cannot exceed 15 (ValueError)
 output_beep_1_2: |
   Usage: root beep [OPTIONS] NAME/SHARECODE/ID
   Try 'root beep --help' for help.
